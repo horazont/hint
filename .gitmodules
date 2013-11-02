@@ -1,0 +1,3 @@
+[submodule "display/microbuilder-codebase"]
+	path = display/microbuilder-codebase
+	url = https://github.com/microbuilder/LPC1114CodeBase
