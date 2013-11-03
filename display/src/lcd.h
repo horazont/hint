@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 
+typedef uint16_t colour_t;
+
 #define LCD_WIDTH (320)
 #define LCD_HEIGHT (240)
 
@@ -57,7 +59,7 @@ enum lcd_command_t {
 };
 
 void lcd_disable();
-void lcd_draw(uint16_t colour);
+void lcd_draw(const colour_t colour);
 void lcd_drawstart();
 void lcd_drawstop();
 void lcd_enable();

@@ -10,7 +10,7 @@ CODEBASEDIR = ./microbuilder-codebase
 BIN = ./bin
 
 VPATH = . $(CODEBASEDIR)
-OBJS = src/main src/lcd src/utils src/font
+OBJS = src/main src/lcd src/utils src/font src/draw
 OBJS += lpc1xxx/LPC11xx_handlers lpc1xxx/LPC1xxx_startup
 OBJS += core/uart/uart core/uart/uart_buf \
 		core/cpu/cpu \

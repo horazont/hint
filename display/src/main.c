@@ -6,6 +6,8 @@
 
 #include "lcd.h"
 #include "utils.h"
+// #include "font.h"
+#include "draw.h"
 
 #include "lpc111x.h"
 
@@ -51,6 +53,18 @@ int main(void)
 
     ENABLE_IRQ();
 
+    lcd_init();
+    lcd_enable();
+
+    fill_rectangle(10, 10, 20, 30, 0x3333);
+
+    draw_line(0, 0, LCD_WIDTH-1, LCD_HEIGHT-1, 0x3333);
+    draw_line(LCD_WIDTH-1, 0, 0, LCD_HEIGHT-1, 0x3333);
+
+    draw_rectangle(15, 15, 80, 80, 0xffff);
+
+
+    lcd_disable();
 
     return 0;
 }
