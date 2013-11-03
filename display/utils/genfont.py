@@ -333,15 +333,11 @@ if __name__ == "__main__":
 
     codepoints = set()
     for start, end in args.cp_ranges:
-        codepoints.update(frozenset(range(start, end+1)))
+        codepoints |= frozenset(range(start, end+1))
     for sequence in args.cp_sequences:
-        codepoints.update(frozenset(sequence))
+        codepoints |= frozenset(sequence)
     for sequence in args.cp_exclude_sequences:
-        for item in sequence:
-            try:
-                codepoints.remove(item)
-            except KeyError:
-                pass
+        codepoints -= frozenset(sequence)
 
     renderer = Renderer(args.font, args.size)
     font = renderer.struct_font(codepoints)
