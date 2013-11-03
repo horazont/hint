@@ -6,7 +6,8 @@
 
 #include "lcd.h"
 #include "utils.h"
-// #include "font.h"
+#include "font.h"
+#include "font_data.h"
 #include "draw.h"
 
 #include "lpc111x.h"
@@ -20,6 +21,9 @@ uint8_t uartRecvByte()
     }
     return uartRxBufferRead();
 }
+
+//static uint8_t data[] = {'\x3c', '\x46', '\x02', '\x3e', '\x42', '\x46', '\x3a'};
+static codepoint_t text[] = {0x0048, 0x0065, 0x006c, 0x006c, 0x006f, 0x0020, 0x0057, 0x006f, 0x0072, 0x006c, 0x0064, 0x0021, 0x0020, 0x2714, 0x0020, 0x03b1, 0x03b2, 0x03b3};
 
 int main(void)
 {
@@ -45,7 +49,7 @@ int main(void)
     TMR_TMR16B1PR   = 0; //no prescale
     TMR_TMR16B1PC   = 0;
     TMR_TMR16B1CTCR = 0;
-    TMR_TMR16B1MR0  = 0xD0;
+    TMR_TMR16B1MR0  = 0x00;
     TMR_TMR16B1MR3  = 0xFF;
     TMR_TMR16B1MCR  = TMR_TMR16B1MCR_MR3_RESET_ENABLED;
     TMR_TMR16B1PWMC = TMR_TMR16B1PWMC_PWM0_ENABLED | TMR_TMR16B1PWMC_PWM3_ENABLED; //PWM chn 0 on
@@ -56,13 +60,12 @@ int main(void)
     lcd_init();
     lcd_enable();
 
-    fill_rectangle(10, 10, 20, 30, 0x3333);
+    fill_rectangle(0, 0, LCD_WIDTH-1, LCD_HEIGHT-1, 0x1111);
 
     draw_line(0, 0, LCD_WIDTH-1, LCD_HEIGHT-1, 0x3333);
     draw_line(LCD_WIDTH-1, 0, 0, LCD_HEIGHT-1, 0x3333);
 
-    draw_rectangle(15, 15, 80, 80, 0xffff);
-
+    font_draw_text(&cantarell, 100, 40, 0xffff, text, 18);
 
     lcd_disable();
 

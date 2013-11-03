@@ -118,7 +118,7 @@ uint8_t {name}_data[] = {{
 struct font_t {name} = {{
     .glyph_count = {glyph_count},
     .space_width = {space_width},
-    .data = &{name}_data,
+    .data = {name}_data,
     .glyphs = {{
 {glyphs}
     }}

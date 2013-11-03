@@ -10,7 +10,7 @@ CODEBASEDIR = ./microbuilder-codebase
 BIN = ./bin
 
 VPATH = . $(CODEBASEDIR)
-OBJS = src/main src/lcd src/utils src/font src/draw
+OBJS = src/main src/lcd src/utils src/font src/font_data src/draw
 OBJS += lpc1xxx/LPC11xx_handlers lpc1xxx/LPC1xxx_startup
 OBJS += core/uart/uart core/uart/uart_buf \
 		core/cpu/cpu \
@@ -25,6 +25,7 @@ LD = $(TARGET_TOOLCHAIN)gcc
 SIZE = $(TARGET_TOOLCHAIN)size
 OBJCOPY = $(TARGET_TOOLCHAIN)objcopy
 OBJDUMP = $(TARGET_TOOLCHAIN)objdump
+GENFONT = utils/genfont.py
 
 # flags
 INCLUDE_PATHS = -I$(ROOT) -I$(CODEBASEDIR)/core -I$(CODEBASEDIR) -I$(ROOT)/inc
@@ -74,6 +75,14 @@ inc/sysdefs.h:
 inc/projectconfig.h:
 	ln -s ../src/config.h $@
 
+src/cantarell.inc: $(GENFONT)
+	$(GENFONT) \
+		-r 0x20 0x7e \
+		-r 0xa1 0xff \
+		-x 0xad \
+		-- \
+		Cantarell 0.9 cantarell > $@
+
 $(FIRMWAREBASE).elf: $(OBJ_FILES) $(FAKEDEPS) $(COMMONDEPS)
 	-@echo "MEMORY" > $(LD_TEMP)
 	-@echo "{" >> $(LD_TEMP)
@@ -86,6 +95,10 @@ $(FIRMWAREBASE).elf: $(OBJ_FILES) $(FAKEDEPS) $(COMMONDEPS)
 
 $(FIRMWAREBASE).hex: $(FIRMWAREBASE).elf
 	$(OBJCOPY) $(OCFLAGS) -O ihex $< $@
+
+bin/src/font_data.o: src/font_data.c src/font.h src/font_data.h src/cantarell.inc
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -o $@ $<
 
 bin/%.o: %.c %.h $(FAKEDEPS) $(COMMONDEPS)
 	@mkdir -p $(dir $@)
@@ -100,7 +113,7 @@ bin/%.o: %.s $(FAKEDEPS) $(COMMONDEPS)
 	$(AS) $(ASFLAGS) -o $@ $<
 
 clean:
-	rm -f $(FAKEDEPS)
+	rm -f $(FAKEDEPS) src/cantarell.inc
 	rm -rf bin
 	mkdir bin
 
