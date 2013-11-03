@@ -19,12 +19,6 @@ uint8_t uartRecvByte()
     return uartRxBufferRead();
 }
 
-/**************************************************************************/
-/*!
-    Main program entry point.  After reset, normal code execution will
-    begin here.
-*/
-/**************************************************************************/
 int main(void)
 {
     // Configure cpu and mandatory peripherals
@@ -40,8 +34,6 @@ int main(void)
                       |  SCB_SYSAHBCLKCTRL_SYS
                       |  SCB_SYSAHBCLKCTRL_CT16B1;
 
-    //~ IOCON_PIO1_9 &= ~IOCON_PIO1_9_FUNC_MASK;
-//~
     GPIO_GPIO1DIR |= (1<<9);
     GPIO_GPIO1DATA &= ~(1<<9);
 
@@ -59,72 +51,6 @@ int main(void)
 
     ENABLE_IRQ();
 
-    uartInit(115200);
-    uartRxBufferInit();
-
-    delay_ms(100);
-
-    lcd_init();
-
-    lcd_enable();
-    while (1)
-    {
-        uint8_t cmd = uartRecvByte();
-        switch (cmd) {
-        case 0x00:
-        {
-            uartSendByte(0x00);
-            break;
-        }
-        case 0x01:
-        {
-            cmd = uartRecvByte();
-            lcd_wrcmd8(cmd);
-            uartSendByte(0x00);
-            break;
-        }
-        case 0x02:
-        {
-            cmd = uartRecvByte();
-            lcd_wrdata8(cmd);
-            uartSendByte(0x00);
-            break;
-        }
-        case 0x03:
-        {
-            uint16_t data = 0x00;
-            cmd = uartRecvByte();
-            data |= (cmd << 8);
-            cmd = uartRecvByte();
-            data |= cmd;
-            lcd_wrdata16(data);
-            uartSendByte(0x00);
-            break;
-        }
-        case 0x04:
-        {
-            cmd = uartRecvByte();
-            uartSendByte(cmd);
-            break;
-        }
-        case 0x05:
-        {
-            for (int i = 0; i < 128; i++) {
-                uint16_t data = 0x00;
-                cmd = uartRecvByte();
-                data |= (cmd << 8);
-                cmd = uartRecvByte();
-                data |= cmd;
-                lcd_wrdata16(data);
-            }
-            uartSendByte(0x00);
-            break;
-        }
-        default:
-            uartSendByte(0xff);
-        }
-    }
-    lcd_disable();
 
     return 0;
 }

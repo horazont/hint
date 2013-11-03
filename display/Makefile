@@ -6,11 +6,12 @@ DEBUG = FALSE
 
 # paths and sources
 ROOT = $(abspath .)
-CODEBASEDIR = $(ROOT)/microbuilder-codebase
-BIN = $(ROOT)/bin
+CODEBASEDIR = ./microbuilder-codebase
+BIN = ./bin
 
 VPATH = . $(CODEBASEDIR)
-OBJS = src/main src/lcd src/utils lpc1xxx/LPC11xx_handlers lpc1xxx/LPC1xxx_startup
+OBJS = src/main src/lcd src/utils src/font
+OBJS += lpc1xxx/LPC11xx_handlers lpc1xxx/LPC1xxx_startup
 OBJS += core/uart/uart core/uart/uart_buf \
 		core/cpu/cpu \
 		core/systick/systick \
@@ -85,6 +86,10 @@ $(FIRMWAREBASE).elf: $(OBJ_FILES) $(FAKEDEPS) $(COMMONDEPS)
 
 $(FIRMWAREBASE).hex: $(FIRMWAREBASE).elf
 	$(OBJCOPY) $(OCFLAGS) -O ihex $< $@
+
+bin/%.o: %.c %.h $(FAKEDEPS) $(COMMONDEPS)
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -o $@ $<
 
 bin/%.o: %.c $(FAKEDEPS) $(COMMONDEPS)
 	@mkdir -p $(dir $@)
