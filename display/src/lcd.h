@@ -66,6 +66,7 @@ void lcd_enable();
 void lcd_init();
 void lcd_reset();
 void lcd_setarea(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1);
+void lcd_setpixel(const uint16_t x0, const uint16_t y0, const colour_t colour);
 void lcd_wrcmd8(uint8_t cmd);
 void lcd_wrdata8(uint8_t data);
 void lcd_wrdata16(uint16_t data);

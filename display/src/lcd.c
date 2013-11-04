@@ -36,17 +36,17 @@ void lcd_enable()
     LCD_MASKED_GPIO(LCD_CS_MASK, 0);
 }
 
-void lcd_drawstart()
+inline void lcd_drawstart()
 {
     lcd_wrcmd8(LCD_CMD_WRITE);
 }
 
-void lcd_drawstop()
+inline void lcd_drawstop()
 {
 
 }
 
-void lcd_draw(uint16_t colour)
+inline void lcd_draw(uint16_t colour)
 {
     lcd_wrdata16(colour);
 }
@@ -213,6 +213,15 @@ void lcd_setarea(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1)
   lcd_wrcmd8(LCD_CMD_PAGE);
   lcd_wrdata16(x0);
   lcd_wrdata16(x1);
+}
+
+inline void lcd_setpixel(const uint16_t x0, const uint16_t y0,
+                         const colour_t colour)
+{
+    lcd_setarea(x0, y0, x0, y0);
+    lcd_drawstart();
+    lcd_draw(colour);
+    lcd_drawstop();
 }
 
 inline void lcd_wrcmd8(uint8_t cmd)
