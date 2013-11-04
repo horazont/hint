@@ -36,6 +36,7 @@ LD_TEMP = $(BIN)/memory.ld
 CPU_TYPE = cortex-m0
 
 BASEFLAGS = -Wall -Wextra -Werror
+OPTFLAGS = -Os
 
 ifeq (TRUE,$(DEBUG))
     COMMONFLAGS = -c -g -O0 $(INCLUDE_PATHS) $(BASEFLAGS) -mthumb \
@@ -44,8 +45,8 @@ ifeq (TRUE,$(DEBUG))
     CFLAGS = $(COMMONFLAGS) -DTARGET=$(TARGET) -fno-builtin
     ASFLAGS = $(COMMONFLAGS) -D__ASSEMBLY__ -x assembler-with-cpp
 else
-    COMMONFLAGS = -c -g -Os $(INCLUDE_PATHS) $(BASEFLAGS) -mthumb \
-        -ffunction-sections -fdata-sections -fmessage-length=0 \
+    COMMONFLAGS = -c -g $(OPTFLAGS) $(INCLUDE_PATHS) $(BASEFLAGS) \
+        -mthumb -ffunction-sections -fdata-sections -fmessage-length=0 \
         -mcpu=$(CPU_TYPE)
     CFLAGS = $(COMMONFLAGS) -DTARGET=$(TARGET) -fno-builtin
     ASFLAGS = $(COMMONFLAGS) -D__ASSEMBLY__ -x assembler-with-cpp
