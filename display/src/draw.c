@@ -91,10 +91,7 @@ void draw_bitmap_transparent(
     for (int16_t y = 0; y < height; y++) {
         for (int16_t x = 0; x < width; x++) {
             if (curr_byte & curr_mask) {
-                lcd_setarea(x0+x, y0+y, x0+x, y0+y);
-                lcd_drawstart();
-                lcd_draw(colour);
-                lcd_drawstop();
+                lcd_setpixel(x0+x, y0+y, colour);
             }
 
             curr_mask >>= 1;
@@ -144,10 +141,7 @@ void draw_line(
         dx2 = dx*2;
         dy2 = dy*2;
         //draw line
-        lcd_setarea(x0, y0, x0, y0);
-        lcd_drawstart();
-        lcd_draw(colour);
-        lcd_drawstop();
+        lcd_setpixel(x0, y0, colour);
         if(dx > dy)
         {
             err = dy2 - dx;
@@ -160,10 +154,7 @@ void draw_line(
                 }
                 x0  += stepx;
                 err += dy2;
-                lcd_setarea(x0, y0, x0, y0);
-                lcd_drawstart();
-                lcd_draw(colour);
-                lcd_drawstop();
+                lcd_setpixel(x0, y0, colour);
             }
         }
         else
@@ -178,10 +169,7 @@ void draw_line(
                 }
                 y0  += stepy;
                 err += dx2;
-                lcd_setarea(x0, y0, x0, y0);
-                lcd_drawstart();
-                lcd_draw(colour);
-                lcd_drawstop();
+                lcd_setpixel(x0, y0, colour);
             }
         }
     }
