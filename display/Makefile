@@ -84,7 +84,7 @@ src/cantarell.inc: $(GENFONT)
 		-x 0xad \
 		-c 0xfffd \
 		-- \
-		Cantarell 0.9 cantarell > $@
+		Cantarell 9.5 cantarell > $@
 
 $(FIRMWAREBASE).elf: $(OBJ_FILES) $(FAKEDEPS) $(COMMONDEPS)
 	-@echo "MEMORY" > $(LD_TEMP)
