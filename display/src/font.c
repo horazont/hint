@@ -20,21 +20,23 @@ void font_draw_text(
     const coord_int_t x0,
     const coord_int_t y0,
     const colour_t colour,
-    const codepoint_t *text,
-    const int textlen)
+    const utf8_str_t text)
 {
     coord_int_t x = x0, y = y0;
-    const codepoint_t *ch = text;
-    for (int i = 0; i < textlen; i++) {
-        if (*ch == 0x20) {
+    utf8_ctx_t ctx;
+    utf8_init(&ctx, text);
+
+    for (codepoint_t ch = utf8_next(&ctx);
+         ch != 0;
+         ch = utf8_next(&ctx))
+    {
+        if (ch == 0x20) {
             x += font->space_width;
-            ch++;
             continue;
         }
 
-        const struct glyph_t *glyph = font_find_glyph(font, *ch);
+        const struct glyph_t *glyph = font_find_glyph(font, ch);
         if (glyph == NULL) {
-            ch++;
             continue;
         }
 
@@ -45,6 +47,48 @@ void font_draw_text(
             colour,
             bitmap);
         x += glyph->w;
-        ch++;
     }
+}
+
+inline coord_int_t max(const coord_int_t a, const coord_int_t b)
+{
+    return (a > b ? a : b);
+}
+
+inline coord_int_t min(const coord_int_t a, const coord_int_t b)
+{
+    return (a < b ? a : b);
+}
+
+void font_text_metrics(
+    const struct font_t *font,
+    const utf8_str_t text,
+    coord_int_t *width,
+    coord_int_t *height,
+    coord_int_t *depth)
+{
+    coord_int_t w = 0, h = 0, d = 0;
+    utf8_ctx_t ctx;
+    utf8_init(&ctx, text);
+
+    for (codepoint_t ch = utf8_next(&ctx);
+         ch != 0;
+         ch = utf8_next(&ctx))
+    {
+        if (ch == 0x20) {
+            w += font->space_width;
+            continue;
+        }
+
+        const struct glyph_t *glyph = font_find_glyph(font, ch);
+        if (glyph == NULL) {
+            continue;
+        }
+        h = max(h, glyph->y0);
+        d = max(d, max(0, glyph->h - glyph->y0));
+    }
+
+    *width = w;
+    *height = h;
+    *depth = d;
 }

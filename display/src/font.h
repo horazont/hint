@@ -4,8 +4,7 @@
 #include <stdint.h>
 
 #include "draw.h"
-
-typedef uint16_t codepoint_t;
+#include "unicode.h"
 
 struct glyph_t {
     codepoint_t codepoint;
@@ -28,7 +27,13 @@ void font_draw_text(
     const coord_int_t x0,
     const coord_int_t y0,
     const colour_t colour,
-    const codepoint_t *text,
-    const int textlen);
+    const utf8_str_t text);
+
+void font_text_metrics(
+    const struct font_t *font,
+    const utf8_str_t text,
+    coord_int_t *width,
+    coord_int_t *height,
+    coord_int_t *depth);
 
 #endif
