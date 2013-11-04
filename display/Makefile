@@ -82,6 +82,7 @@ src/cantarell.inc: $(GENFONT)
 		-r 0x20 0x7e \
 		-r 0xa1 0xff \
 		-x 0xad \
+		-c 0xfffd \
 		-- \
 		Cantarell 0.9 cantarell > $@
 
