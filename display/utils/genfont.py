@@ -124,7 +124,7 @@ class FontStruct(object):
                 ),
                 indent)
 
-    def _c_ranges(self, indent="        "):
+    def _c_ranges(self, indent="    "):
         return ",\n".join(
             self._add_indent(range.to_c_source(), indent)
             for range in self.ranges)
