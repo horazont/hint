@@ -20,7 +20,7 @@ void font_draw_text(
     const coord_int_t x0,
     const coord_int_t y0,
     const colour_t colour,
-    const utf8_str_t text)
+    utf8_cstr_t text)
 {
     coord_int_t x = x0, y = y0;
     utf8_ctx_t ctx;
@@ -62,7 +62,7 @@ inline coord_int_t min(const coord_int_t a, const coord_int_t b)
 
 void font_text_metrics(
     const struct font_t *font,
-    const utf8_str_t text,
+    utf8_cstr_t text,
     coord_int_t *width,
     coord_int_t *height,
     coord_int_t *depth)

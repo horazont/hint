@@ -23,7 +23,7 @@ uint8_t uartRecvByte()
 }
 
 //static uint8_t data[] = {'\x3c', '\x46', '\x02', '\x3e', '\x42', '\x46', '\x3a'};
-static codepoint_t text[] = {0x0048, 0x0065, 0x006c, 0x006c, 0x006f, 0x0020, 0x0057, 0x006f, 0x0072, 0x006c, 0x0064, 0x0021, 0x0020, 0x2714, 0x0020, 0x03b1, 0x03b2, 0x03b3};
+static const uint8_t text[] = "Hello World!";
 
 int main(void)
 {
@@ -65,7 +65,7 @@ int main(void)
     draw_line(0, 0, LCD_WIDTH-1, LCD_HEIGHT-1, 0x3333);
     draw_line(LCD_WIDTH-1, 0, 0, LCD_HEIGHT-1, 0x3333);
 
-    font_draw_text(&cantarell, 100, 40, 0xffff, text, 18);
+    font_draw_text(&cantarell, 100, 40, 0xffff, text);
 
     lcd_disable();
 

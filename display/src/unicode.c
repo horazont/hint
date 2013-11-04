@@ -1,6 +1,6 @@
 #include "unicode.h"
 
-void utf8_init(utf8_ctx_t *ctx, const utf8_str_t str)
+void utf8_init(utf8_ctx_t *ctx, utf8_cstr_t str)
 {
     *ctx = str;
 }
