@@ -26,30 +26,6 @@
 
 #define LCD_MASKED_GPIO(mask, value) *(pREG32(GPIO_GPIO2_BASE | (mask << 2))) = value
 
-inline void lcd_wrcmd8(uint8_t cmd)
-{
-    LCD_MASKED_GPIO(LCD_RS_MASK, 0);
-    LCD_MASKED_GPIO(LCD_WR_MASK, 0);
-    LCD_MASKED_GPIO(LCD_DATA_MASK, cmd);
-    NOP();
-    LCD_MASKED_GPIO(LCD_WR_MASK, LCD_WR_MASK);
-    LCD_MASKED_GPIO(LCD_RS_MASK, LCD_RS_MASK);
-}
-
-inline void lcd_wrdata8(uint8_t data)
-{
-    LCD_MASKED_GPIO(LCD_WR_MASK, 0);
-    LCD_MASKED_GPIO(LCD_DATA_MASK, data);
-    NOP();
-    LCD_MASKED_GPIO(LCD_WR_MASK, LCD_WR_MASK);
-}
-
-inline void lcd_wrdata16(uint16_t data)
-{
-    lcd_wrdata8((data >> 8) & 0xff);
-    lcd_wrdata8(data & 0xff);
-}
-
 void lcd_disable()
 {
     LCD_MASKED_GPIO(LCD_CS_MASK, LCD_CS_MASK);
@@ -237,4 +213,28 @@ void lcd_setarea(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1)
   lcd_wrcmd8(LCD_CMD_PAGE);
   lcd_wrdata16(x0);
   lcd_wrdata16(x1);
+}
+
+inline void lcd_wrcmd8(uint8_t cmd)
+{
+    LCD_MASKED_GPIO(LCD_RS_MASK, 0);
+    LCD_MASKED_GPIO(LCD_WR_MASK, 0);
+    LCD_MASKED_GPIO(LCD_DATA_MASK, cmd);
+    NOP();
+    LCD_MASKED_GPIO(LCD_WR_MASK, LCD_WR_MASK);
+    LCD_MASKED_GPIO(LCD_RS_MASK, LCD_RS_MASK);
+}
+
+inline void lcd_wrdata8(uint8_t data)
+{
+    LCD_MASKED_GPIO(LCD_WR_MASK, 0);
+    LCD_MASKED_GPIO(LCD_DATA_MASK, data);
+    NOP();
+    LCD_MASKED_GPIO(LCD_WR_MASK, LCD_WR_MASK);
+}
+
+inline void lcd_wrdata16(uint16_t data)
+{
+    lcd_wrdata8((data >> 8) & 0xff);
+    lcd_wrdata8(data & 0xff);
 }
