@@ -5,13 +5,20 @@
 inline const struct glyph_t *font_find_glyph(const struct font_t *font,
                                              const codepoint_t codepoint)
 {
-    const struct glyph_t *result = NULL;
-    for (wchar_t i = 0; i < font->glyph_count; i++) {
-        result = &font->glyphs[i];
-        if (result->codepoint == codepoint) {
-            return result;
+    uint16_t offset = 0;
+
+    for (const struct glyph_range_t *range = font->ranges;
+         range->count > 0;
+         range++)
+    {
+        codepoint_t end = range->start + range->count - 1;
+        if ((codepoint >= range->start) && (codepoint <= end)) {
+            return &font->glyphs[offset + (codepoint - range->start)];
         }
+
+        offset += range->count;
     }
+
     return NULL;
 }
 

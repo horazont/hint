@@ -26,7 +26,6 @@ class GlyphStruct(object):
 
     def to_c_source(self):
         return """{{
-    .codepoint   = 0x{codepoint:04x},
     .w           = {width},
     .h           = {height},
     .y0          = {baseline},
@@ -38,6 +37,18 @@ class GlyphStruct(object):
             baseline=self.y0,
             data_offset=self.data_offset)
 
+class GlyphRange(object):
+    start = 0
+    count = 0
+
+    def to_c_source(self):
+        return """{{
+    .start = 0x{start:08x},
+    .count =     0x{count:04x}
+}}""".format(
+            start=self.start,
+            count=self.count)
+
 class FontStruct(object):
     def __init__(self):
         super(FontStruct, self).__init__()
@@ -46,6 +57,7 @@ class FontStruct(object):
         self.glyphs = []
         self.datamap = {}
         self.data = bytearray()
+        self.ranges = None
 
     def add_data(self, data):
         data = str(data)
@@ -66,6 +78,35 @@ class FontStruct(object):
         self.glyphs.append(glyph)
         glyph.data_offset = self.add_data(glyph.data)
         glyph.data = None
+        # invalidate ranges
+        self.ranges = None
+
+    def calculate_ranges(self):
+        glyphiter = iter(sorted(self.glyphs, key=lambda x: x.codepoint))
+
+        ranges = []
+        curr_range = GlyphRange()
+        try:
+            curr_range.start = next(glyphiter).codepoint
+            curr_range.count = 1
+        except StopIteration:
+            pass
+        for glyph in glyphiter:
+            end = curr_range.start + curr_range.count
+            if glyph.codepoint == end and curr_range.count < 0xffff:
+                curr_range.count += 1
+            else:
+                ranges.append(curr_range)
+                curr_range = GlyphRange()
+                curr_range.start = glyph.codepoint
+                curr_range.count = 1
+
+        if curr_range.count > 0:
+            ranges.append(curr_range)
+
+        ranges.append(GlyphRange())
+
+        self.ranges = ranges
 
     @staticmethod
     def _add_indent(text, indent):
@@ -82,6 +123,11 @@ class FontStruct(object):
                 width=72-len(indent)
                 ),
                 indent)
+
+    def _c_ranges(self, indent="        "):
+        return ",\n".join(
+            self._add_indent(range.to_c_source(), indent)
+            for range in self.ranges)
 
     def _c_glyph_name(self, glyph):
         return "glyph__{name}_{codepoint}".format(
@@ -111,14 +157,20 @@ class FontStruct(object):
             for glyph in self.glyphs)
 
     def to_c_source(self):
+        if self.ranges is None:
+            self.calculate_ranges()
         return """
-uint8_t {name}_data[] = {{
+uint8_t {name}__data[] = {{
 {data}
+}};
+struct glyph_range_t {name}__ranges[] = {{
+{ranges}
 }};
 struct font_t {name} = {{
     .glyph_count = {glyph_count},
     .space_width = {space_width},
-    .data = {name}_data,
+    .data = {name}__data,
+    .ranges = {name}__ranges,
     .glyphs = {{
 {glyphs}
     }}
@@ -127,6 +179,7 @@ struct font_t {name} = {{
             glyph_count=len(self.glyphs),
             space_width=self.space_width,
             glyphs=self._c_glyphs(),
+            ranges=self._c_ranges(),
             data=self._c_data(indent="    ")
             )
 

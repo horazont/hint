@@ -7,10 +7,14 @@
 #include "unicode.h"
 
 struct glyph_t {
-    codepoint_t codepoint;
     uint8_t w, h;
     int8_t y0;
     uint16_t data_offset;
+};
+
+struct glyph_range_t {
+    codepoint_t start;
+    uint16_t count;
 };
 
 typedef uint8_t *font_data_t;
@@ -19,6 +23,7 @@ struct font_t {
     uint16_t glyph_count;
     uint8_t space_width;
     font_data_t data;
+    struct glyph_range_t *ranges;
     struct glyph_t glyphs[];
 };
 
