@@ -26,12 +26,12 @@
 
 #define LCD_MASKED_GPIO(mask, value) *(pREG32(GPIO_GPIO2_BASE | (mask << 2))) = value
 
-void lcd_disable()
+inline void lcd_disable()
 {
     LCD_MASKED_GPIO(LCD_CS_MASK, LCD_CS_MASK);
 }
 
-void lcd_enable()
+inline void lcd_enable()
 {
     LCD_MASKED_GPIO(LCD_CS_MASK, 0);
 }
