@@ -225,6 +225,7 @@ class Renderer:
             self.WIDTH)
         self._cairo = cairo.Context(self._surface)
         self._pango = PangoCairo.create_context(self._cairo)
+        PangoCairo.context_set_resolution(self._pango, 72)
         # self._pango.set_resolution(72.)
         self._layout = Pango.Layout(self._pango)
         self._layout.set_font_description(font_descr)
@@ -352,8 +353,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "size",
         type=float,
-        metavar="POINTS",
-        help="Font size in pt"
+        metavar="PIXELS",
+        help="Font size in px"
     )
     parser.add_argument(
         "structname",
