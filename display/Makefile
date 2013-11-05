@@ -83,6 +83,7 @@ src/cantarell.inc: $(GENFONT)
 		-r 0xa1 0xff \
 		-x 0xad \
 		-c 0xfffd \
+		--section ".text#" \
 		-- \
 		Cantarell 9.5 cantarell > $@
 
