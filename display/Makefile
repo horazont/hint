@@ -85,7 +85,19 @@ src/cantarell.inc: $(GENFONT)
 		-c 0xfffd \
 		--section ".text#" \
 		-- \
-		Cantarell 9.5 cantarell > $@
+		Cantarell 12 cantarell_12px > $@
+	$(GENFONT) --bfseries \
+		-r "'0'" "'9'" \
+		-c "':'" "'°'" "'C'" \
+		-c 0xfffd \
+		-- \
+		Cantarell 20 cantarell_20px_bf >> $@
+	$(GENFONT) \
+		-r "'A'" "'Z'" \
+		-r "'0'" "'9'" \
+		-c "'.'" "':'" 0xfffd \
+		--\
+		Cantarell 8 cantarell_8px >> $@
 
 $(FIRMWAREBASE).elf: $(OBJ_FILES) $(FAKEDEPS) $(COMMONDEPS)
 	-@echo "MEMORY" > $(LD_TEMP)

@@ -65,7 +65,7 @@ int main(void)
     draw_line(0, 0, LCD_WIDTH-1, LCD_HEIGHT-1, 0x3333);
     draw_line(LCD_WIDTH-1, 0, 0, LCD_HEIGHT-1, 0x3333);
 
-    font_draw_text(&cantarell, 100, 40, 0xffff, text);
+    font_draw_text(&cantarell_12px, 100, 40, 0xffff, text);
 
     lcd_disable();
 
