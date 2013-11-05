@@ -330,11 +330,14 @@ class Renderer:
 
         return result
 
-def extint(v):
+def charint(v):
+    if v.startswith(b"'") and v.endswith(b"'"):
+        v = v[1:-1]
+        return ord(v.decode('utf8'))
     v = v.lower()
-    if v.startswith("0x"):
+    if v.startswith(b"0x"):
         return int(v[2:], 16)
-    elif v.startswith("0b"):
+    elif v.startswith(b"0b"):
         return int(v[2:], 2)
     else:
         return int(v)
@@ -375,7 +378,7 @@ if __name__ == "__main__":
         action="append",
         metavar=("FROM", "TO"),
         default=[],
-        type=extint,
+        type=charint,
         dest="cp_ranges",
         help="Add a range of codepoints to render. All glyphs from FROM"
              " to TO (inclusively) will be rendered."
@@ -386,7 +389,7 @@ if __name__ == "__main__":
         action="append",
         metavar="CODEPOINT",
         default=[],
-        type=extint,
+        type=charint,
         dest="cp_sequences",
         help="Add a sequence of codepoints to render."
     )
@@ -396,7 +399,7 @@ if __name__ == "__main__":
         action="append",
         metavar="CODEPOINT",
         default=[],
-        type=extint,
+        type=charint,
         dest="cp_exclude_sequences",
         help="Exclude a sequence from the selections"
     )
