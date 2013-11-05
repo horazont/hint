@@ -58,6 +58,8 @@ class FontStruct(object):
         self.datamap = {}
         self.data = bytearray()
         self.ranges = None
+        self.base_size = 2+1+4+4
+        self.section = None
 
     def add_data(self, data):
         data = str(data)
@@ -156,17 +158,24 @@ class FontStruct(object):
                 name=self._c_glyph_name(glyph))
             for glyph in self.glyphs)
 
+    def _c_attribute(self):
+        if self.section is None:
+            return ""
+
+        return '__attribute__((section("{}")))'.format(
+            self.section)
+
     def to_c_source(self):
         if self.ranges is None:
             self.calculate_ranges()
         return """
-uint8_t {name}__data[] = {{
+uint8_t {name}__data[] {attrib} = {{
 {data}
 }};
-struct glyph_range_t {name}__ranges[] = {{
+struct glyph_range_t {name}__ranges[] {attrib} = {{
 {ranges}
 }};
-struct font_t {name} = {{
+struct font_t {name} {attrib} = {{
     .glyph_count = {glyph_count},
     .space_width = {space_width},
     .data = {name}__data,
@@ -180,7 +189,8 @@ struct font_t {name} = {{
             space_width=self.space_width,
             glyphs=self._c_glyphs(),
             ranges=self._c_ranges(),
-            data=self._c_data(indent="    ")
+            data=self._c_data(indent="    "),
+            attrib=self._c_attribute()
             )
 
 class Renderer:
@@ -372,6 +382,12 @@ if __name__ == "__main__":
         help="Increase verbosity",
         dest="verbosity"
     )
+    parser.add_argument(
+        "-s", "--section",
+        metavar="ELFSECTION",
+        dest="elf_section",
+        help="ELF section to store the font in"
+    )
 
     args = parser.parse_args()
 
@@ -395,5 +411,6 @@ if __name__ == "__main__":
     renderer = Renderer(args.font, args.size)
     font = renderer.struct_font(codepoints)
     font.name = args.structname
+    font.section = args.elf_section
 
     print(font.to_c_source())
