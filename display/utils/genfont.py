@@ -1,5 +1,6 @@
 #!/usr/bin/python2
 # encoding=utf8
+from __future__ import print_function
 import cairo
 from gi.repository import Pango
 from gi.repository import PangoCairo
@@ -17,6 +18,9 @@ def split_to_parts(l, chunksize):
         yield l
 
 class GlyphStruct(object):
+    size = 1+1+1+2  # 1 byte for w, h and y0 each
+                    # 2 bytes for data_offset
+
     codepoint = 0
     width = 0
     height = 0
@@ -38,6 +42,8 @@ class GlyphStruct(object):
             data_offset=self.data_offset)
 
 class GlyphRange(object):
+    size = 4+2 # 4 bytes start, 2 bytes count
+
     start = 0
     count = 0
 
@@ -60,6 +66,14 @@ class FontStruct(object):
         self.ranges = None
         self.base_size = 2+1+4+4
         self.section = None
+
+    @property
+    def size(self):
+        if self.ranges is None:
+            self.calculate_ranges()
+        return self.base_size + GlyphStruct.size * len(self.glyphs) \
+                              + GlyphRange.size * len(self.ranges) \
+                              + len(self.data)
 
     def add_data(self, data):
         data = str(data)
@@ -414,3 +428,4 @@ if __name__ == "__main__":
     font.section = args.elf_section
 
     print(font.to_c_source())
+    print("estimated size: {} bytes".format(font.size), file=sys.stderr)
