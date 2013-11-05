@@ -211,10 +211,12 @@ class Renderer:
     WIDTH = 128
     HEIGHT = 128
 
-    def __init__(self, font_family, font_size):
+    def __init__(self, font_family, font_size,
+            weight=Pango.Weight.NORMAL):
         font_descr = Pango.FontDescription()
         font_descr.set_family(font_family)
         font_descr.set_size(font_size * Pango.SCALE)
+        font_descr.set_weight(weight)
 
         self._nullbuffer = bytearray(self.WIDTH*self.HEIGHT)
         self._buffer = bytearray(self.WIDTH*self.HEIGHT)
@@ -359,6 +361,14 @@ if __name__ == "__main__":
         help="A valid C11 identifier for the struct"
     )
     parser.add_argument(
+        "-b", "--bfseries", "--bold",
+        dest="weight",
+        action="store_const",
+        const=Pango.Weight.BOLD,
+        default=Pango.Weight.NORMAL,
+        help="Select boldface series"
+    )
+    parser.add_argument(
         "-r", "--add-range",
         nargs=2,
         action="append",
@@ -422,7 +432,7 @@ if __name__ == "__main__":
     for sequence in args.cp_exclude_sequences:
         codepoints -= frozenset(sequence)
 
-    renderer = Renderer(args.font, args.size)
+    renderer = Renderer(args.font, args.size, weight=args.weight)
     font = renderer.struct_font(codepoints)
     font.name = args.structname
     font.section = args.elf_section
