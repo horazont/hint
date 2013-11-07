@@ -68,7 +68,7 @@ void graph_x_axis(
     const coord_int_t yoffs)
 {
     const coord_int_t y = ctx->y0 + ctx->height - (1 + yoffs);
-    const coord_int_t x = ctx->x0 + ctx->width - (1 + yoffs);
+    const coord_int_t x = ctx->x0 + ctx->width;
     draw_line(ctx->x0, y, x, y, line_colour);
 
     // draw arrow
