@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #define CODEPOINT_REPLACEMENT_CHARACTER (0xfffd)
+#define CODEPOINT_ELLIPSIS (0x2026)
 
 typedef uint32_t codepoint_t;
 

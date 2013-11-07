@@ -33,6 +33,13 @@ void font_draw_text(
     const coord_int_t y0,
     const colour_t colour,
     utf8_cstr_t text);
+void font_draw_text_ellipsis(
+    const struct font_t *font,
+    const coord_int_t x0,
+    const coord_int_t y0,
+    const colour_t colour,
+    utf8_cstr_t text,
+    const coord_int_t width);
 
 void font_text_metrics(
     const struct font_t *font,

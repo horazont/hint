@@ -83,6 +83,7 @@ src/cantarell.inc: $(GENFONT)
 		-r 0xa1 0xff \
 		-x 0xad \
 		-c 0xfffd \
+		-c 0x2026 \
 		--section ".text#" \
 		-- \
 		Cantarell 12 cantarell_12px > $@
@@ -95,7 +96,9 @@ src/cantarell.inc: $(GENFONT)
 	$(GENFONT) \
 		-r "'A'" "'Z'" \
 		-r "'0'" "'9'" \
-		-c "'.'" "':'" 0xfffd \
+		-c "'.'" "':'" \
+		-c 0xfffd \
+		-c 0x2026 \
 		--\
 		Cantarell 8 cantarell_8px >> $@
 
