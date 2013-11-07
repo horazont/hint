@@ -9,6 +9,7 @@
 #include "font.h"
 #include "font_data.h"
 #include "draw.h"
+#include "graphs.h"
 
 #include "lpc111x.h"
 
@@ -23,10 +24,25 @@ uint8_t uartRecvByte()
 }
 
 //static uint8_t data[] = {'\x3c', '\x46', '\x02', '\x3e', '\x42', '\x46', '\x3a'};
-static const uint8_t text[] = "Hello World!";
+static const uint8_t text[] = "This is a long test text which should be ellipsized.";
+static const uint8_t text2[] = "…";
+
+static const struct data_point_t data[] = {
+        {.x = 0, .y = 0},
+        {.x = 10, .y = 10},
+        {.x = 20, .y = 5},
+        {.x = 30, .y = 0},
+        {.x = 40, .y = 5}
+    };
 
 int main(void)
 {
+    struct graph_axes_t axes;
+    axes.x0 = 10;
+    axes.y0 = 10;
+    axes.width = 240;
+    axes.height = 40;
+
     // Configure cpu and mandatory peripherals
     cpuInit();
     cpuPllSetup(CPU_MULTIPLIER_3);
@@ -60,12 +76,18 @@ int main(void)
     lcd_init();
     lcd_enable();
 
-    fill_rectangle(0, 0, LCD_WIDTH-1, LCD_HEIGHT-1, 0x1111);
+    fill_rectangle(0, 0, LCD_WIDTH-1, LCD_HEIGHT-1, 0x0000);
 
-    draw_line(0, 0, LCD_WIDTH-1, LCD_HEIGHT-1, 0x3333);
-    draw_line(LCD_WIDTH-1, 0, 0, LCD_HEIGHT-1, 0x3333);
+    graph_background(&axes, 0x2222);
+    graph_x_axis(&axes, 0x5555, 20);
+    graph_y_axis(&axes, 0x5555, 0);
+    graph_line(&axes, data, 5, 0xf000, LINE_STEP);
 
-    font_draw_text(&cantarell_12px, 100, 40, 0xffff, text);
+    font_draw_text_ellipsis(
+        &cantarell_12px,
+        20, 80, 0xffff,
+        text,
+        100);
 
     lcd_disable();
 
