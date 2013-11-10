@@ -11,7 +11,7 @@ BIN = ./bin
 
 VPATH = . $(CODEBASEDIR)
 OBJS = src/main src/lcd src/utils src/font src/font_data src/draw \
-		src/unicode src/graphs src/tables
+		src/unicode src/graphs src/tables src/touch
 OBJS += lpc1xxx/LPC11xx_handlers lpc1xxx/LPC1xxx_startup
 OBJS += core/uart/uart core/uart/uart_buf \
 		core/cpu/cpu \
@@ -116,6 +116,10 @@ $(FIRMWAREBASE).hex: $(FIRMWAREBASE).elf
 	$(OBJCOPY) $(OCFLAGS) -O ihex $< $@
 
 bin/src/font_data.o: src/font_data.c src/font.h src/font_data.h src/cantarell.inc
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -o $@ $<
+
+bin/src/touch.c: src/touch.c src/touch.h src/fp11_4.h src/config.h $(COMMONDEPS) $(FAKEDEPS)
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -o $@ $<
 
