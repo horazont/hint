@@ -29,7 +29,7 @@ OBJDUMP = $(TARGET_TOOLCHAIN)objdump
 GENFONT = utils/genfont.py
 
 # flags
-INCLUDE_PATHS = -I$(ROOT) -I$(CODEBASEDIR)/core -I$(CODEBASEDIR) -I$(ROOT)/inc
+INCLUDE_PATHS = -I$(ROOT) -I$(ROOT)/inc -I$(CODEBASEDIR)/core -I$(CODEBASEDIR)
 
 # linker stuff
 LD_SCRIPT = $(CODEBASEDIR)/lpc1xxx/linkscript.ld
