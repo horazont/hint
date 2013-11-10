@@ -4,6 +4,10 @@
 #include <stdint.h>
 
 typedef uint16_t colour_t;
+typedef int16_t coord_int_t;
+struct point_t {
+    coord_int_t x, y;
+};
 
 #define LCD_WIDTH (320)
 #define LCD_HEIGHT (240)

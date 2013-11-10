@@ -5,8 +5,6 @@
 
 #include "lcd.h"
 
-typedef int16_t coord_int_t;
-
 void fill_rectangle(
     coord_int_t x0,
     coord_int_t y0,
