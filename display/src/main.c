@@ -9,6 +9,7 @@
 #include "font.h"
 #include "font_data.h"
 #include "draw.h"
+#include "comm.h"
 
 #include "lpc111x.h"
 
@@ -23,7 +24,13 @@ uint8_t uartRecvByte()
 }
 
 //static uint8_t data[] = {'\x3c', '\x46', '\x02', '\x3e', '\x42', '\x46', '\x3a'};
-static const uint8_t text[] = "Hello World!";
+static const uint8_t text[] = "Ellipsized long test text.";
+^M
+void PIOINT0_IRQHandler(void)
+{
+    fill_rectangle(20, 20, 40, 40, 0xff00);
+}
+
 
 int main(void)
 {
@@ -32,6 +39,7 @@ int main(void)
     cpuPllSetup(CPU_MULTIPLIER_3);
     systickInit((CFG_CPU_CCLK / 1000) * CFG_SYSTICK_DELAY_IN_MS);
 
+    comm_init(115200);
 
     DISABLE_IRQ();
 
@@ -61,6 +69,12 @@ int main(void)
     lcd_enable();
 
     fill_rectangle(0, 0, LCD_WIDTH-1, LCD_HEIGHT-1, 0x1111);
+
+    NVIC_EnableIRQ(EINT0_IRQn);
+
+    while (1) {
+
+    };
 
     draw_line(0, 0, LCD_WIDTH-1, LCD_HEIGHT-1, 0x3333);
     draw_line(LCD_WIDTH-1, 0, 0, LCD_HEIGHT-1, 0x3333);
