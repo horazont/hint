@@ -9,4 +9,7 @@
 #define CFG_UART_BUFSIZE        (128)
 #define CFG_SYSTICK_DELAY_IN_MS (1)
 
+#define VAR_RAM __attribute__((section(".data")))
+#define VAR_FLASH __attribute__((section(".text#")))
+
 #endif
