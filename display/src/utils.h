@@ -3,14 +3,20 @@
 
 #include <stdint.h>
 
-#include "projectconfig.h"
-
 #include "systick/systick.h"
 
 #define NOP()                          __asm__ volatile ("nop")
 #define ENABLE_IRQ()                   __asm__ volatile ("cpsie i")
 #define DISABLE_IRQ()                  __asm__ volatile ("cpsid i")
 
+#define ADC_AD0DRn(chn) (*pREG32(ADC_AD0DR0 + (chn*4)))
+#define ADC_READ(chn, x)             { \
+    ADC_AD0CR |= (1<<chn) | ADC_AD0CR_START_STARTNOW; \
+    /* wait until conversion finishes (bit 31 set) */ \
+    while (!(ADC_AD0DRn(chn) & (1<<31))); \
+    /* disable conversion, disable all channels */ \
+    ADC_AD0CR &= 0xF8FFFF00; \
+    x = (ADC_AD0DRn(chn)>>6) & 0x3FF;}
 
 inline void delay_ms(uint16_t ms)
 {
