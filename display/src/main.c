@@ -31,6 +31,11 @@ void PIOINT0_IRQHandler(void)
     fill_rectangle(20, 20, 40, 40, 0xff00);
 }
 
+void HardFault_Handler(void)
+{
+    fill_rectangle(0, 0, LCD_WIDTH-1, 16, 0xf000);
+    while (1);
+}
 
 int main(void)
 {
