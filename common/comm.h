@@ -30,10 +30,20 @@ enum msg_status_t {
     MSG_INVALID_ADDRESS
 };
 
-
 #define MSG_MAX_PAYLOAD     (0x3ff)
 #define MSG_MAX_ADDRESS     (0x3)
 #define MSG_MAX_LENGTH      (MSG_MAX_PAYLOAD + sizeof(struct msg_header_t) + sizeof(msg_checksum_t))
+
+struct msg_t {
+    struct msg_header_t header;
+    uint8_t data[MSG_MAX_PAYLOAD];
+    msg_checksum_t checksum;
+};
+
+struct msg_buffer_t {
+    bool in_use;
+    struct msg_t msg;
+};
 
 
 _Static_assert(sizeof(struct msg_header_t) == sizeof(uint32_t),

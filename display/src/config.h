@@ -11,5 +11,6 @@
 
 #define VAR_RAM __attribute__((section(".data")))
 #define VAR_FLASH __attribute__((section(".text#")))
+#define VAR_RAM_ZERO __attribute__((section(".bss")))
 
 #endif
