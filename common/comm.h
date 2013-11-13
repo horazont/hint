@@ -45,7 +45,6 @@ struct msg_buffer_t {
     struct msg_t msg;
 };
 
-
 _Static_assert(sizeof(struct msg_header_t) == sizeof(uint32_t),
                "Header isn't properly packed");
 

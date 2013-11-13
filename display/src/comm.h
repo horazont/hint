@@ -8,14 +8,41 @@
 #define COMM_ERR_NO_ROUTEBUFFER_AVAILABLE 2
 #define COMM_ERR_UNKNOWN_RECIPIENT 3
 
-void comm_init(const uint32_t baudrate);
+/**
+ * Initialize the communication subsystem.
+ *
+ * This initializes the UART (and will later also initialize the SPI).
+ *
+ * @param uart_baudrate baudrate to communicate with over the UART.
+ */
+void comm_init(const uint32_t uart_baudrate);
 
 /**
- * Handle routing and reception of messages.
+ * Return received message. This should be called from the RX interrupt
+ * handler.
+ *
+ * @return NULL if no message is currently available, a pointer to the
+ *         buffer otherwise.
  */
-void UART_IRQHandler(void);
+struct msg_buffer_t *comm_get_rx_message();
 
-volatile struct msg_buffer_t *volatile appbuffer_front;
-volatile struct msg_buffer_t *volatile appbuffer_back;
+/**
+ * Release the received message. You MUST call this after the processing
+ * of the message has finished. Otherwise, no further messages can be
+ * received.
+ *
+ * @return true if another message is waiting to be processed, false
+ *         otherwise.
+ */
+bool comm_release_rx_message();
+
+/**
+ * Transmit a message over the appropriate link. The link is detected
+ * by investigating the recipient field in the header.
+ *
+ * @param msg message to transmit
+ * @return status code indicating success or failure of the transmission
+ */
+enum msg_status_t comm_tx_message(const struct msg_t *msg);
 
 #endif

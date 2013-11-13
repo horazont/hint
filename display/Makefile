@@ -122,7 +122,7 @@ bin/src/touch.c: src/touch.c src/touch.h src/fp11_4.h src/config.h $(COMMONDEPS)
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -o $@ $<
 
-bin/src/comm.c: src/comm.c src/comm.h ../common/comm.h $(COMMONDEPS) $(FAKEDEPS)
+bin/src/comm.c: src/comm.c src/comm.h ../common/comm.h src/comm_internal.h src/comm_*.inc.c $(COMMONDEPS) $(FAKEDEPS)
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -o $@ $<
 
