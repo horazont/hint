@@ -11,7 +11,7 @@ BIN = ./bin
 
 VPATH = . $(CODEBASEDIR)
 OBJS = src/main src/lcd src/utils src/font src/font_data src/draw \
-		src/unicode src/graphs src/tables src/touch src/comm
+		src/unicode src/graphs src/tables src/touch src/comm src/time
 OBJS += lpc1xxx/LPC11xx_handlers lpc1xxx/LPC1xxx_startup
 OBJS += core/cpu/cpu \
 		core/systick/systick \

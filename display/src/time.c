@@ -2,9 +2,9 @@
 
 #include "core/systick/systick.h"
 
-struct timestamp_t ticks_get()
+struct ticks_t ticks_get()
 {
-    struct timestamp_t result = {
+    struct ticks_t result = {
         .rollovers = systickGetRollovers(),
         .ticks = systickGetTicks()
     };
