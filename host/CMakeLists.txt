@@ -18,6 +18,7 @@ set(SOURCES
     "hintd.c"
     "queue.c"
     "comm.c"
+    "lpc1114.c"
     "broker.c")
 
 set(STATIC_LIBS
