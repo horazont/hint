@@ -4,8 +4,10 @@
 #include "lpc111x.h"
 #include <stdint.h>
 
+#include "common/comm.h"
+
 #define CFG_CPU_CCLK            (48000000L)
-#define CFG_UART_BAUDRATE       (115200)
+#define CFG_UART_BAUDRATE       (MSG_UART_BAUDRATE)
 #define CFG_UART_BUFSIZE        (128)
 #define CFG_SYSTICK_DELAY_IN_MS (1)
 

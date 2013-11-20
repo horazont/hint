@@ -15,7 +15,10 @@ ExternalProject_Add(libcouplet
     INSTALL_COMMAND echo)
 
 set(SOURCES
-    "hintd.c")
+    "hintd.c"
+    "queue.c"
+    "comm.c"
+    "broker.c")
 
 set(STATIC_LIBS
     "libcouplet/src/libcouplet/.libs/libcouplet.a")
@@ -26,3 +29,4 @@ include_directories(".")
 add_executable(hintd
     ${SOURCES})
 add_dependencies(hintd libcouplet)
+target_link_libraries(hintd pthread)

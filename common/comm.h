@@ -34,6 +34,8 @@ enum msg_status_t {
 #define MSG_MAX_ADDRESS     (0x3)
 #define MSG_MAX_LENGTH      (MSG_MAX_PAYLOAD + sizeof(struct msg_header_t) + sizeof(msg_checksum_t))
 
+#define MSG_UART_BAUDRATE   (115200)
+
 struct msg_t {
     struct msg_header_t header;
     uint8_t data[MSG_MAX_PAYLOAD];
