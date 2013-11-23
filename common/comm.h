@@ -50,13 +50,11 @@ struct msg_buffer_t {
 _Static_assert(sizeof(struct msg_header_t) == sizeof(uint32_t),
                "Header isn't properly packed");
 
-msg_checksum_t checksum(const uint8_t *buffer, const msg_length_t len);
-
 #define CHECKSUM_PRIME (13)
 
 #define CHECKSUM_CTX(prefix) \
-    uint16_t prefix##_A; \
-    uint16_t prefix##_B;
+    uint16_t prefix##_A = 1; \
+    uint16_t prefix##_B = 0;
 
 #define CHECKSUM_PUSH(prefix, value) do { \
     prefix##_A = (prefix##_A + value) % CHECKSUM_PRIME; \
@@ -64,5 +62,15 @@ msg_checksum_t checksum(const uint8_t *buffer, const msg_length_t len);
     } while (0)
 
 #define CHECKSUM_FINALIZE(prefix) (prefix##_A << 4) | (prefix##_B)
+
+static inline msg_checksum_t checksum(const uint8_t *buffer, const msg_length_t len)
+{
+    CHECKSUM_CTX(adler);
+    const uint8_t *end = buffer + len;
+    while (buffer != end) {
+        CHECKSUM_PUSH(adler, *buffer++);
+    }
+    return CHECKSUM_FINALIZE(adler);
+}
 
 #endif
