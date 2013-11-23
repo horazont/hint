@@ -20,5 +20,6 @@ void queue_free(struct queue_t *queue);
 void queue_init(struct queue_t *queue);
 void *queue_pop(struct queue_t *queue);
 void queue_push(struct queue_t *queue, void *data);
+void queue_push_front(struct queue_t *queue, void *data);
 
 #endif

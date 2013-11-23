@@ -72,3 +72,21 @@ void queue_push(struct queue_t *queue, void *data)
     }
     pthread_mutex_unlock(&queue->mutex);
 }
+
+void queue_push_front(struct queue_t *queue, void *data)
+{
+    struct queue_item_t *item = malloc(sizeof(struct queue_item_t));
+    item->data = data;
+    item->next = NULL;
+
+    pthread_mutex_lock(&queue->mutex);
+    if (queue->tail == NULL) {
+        queue->head = item;
+        queue->tail = item;
+    } else {
+        item->next = queue->head;
+        queue->head = item;
+    }
+    pthread_mutex_unlock(&queue->mutex);
+
+}
