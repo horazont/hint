@@ -49,6 +49,9 @@ void *queue_pop(struct queue_t *queue)
     void *result = item->data;
     queue->head = item->next;
     free(item);
+    if (queue->head == NULL) {
+        queue->tail = NULL;
+    }
     pthread_mutex_unlock(&queue->mutex);
     return result;
 }
@@ -65,6 +68,7 @@ void queue_push(struct queue_t *queue, void *data)
         queue->tail = item;
     } else {
         queue->tail->next = item;
+        queue->tail = item;
     }
     pthread_mutex_unlock(&queue->mutex);
 }
