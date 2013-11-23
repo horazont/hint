@@ -37,12 +37,39 @@ struct msg_buffer_t *comm_get_rx_message();
 bool comm_release_rx_message();
 
 /**
+ * Transmit an acknowledge message to the given recipient.
+ *
+ * @param recipient target adress to send to
+ * @return status code indicating success or failure of the transmission
+ */
+enum msg_status_t comm_tx_ack(const msg_address_t recipient);
+
+/**
+ * Transmit an not-acknowledged message to the given recipient.
+ *
+ * @param recipient target adress to send to
+ * @param nak_code error code (4 bits)
+ * @return status code indicating success or failure of the transmission
+ */
+enum msg_status_t comm_tx_nak(
+    const msg_address_t recipient,
+    const uint8_t nak_code);
+
+/**
  * Transmit a message over the appropriate link. The link is detected
  * by investigating the recipient field in the header.
  *
- * @param msg message to transmit
+ * payload may be NULL. In that case, no payload is transmitted
+ * (checksum is ignored too) and payload_length in hdr MUST be 0 too.
+ *
+ * @param hdr message header
+ * @param payload pointer to a buffer containing the payload
+ * @param checksum checksum of the buffer
  * @return status code indicating success or failure of the transmission
  */
-enum msg_status_t comm_tx_message(const struct msg_t *msg);
+enum msg_status_t comm_tx_message(
+    const struct msg_header_t *hdr,
+    const uint8_t *payload,
+    const msg_checksum_t checksum);
 
 #endif

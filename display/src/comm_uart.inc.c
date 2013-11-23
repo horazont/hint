@@ -133,9 +133,20 @@ static inline void uart_tx_irq()
         if (!uart_tx_trns()) {
             return;
         }
+        uint16_t len = uart.queue[uart.active_queue].header->payload_length;
+        if (len == 0) {
+            // allow tx-ing payloadless messages
+            uart_tx_state = TX_IDLE;
+            if (uart.queue[uart.active_queue].flag_to_clear) {
+                *uart.queue[uart.active_queue].flag_to_clear = false;
+            }
+            uart.queue[uart.active_queue].empty = true;
+            uart.active_queue = -1;
+            break;
+        }
         uart_tx_state = TX_SEND_PAYLOAD;
         uart.state.trns_src = uart.queue[uart.active_queue].data;
-        uart.state.trns_end = uart.state.trns_src + uart.queue[uart.active_queue].header->payload_length;
+        uart.state.trns_end = uart.state.trns_src + len;
         break;
     }
     case TX_SEND_PAYLOAD:
