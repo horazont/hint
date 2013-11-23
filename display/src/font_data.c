@@ -1,3 +1,3 @@
 #include "font_data.h"
 
-#include "cantarell.inc"
+#include "generated_font_data.inc"

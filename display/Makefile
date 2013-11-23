@@ -76,7 +76,7 @@ inc/sysdefs.h:
 inc/projectconfig.h:
 	ln -s ../src/config.h $@
 
-src/cantarell.inc: $(GENFONT)
+src/generated_font_data.inc: $(GENFONT)
 	$(GENFONT) \
 		-r 0x20 0x7e \
 		-r 0xa1 0xff \
@@ -85,13 +85,13 @@ src/cantarell.inc: $(GENFONT)
 		-c 0x2026 \
 		--section ".text#" \
 		-- \
-		Cantarell 12 cantarell_12px > $@
+		"DejaVu Sans" 12 dejavu_sans_12px > $@
 	$(GENFONT) --bfseries \
 		-r "'0'" "'9'" \
 		-c "':'" "'°'" "'C'" \
 		-c 0xfffd \
 		-- \
-		Cantarell 20 cantarell_20px_bf >> $@
+		Cantarell 20 dejavu_sans_20px_bf >> $@
 	$(GENFONT) \
 		-r "'A'" "'Z'" \
 		-r "'0'" "'9'" \
@@ -99,7 +99,7 @@ src/cantarell.inc: $(GENFONT)
 		-c 0xfffd \
 		-c 0x2026 \
 		--\
-		Cantarell 8 cantarell_8px >> $@
+		Cantarell 8 dejavu_sans_8px >> $@
 
 $(FIRMWAREBASE).elf: $(OBJ_FILES) $(FAKEDEPS) $(COMMONDEPS)
 	-@echo "MEMORY" > $(LD_TEMP)
@@ -114,7 +114,7 @@ $(FIRMWAREBASE).elf: $(OBJ_FILES) $(FAKEDEPS) $(COMMONDEPS)
 $(FIRMWAREBASE).hex: $(FIRMWAREBASE).elf
 	$(OBJCOPY) $(OCFLAGS) -O ihex $< $@
 
-bin/src/font_data.o: src/font_data.c src/font.h src/font_data.h src/cantarell.inc
+bin/src/font_data.o: src/font_data.c src/font.h src/font_data.h src/generated_font_data.inc
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -o $@ $<
 
@@ -139,7 +139,7 @@ bin/%.o: %.s $(FAKEDEPS) $(COMMONDEPS)
 	$(AS) $(ASFLAGS) -o $@ $<
 
 clean:
-	rm -f $(FAKEDEPS) src/cantarell.inc
+	rm -f $(FAKEDEPS) src/generated_font_data.inc
 	rm -rf bin
 	mkdir bin
 
