@@ -11,11 +11,40 @@
 #include <errno.h>
 #include <poll.h>
 
+#include "timestamp.h"
+
 enum comm_state_t
 {
     COMM_CLOSED = 0,
     COMM_OPEN
 };
+
+void dump_buffer(FILE *dest, const uint8_t *buffer, int len)
+{
+    if (len == 0) {
+        return;
+    }
+    for (int i = 0; i < len; i++) {
+        const char *space = " ";
+        if (i == 0) {
+            space = "";
+        } else if (i % 25 == 0) {
+            space = "\n";
+        }
+        fprintf(dest, "%s%02x", space, *buffer++);
+    }
+    if (len > 0) {
+        fprintf(dest, "\n");
+    }
+}
+
+void comm_dump_message(const struct msg_header_t *item)
+{
+    fprintf(stderr, "dumping message@%08lx: header: \n", (uint64_t)item);
+    dump_buffer(stderr, (const uint8_t*)item, sizeof(struct msg_header_t));
+    fprintf(stderr, "        message@%08lx: payload: \n", (uint64_t)item);
+    dump_buffer(stderr, &((const uint8_t*)item)[sizeof(struct msg_header_t)], item->payload_length);
+}
 
 speed_t get_baudrate(uint32_t baudrate)
 {
@@ -96,30 +125,45 @@ void comm_init(
     uint32_t baudrate)
 {
     int fds[2];
-    assert(pipe(fds) == 0);
+    int status = pipe(fds);
+    if (status != 0) {
+        fprintf(stderr, "comm: failed to allocate pipe\n");
+        return;
+    }
+    comm->_signal_fd = fds[0];
+    comm->signal_fd = fds[1];
+
+    status = pipe(fds);
+    if (status != 0) {
+        fprintf(stderr, "comm: failed to allocate pipe\n");
+        return;
+    }
+    comm->_recv_fd = fds[1];
+    comm->recv_fd = fds[0];
 
     comm->_devfile = strdup(devfile);
     comm->_fd = 0;
-    comm->_signal_fd = fds[0];
     comm->_baudrate = baudrate;
+    comm->_pending_ack = NULL;
 
     comm->terminated = false;
-    comm->signal_fd = fds[1];
-
-    assert(pipe(fds) == 0);
-    comm->_recv_fd = fds[1];
-    comm->recv_fd = fds[0];
 
     queue_init(&comm->send_queue);
     queue_init(&comm->recv_queue);
 
     pthread_mutex_init(&comm->data_mutex, NULL);
-    pthread_create(&comm->thread, NULL, (void*(*)(void*))&comm_thread, &comm);
+    pthread_create(&comm->thread, NULL, (void*(*)(void*))&comm_thread, comm);
+}
+
+void comm_enqueue_msg(struct comm_t *comm, void *msg)
+{
+    queue_push(&comm->send_queue, msg);
+    write(comm->signal_fd, "m", 1);
 }
 
 int _comm_open(struct comm_t *state)
 {
-    int fd = open(state->_devfile, O_CLOEXEC|O_NOCTTY);
+    int fd = open(state->_devfile, O_RDWR|O_CLOEXEC|O_NOCTTY);
     if (fd < 0) {
         return -1;
     }
@@ -135,24 +179,37 @@ int _comm_open(struct comm_t *state)
     cfsetospeed(&port_settings, speed);
     cfmakeraw(&port_settings);
     tcsetattr(fd, TCSANOW, &port_settings);
+    tcflush(fd, TCIOFLUSH);
 
     state->_fd = fd;
     return 0;
 }
 
-bool _comm_write_checked(int fd, const void *const buf, intptr_t len)
+enum comm_status_t _comm_write_checked(int fd, const void *const buf, intptr_t len)
 {
+    struct pollfd pollfd;
+    pollfd.fd = fd;
+    pollfd.events = POLLOUT;
+    pollfd.revents = 0;
+
     const uint8_t *buffer = buf;
-    intptr_t written = 0;
-    do {
-        intptr_t written_this_time = write(fd, buffer, len - written);
-        if (written_this_time == 0) {
-            return false;
+    intptr_t written_total = 0;
+    while (written_total < len) {
+        int status = poll(&pollfd, 1, WRITE_TIMEOUT);
+        if (status == 0) {
+            return COMM_ERR_TIMEOUT;
         }
-        written += written_this_time;
-        buffer += written_this_time;
-    } while (written < len);
-    return true;
+        if (pollfd.revents & (POLLERR|POLLHUP)) {
+            return COMM_ERR_DISCONNECTED;
+        } else if (pollfd.revents & POLLOUT) {
+            intptr_t written_this_time = write(
+                fd, buffer, len - written_total);
+            assert(written_this_time > 0);
+            written_total += written_this_time;
+            buffer += written_this_time;
+        }
+    }
+    return COMM_ERR_NONE;
 }
 
 enum comm_status_t _comm_read_checked(int fd, void *const buf, intptr_t len)
@@ -183,11 +240,20 @@ enum comm_status_t _comm_read_checked(int fd, void *const buf, intptr_t len)
 
 bool _comm_send(int fd, const struct msg_header_t *hdr, const uint8_t *payload)
 {
-    if (!_comm_write_checked(fd, hdr, sizeof(struct msg_header_t))) {
-        return false;
+    enum comm_status_t result = COMM_ERR_NONE;
+    msg_checksum_t cs = checksum(payload, hdr->payload_length);
+
+    result = _comm_write_checked(fd, hdr, sizeof(struct msg_header_t));
+    if (result != COMM_ERR_NONE) {
+        return result;
     }
-    if (!_comm_write_checked(fd, payload, hdr->payload_length)) {
-        return false;
+    result = _comm_write_checked(fd, payload, hdr->payload_length);
+    if (result != COMM_ERR_NONE) {
+        return result;
+    }
+    result = _comm_write_checked(fd, &cs, sizeof(msg_checksum_t));
+    if (result != COMM_ERR_NONE) {
+        return result;
     }
     return true;
 }
@@ -202,6 +268,11 @@ enum comm_status_t _comm_recv(int fd, struct msg_header_t *hdr, uint8_t **payloa
 
     if (hdr->payload_length > MSG_MAX_PAYLOAD) {
         return COMM_ERR_PROTOCOL_VIOLATION;
+    }
+
+    if (hdr->payload_length == 0) {
+        *payload = NULL;
+        return COMM_ERR_CONTROL;
     }
 
     *payload = malloc(hdr->payload_length);
@@ -237,6 +308,126 @@ char _comm_wait(struct pollfd *pollfds, int timeout)
     return '\0';
 }
 
+bool _comm_thread_state_open_tx(struct comm_t *state, uint8_t *buffer)
+{
+    struct msg_header_t *hdr = (struct msg_header_t*)buffer;
+    if (!_comm_send(state->_fd, hdr, &buffer[sizeof(struct msg_header_t)])) {
+        queue_push_front(&state->send_queue, buffer);
+        fprintf(stderr, "comm: lost connection during send\n");
+        return false;
+    }
+    state->_pending_ack = buffer;
+    clock_gettime(CLOCK_MONOTONIC_RAW, &state->_tx_timestamp);
+    return true;
+}
+
+bool _comm_thread_state_open(struct comm_t *state, struct pollfd pollfds[2])
+{
+    if (state->_pending_ack == NULL) {
+        if (!queue_empty(&state->send_queue)) {
+            fprintf(stderr, "comm: debug: starting tx\n");
+            uint8_t *buffer = queue_pop(&state->send_queue);
+            assert(buffer);
+            if (!_comm_thread_state_open_tx(state, buffer)) {
+                return false;
+            }
+        }
+    }
+
+    int timeout = -1;
+    if (state->_pending_ack != NULL) {
+        struct timespec curr_time;
+        clock_gettime(CLOCK_MONOTONIC_RAW, &curr_time);
+        uint32_t dt = timedelta_in_msec(&curr_time, &state->_tx_timestamp);
+        if (dt < RETRANSMISSION_TIMEOUT) {
+            timeout = RETRANSMISSION_TIMEOUT - dt;
+        } else {
+            timeout = 0;
+        }
+    } else if (!queue_empty(&state->send_queue)) {
+        timeout = 0;
+    }
+
+    poll(&pollfds[0], 2, timeout);
+    if (pollfds[1].revents & (POLLERR|POLLHUP)) {
+        fprintf(stderr, "comm: disconnected\n");
+        return false;
+    }
+
+    if (pollfds[1].revents & (POLLIN)) {
+        struct msg_header_t hdr;
+        uint8_t *payload = NULL;
+        uint8_t *buffer = NULL;
+        switch (_comm_recv(state->_fd, &hdr, &payload)) {
+        case COMM_ERR_NONE:
+        {
+            buffer = malloc(sizeof(struct msg_header_t)+
+                            hdr.payload_length);
+            assert(buffer);
+            memcpy(&buffer[0], &hdr, sizeof(struct msg_header_t));
+            memcpy(&buffer[sizeof(struct msg_header_t)], payload, hdr.payload_length);
+            queue_push(&state->recv_queue, buffer);
+            free(payload);
+            write(state->_recv_fd, "p", 1);
+            break;
+        }
+        case COMM_ERR_CONTROL:
+        {
+            if (hdr.flags == MSG_FLAG_ACK) {
+                fprintf(stderr, "comm: debug: ack received\n");
+                free(state->_pending_ack);
+                state->_pending_ack = NULL;
+            } else {
+                comm_dump_message(&hdr);
+                fprintf(stderr, "comm: unknown control flags: %02x\n",
+                        hdr.flags);
+            }
+            break;
+        }
+        case COMM_ERR_CHECKSUM_ERROR:
+        {
+            fprintf(stderr, "comm: checksum error\n");
+            break;
+        }
+        case COMM_ERR_TIMEOUT:
+        {
+            fprintf(stderr, "comm: timeout\n");
+            break;
+        }
+        case COMM_ERR_DISCONNECTED:
+        {
+            fprintf(stderr, "comm: lost connection during recv\n");
+            return false;
+        }
+        default:
+        {
+            fprintf(stderr, "comm: unhandled recv status\n");
+            assert(false);
+        }
+        }
+    }
+
+    if (pollfds[0].revents & (POLLERR|POLLHUP)) {
+        fprintf(stderr, "comm: trigger pipe closed.\n");
+    } else if (pollfds[0].revents  & (POLLIN)) {
+        char w;
+        read(pollfds[0].fd, &w, 1);
+    }
+
+    if (state->_pending_ack != NULL)
+    {
+        struct timespec curr_time;
+        clock_gettime(CLOCK_MONOTONIC_RAW, &curr_time);
+        uint32_t dt = timedelta_in_msec(&curr_time, &state->_tx_timestamp);
+        if (dt >= RETRANSMISSION_TIMEOUT) {
+            fprintf(stderr, "comm: retransmission\n");
+            _comm_thread_state_open_tx(state, state->_pending_ack);
+        }
+    }
+
+    return true;
+}
+
 void *comm_thread(struct comm_t *state)
 {
     enum comm_state_t sm =
@@ -260,61 +451,29 @@ void *comm_thread(struct comm_t *state)
             if (_comm_open(state) == 0) {
                 sm = COMM_OPEN;
                 pollfds[1].fd = state->_fd;
+                fprintf(stderr, "comm: opened serial device\n");
             } else {
+                fprintf(stderr, "comm: open of `%s' failed, will try "
+                        "again in %d ms\n",
+                        state->_devfile,
+                        RECONNECT_TIMEOUT);
                 _comm_wait(&pollfds[0], RECONNECT_TIMEOUT);
             }
             break;
         }
         case COMM_OPEN:
         {
-            while (!queue_empty(&state->send_queue)) {
-                uint8_t *buffer = queue_pop(&state->send_queue);
-                struct msg_header_t *hdr = (struct msg_header_t*)buffer;
-                if (!_comm_send(state->_fd, hdr, &buffer[sizeof(struct msg_header_t)])) {
-                    free(buffer);
-                    fprintf(stderr, "comm: lost connection during send\n");
-                    sm = COMM_CLOSED;
-                    close(state->_fd);
-                    state->_fd = 0;
-                    break;
+            if (!_comm_thread_state_open(state, pollfds)) {
+                fprintf(stderr, "comm: disconnected\n");
+                // disconnect happened
+                sm = COMM_CLOSED;
+                close(state->_fd);
+                state->_fd = 0;
+                if (state->_pending_ack) {
+                    queue_push_front(
+                        &state->recv_queue, state->_pending_ack);
+                    state->_pending_ack = NULL;
                 }
-                free(buffer);
-            }
-            if (sm != COMM_OPEN) {
-                break;
-            }
-            poll(&pollfds[0], 2, -1);
-            if (pollfds[1].revents & (POLLERR|POLLHUP)) {
-                // error, disconnected
-            } else if (pollfds[1].revents & (POLLIN)) {
-                struct msg_header_t hdr;
-                uint8_t **payload = NULL;
-                uint8_t *buffer = NULL;
-                enum comm_status_t status = _comm_recv(state->_fd, &hdr, payload);
-                if (status == COMM_ERR_NONE) {
-                    buffer = malloc(sizeof(struct msg_header_t)+
-                                    hdr.payload_length);
-                    assert(buffer);
-                    memcpy(&buffer[0], &hdr, sizeof(struct msg_header_t));
-                    memcpy(&buffer[sizeof(struct msg_header_t)], *payload, hdr.payload_length);
-                    queue_push(&state->recv_queue, buffer);
-                    free(*payload);
-                    write(state->_recv_fd, 'p', 1);
-                } else if (status == COMM_ERR_CHECKSUM_ERROR) {
-                    fprintf(stderr, "comm: checksum error\n");
-                } else if (status == COMM_ERR_TIMEOUT) {
-                    fprintf(stderr, "comm: timeout\n");
-                } else if (status == COMM_ERR_DISCONNECTED) {
-                    fprintf(stderr, "comm: lost connection during recv\n");
-                    sm = COMM_CLOSED;
-                    close(state->_fd);
-                    state->_fd = 0;
-                    break;
-                }
-            }
-            if (pollfds[0].revents & (POLLERR|POLLHUP)) {
-            } else if (pollfds[0].revents  & (POLLIN)) {
-                // trigger
             }
             break;
         }

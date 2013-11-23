@@ -18,7 +18,8 @@ set(SOURCES
     "hintd.c"
     "queue.c"
     "comm.c"
-    "broker.c")
+    "broker.c"
+    "timestamp.c")
 
 set(STATIC_LIBS
     "libcouplet/src/libcouplet/.libs/libcouplet.a")
