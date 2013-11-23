@@ -212,7 +212,8 @@ class Renderer:
     HEIGHT = 128
 
     def __init__(self, font_family, font_size,
-            weight=Pango.Weight.NORMAL):
+            weight=Pango.Weight.NORMAL,
+            export_dir=None):
         font_descr = Pango.FontDescription()
         font_descr.set_family(font_family)
         font_descr.set_size(font_size * Pango.SCALE)
@@ -230,6 +231,8 @@ class Renderer:
         self._layout = Pango.Layout(self._pango)
         self._layout.set_font_description(font_descr)
 
+        self._export_dir = export_dir
+
     def render_ustr(self, ustr):
         self._buffer[:] = self._nullbuffer[:]
         self._layout.set_text(ustr.encode("utf8"), -1)
@@ -243,8 +246,6 @@ class Renderer:
 
         self._cairo.set_source_rgba(0, 0, 0, 1)
         PangoCairo.show_layout(self._cairo, self._layout)
-
-        self._surface.write_to_png(open("/tmp/test.png", "wb"))
 
         # each pixel is one byte, let's slice it
         width = logical.width
@@ -304,6 +305,48 @@ class Renderer:
             final[i] = curr_byte
         return final
 
+    def export_glyph(self, glyph_struct):
+        if glyph_struct.height == 0 or glyph_struct.width == 0:
+            buf = bytearray([0]*4)
+            rowsize = 4
+            surf = cairo.ImageSurface.create_for_data(
+                buf, cairo.FORMAT_A8,
+                1, 1, rowsize)
+        else:
+            rowsize = glyph_struct.width
+            rowsize += (4 - rowsize % 4)
+            buf = bytearray(rowsize*glyph_struct.height)
+
+            byteiter = iter(glyph_struct.data)
+            bitmask = 0x00
+            desti = 0
+            for y in range(glyph_struct.height):
+                for x in range(glyph_struct.width):
+                    if not bitmask:
+                        bitmask = 0x80
+                        curr_byte = next(byteiter)
+
+                    buf[desti] = 0xff if (curr_byte & bitmask) else 0x00
+                    desti += 1
+
+                    bitmask = bitmask >> 1
+
+                desti += rowsize - glyph_struct.width
+
+            surf = cairo.ImageSurface.create_for_data(
+                buf, cairo.FORMAT_A8,
+                glyph_struct.width,
+                glyph_struct.height,
+                rowsize)
+
+        with open(
+                os.path.join(
+                    self._export_dir,
+                    "0x{:08x}.png".format(glyph_struct.codepoint)),
+                "wb") as f:
+            surf.write_to_png(f)
+
+
     def struct_ustr(self, codepoint):
         result = GlyphStruct()
         result.codepoint = codepoint
@@ -326,7 +369,10 @@ class Renderer:
 
         for codepoint in codepoints:
             logging.debug("rendering glyph for codepoint %d", codepoint)
-            result.add_glyph(self.struct_ustr(codepoint))
+            glyph = self.struct_ustr(codepoint)
+            if self._export_dir is not None:
+                self.export_glyph(glyph)
+            result.add_glyph(glyph)
 
         return result
 
@@ -416,6 +462,14 @@ if __name__ == "__main__":
         dest="elf_section",
         help="ELF section to store the font in"
     )
+    parser.add_argument(
+        "--export",
+        metavar="DIRECTORY",
+        dest="export_dir",
+        default=None,
+        help="If set, all glyphs will be exported as PNGs into the "
+             "given directory"
+    )
 
     args = parser.parse_args()
 
@@ -436,7 +490,11 @@ if __name__ == "__main__":
     for sequence in args.cp_exclude_sequences:
         codepoints -= frozenset(sequence)
 
-    renderer = Renderer(args.font, args.size, weight=args.weight)
+    renderer = Renderer(
+        args.font,
+        args.size,
+        weight=args.weight,
+        export_dir=args.export_dir)
     font = renderer.struct_font(codepoints)
     font.name = args.structname
     font.section = args.elf_section
