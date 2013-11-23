@@ -12,9 +12,17 @@ typedef uint16_t msg_length_t;
 #define MSG_ADDRESS_LPC1114 (0x1)
 #define MSG_ADDRESS_ARDUINO (0x2)
 
+#define MSG_FLAG_ACK        (0x10)
+#define MSG_FLAG_NAK        (0x20)
+
+//! command not allowed at this time
+#define MSG_NAK_CODE_ORDER              (0x01)
+//! unknown command
+#define MSG_NAK_CODE_UNKNOWN_COMMAND    (0x02)
+
 struct msg_header_t {
-    uint16_t reserved0      : 6;
-    uint16_t payload_length : 10;
+    uint16_t flags          : 8;
+    uint16_t payload_length : 8;
     uint16_t reserved1      : 2;
     uint16_t sender         : 2;
     uint16_t reserved2      : 2;
@@ -30,7 +38,7 @@ enum msg_status_t {
     MSG_INVALID_ADDRESS
 };
 
-#define MSG_MAX_PAYLOAD     (0x3ff)
+#define MSG_MAX_PAYLOAD     (0xfa)
 #define MSG_MAX_ADDRESS     (0x3)
 #define MSG_MAX_LENGTH      (MSG_MAX_PAYLOAD + sizeof(struct msg_header_t) + sizeof(msg_checksum_t))
 
