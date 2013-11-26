@@ -66,6 +66,45 @@ void fill_rectangle(
     lcd_drawstop();
 }
 
+void draw_bitmap(
+    coord_int_t x0,
+    coord_int_t y0,
+    coord_int_t width,
+    coord_int_t height,
+    const colour_t fgcolour,
+    const colour_t bgcolour,
+    const uint8_t *bitmap)
+{
+    clamp_x(&x0);
+    clamp_y(&y0);
+    if (x0 + width > LCD_WIDTH) {
+        return;
+    }
+    if (y0 + height > LCD_HEIGHT) {
+        return;
+    }
+
+    const uint8_t *curr_byte_p = bitmap;
+    uint8_t curr_byte = *curr_byte_p;
+    uint8_t curr_mask = 0x80;
+
+    lcd_setarea(x0, y0, x0+width-1, y0+height-1);
+    lcd_drawstart();
+    for (int16_t y = 0; y < height; y++) {
+        for (int16_t x = 0; x < width; x++) {
+            lcd_draw((curr_byte & curr_mask) ? fgcolour : bgcolour);
+
+            curr_mask >>= 1;
+            if (curr_mask == 0x00) {
+                curr_byte_p++;
+                curr_byte = *curr_byte_p;
+                curr_mask = 0x80;
+            }
+        }
+    }
+    lcd_drawstop();
+}
+
 void draw_bitmap_transparent(
     coord_int_t x0,
     coord_int_t y0,
