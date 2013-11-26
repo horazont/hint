@@ -105,3 +105,26 @@ void table_row(
 
     ctx->row_offset = y + ctx->row_height;
 }
+
+void table_row_onebuffer(
+    struct table_t *ctx,
+    const struct font_t *font,
+    utf8_cstr_t columns,
+    const colour_t text_colour)
+{
+    coord_int_t x = ctx->x0;
+    coord_int_t y = ctx->row_offset;
+
+    const struct table_column_t *column_decl = ctx->columns;
+    for (unsigned int i = 0; i < ctx->column_count; i++) {
+        columns = table_cell(
+            font, columns, column_decl, text_colour, x, y);
+
+        x += column_decl->width;
+
+        columns++;
+        column_decl++;
+    }
+
+    ctx->row_offset = y + ctx->row_height;
+}

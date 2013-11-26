@@ -62,4 +62,20 @@ void table_row(
     const utf8_cstr_t *columns,
     const colour_t text_colour);
 
+/**
+ * Draw a table row
+ *
+ * @param ctx table context to use
+ * @param font to use
+ * @param columns a long string containing the columns. The text for
+ *        each column should be separated by a NUL character (so the
+ *        buffer pointed to should be a packed sequence of c strings)
+ * @param text_colour foreground colour to use
+ */
+void table_row_onebuffer(
+    struct table_t *ctx,
+    const struct font_t *font,
+    utf8_cstr_t columns,
+    const colour_t text_colour);
+
 #endif
