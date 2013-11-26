@@ -27,13 +27,13 @@ struct font_t {
     struct glyph_t glyphs[];
 };
 
-void font_draw_text(
+utf8_cstr_t font_draw_text(
     const struct font_t *font,
     const coord_int_t x0,
     const coord_int_t y0,
     const colour_t colour,
     utf8_cstr_t text);
-void font_draw_text_ellipsis(
+utf8_cstr_t font_draw_text_ellipsis(
     const struct font_t *font,
     const coord_int_t x0,
     const coord_int_t y0,

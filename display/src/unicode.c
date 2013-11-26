@@ -50,3 +50,8 @@ codepoint_t utf8_next(utf8_ctx_t *ctx)
     *ctx = ++str;
     return result;
 }
+
+utf8_cstr_t utf8_get_ptr(const utf8_ctx_t *ctx)
+{
+    return *ctx;
+}

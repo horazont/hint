@@ -22,7 +22,7 @@ inline const struct glyph_t *font_find_glyph(const struct font_t *font,
     return NULL;
 }
 
-void font_draw_text(
+utf8_cstr_t font_draw_text(
     const struct font_t *font,
     const coord_int_t x0,
     const coord_int_t y0,
@@ -55,9 +55,10 @@ void font_draw_text(
             bitmap);
         x += glyph->w;
     }
+    return utf8_get_ptr(&ctx);
 }
 
-void font_draw_text_ellipsis_take_care(
+codepoint_t font_draw_text_ellipsis_take_care(
     const struct font_t *font,
     utf8_ctx_t *ctx,
     const coord_int_t x0,
@@ -117,9 +118,11 @@ void font_draw_text_ellipsis_take_care(
             colour, bitmap);
         xoffs += glyph->w;
     }
+
+    return ch;
 }
 
-void font_draw_text_ellipsis(
+utf8_cstr_t font_draw_text_ellipsis(
     const struct font_t *font,
     const coord_int_t x0,
     const coord_int_t y0,
@@ -138,17 +141,19 @@ void font_draw_text_ellipsis(
     coord_int_t y = y0;
     coord_int_t xoffs = 0;
     utf8_ctx_t ctx;
+    codepoint_t ch;
     utf8_init(&ctx, text);
 
-    for (codepoint_t ch = utf8_next(&ctx);
+
+    for (ch = utf8_next(&ctx);
          ch != 0;
          ch = utf8_next(&ctx))
     {
         if (ch == 0x20) {
             if ((width - (xoffs+font->space_width)) < ellipsis->w) {
-                font_draw_text_ellipsis_take_care(
+                ch = font_draw_text_ellipsis_take_care(
                     font, &ctx, x0, xoffs, width, ch, ellipsis, y0, colour);
-                return;
+                break;
             }
             xoffs += font->space_width;
             continue;
@@ -159,9 +164,9 @@ void font_draw_text_ellipsis(
             continue;
         }
         if ((width - (xoffs+glyph->w)) < ellipsis->w) {
-            font_draw_text_ellipsis_take_care(
+            ch = font_draw_text_ellipsis_take_care(
                 font, &ctx, x0, xoffs, width, ch, ellipsis, y0, colour);
-            return;
+            break;
         }
 
         const uint8_t *bitmap = &font->data[glyph->data_offset];
@@ -172,6 +177,11 @@ void font_draw_text_ellipsis(
             bitmap);
         xoffs += glyph->w;
     }
+
+    while (ch != 0) {
+        ch = utf8_next(&ctx);
+    }
+    return utf8_get_ptr(&ctx);
 }
 
 inline coord_int_t max(const coord_int_t a, const coord_int_t b)
