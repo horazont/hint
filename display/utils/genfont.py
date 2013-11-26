@@ -56,7 +56,7 @@ class GlyphRange(object):
             count=self.count)
 
 class FontStruct(object):
-    def __init__(self):
+    def __init__(self, height):
         super(FontStruct, self).__init__()
         self.name = "font";
         self.space_width = 0
@@ -64,8 +64,9 @@ class FontStruct(object):
         self.datamap = {}
         self.data = bytearray()
         self.ranges = None
-        self.base_size = 2+1+4+4
+        self.base_size = 2+1+1+4+4
         self.section = None
+        self.height = height
 
     @property
     def size(self):
@@ -192,6 +193,7 @@ struct glyph_range_t {name}__ranges[] {attrib} = {{
 struct font_t {name} {attrib} = {{
     .glyph_count = {glyph_count},
     .space_width = {space_width},
+    .height = {height},
     .data = {name}__data,
     .ranges = {name}__ranges,
     .glyphs = {{
@@ -203,6 +205,7 @@ struct font_t {name} {attrib} = {{
             space_width=self.space_width,
             glyphs=self._c_glyphs(),
             ranges=self._c_ranges(),
+            height=self.height,
             data=self._c_data(indent="    "),
             attrib=self._c_attribute()
             )
@@ -383,7 +386,7 @@ class Renderer:
             # space is handled specially
             codepoints.remove(0x20)
 
-        result = FontStruct()
+        result = FontStruct(self._font_size)
         result.space_width, _, _, _ = self.render_ustr(u' ')
 
         for codepoint in codepoints:

@@ -22,6 +22,7 @@ typedef uint8_t *font_data_t;
 struct font_t {
     uint16_t glyph_count;
     uint8_t space_width;
+    uint8_t height;
     font_data_t data;
     struct glyph_range_t *ranges;
     struct glyph_t glyphs[];
