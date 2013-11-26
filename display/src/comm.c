@@ -41,8 +41,8 @@ bool comm_release_rx_message()
     if (backbuffer_ready) {
         swap_app_buffers();
         backbuffer_ready = false;
+        available = frontbuffer_locked = true;
     }
-    available = frontbuffer_locked = true;
     NVIC_EnableIRQ(UART_IRQn);
     return available;
 }
