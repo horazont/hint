@@ -220,6 +220,7 @@ void font_text_metrics(
         }
         h = max(h, glyph->y0);
         d = max(d, max(0, glyph->h - glyph->y0));
+        w += glyph->w;
     }
 
     *width = w;
