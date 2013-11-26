@@ -26,7 +26,8 @@ utf8_cstr_t font_draw_text(
     const struct font_t *font,
     const coord_int_t x0,
     const coord_int_t y0,
-    const colour_t colour,
+    const colour_t fgcolour,
+    const colour_t bgcolour,
     utf8_cstr_t text)
 {
     coord_int_t x = x0, y = y0;
@@ -48,10 +49,11 @@ utf8_cstr_t font_draw_text(
         }
 
         const uint8_t *bitmap = &font->data[glyph->data_offset];
-        draw_bitmap_transparent(
+        draw_bitmap(
             x, y-glyph->y0,
             glyph->w, glyph->h,
-            colour,
+            fgcolour,
+            bgcolour,
             bitmap);
         x += glyph->w;
     }
@@ -67,7 +69,8 @@ codepoint_t font_draw_text_ellipsis_take_care(
     codepoint_t ch,
     const struct glyph_t *ellipsis,
     const coord_int_t y0,
-    const colour_t colour)
+    const colour_t fgcolour,
+    const colour_t bgcolour)
 {
     coord_int_t xoffs = xoffs0;
     int bufidx = 0;
@@ -112,10 +115,10 @@ codepoint_t font_draw_text_ellipsis_take_care(
             continue;
         }
         const uint8_t *bitmap = &font->data[glyph->data_offset];
-        draw_bitmap_transparent(
+        draw_bitmap(
             x0 + xoffs, y0 - glyph->y0,
             glyph->w, glyph->h,
-            colour, bitmap);
+            fgcolour, bgcolour, bitmap);
         xoffs += glyph->w;
     }
 
@@ -126,7 +129,8 @@ utf8_cstr_t font_draw_text_ellipsis(
     const struct font_t *font,
     const coord_int_t x0,
     const coord_int_t y0,
-    const colour_t colour,
+    const colour_t fgcolour,
+    const colour_t bgcolour,
     utf8_cstr_t text,
     const coord_int_t width)
 {
@@ -135,7 +139,7 @@ utf8_cstr_t font_draw_text_ellipsis(
 
     if (!ellipsis) {
         // no point in drawing with ellipsis without ellipsis
-        return font_draw_text(font, x0, y0, colour, text);
+        return font_draw_text(font, x0, y0, fgcolour, bgcolour, text);
     }
 
     coord_int_t y = y0;
@@ -152,7 +156,8 @@ utf8_cstr_t font_draw_text_ellipsis(
         if (ch == 0x20) {
             if ((width - (xoffs+font->space_width)) < ellipsis->w) {
                 ch = font_draw_text_ellipsis_take_care(
-                    font, &ctx, x0, xoffs, width, ch, ellipsis, y0, colour);
+                    font, &ctx, x0, xoffs, width, ch, ellipsis, y0,
+                    fgcolour, bgcolour);
                 break;
             }
             xoffs += font->space_width;
@@ -165,15 +170,16 @@ utf8_cstr_t font_draw_text_ellipsis(
         }
         if ((width - (xoffs+glyph->w)) < ellipsis->w) {
             ch = font_draw_text_ellipsis_take_care(
-                font, &ctx, x0, xoffs, width, ch, ellipsis, y0, colour);
+                font, &ctx, x0, xoffs, width, ch, ellipsis, y0,
+                fgcolour, bgcolour);
             break;
         }
 
         const uint8_t *bitmap = &font->data[glyph->data_offset];
-        draw_bitmap_transparent(
+        draw_bitmap(
             x0 + xoffs, y-glyph->y0,
             glyph->w, glyph->h,
-            colour,
+            fgcolour, bgcolour,
             bitmap);
         xoffs += glyph->w;
     }
