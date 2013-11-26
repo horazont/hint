@@ -19,6 +19,8 @@ typedef uint16_t msg_length_t;
 #define MSG_NAK_CODE_ORDER              (0x01)
 //! unknown command
 #define MSG_NAK_CODE_UNKNOWN_COMMAND    (0x02)
+//! not enough memory to perform the given operation
+#define MSG_NAK_OUT_OF_MEMORY           (0x03)
 
 struct msg_header_t {
     uint16_t flags          : 8;
