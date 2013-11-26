@@ -33,7 +33,7 @@ struct __attribute__((packed)) lpc_cmd_draw_image_data_t {
 };
 
 struct __attribute__((packed)) lpc_cmd_draw_text {
-    uint16_t colour;
+    uint16_t fgcolour;
     uint8_t font;
     int16_t x0, y0;
     uint8_t text[0];
@@ -50,7 +50,8 @@ struct __attribute__((packed)) lpc_cmd_table_start_t {
 };
 
 struct __attribute__((packed)) lpc_cmd_table_row_t {
-    uint16_t colour;
+    uint16_t fgcolour;
+    uint16_t bgcolour;
     uint8_t font;
     uint8_t contents[0];
 };

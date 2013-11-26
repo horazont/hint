@@ -24,12 +24,19 @@ void table_start(
 
 static inline utf8_cstr_t table_cell(
     const struct font_t *font,
+    const coord_int_t row_height,
     utf8_cstr_t content,
     const struct table_column_t *column,
-    const colour_t text_colour,
+    const colour_t fgcolour,
+    const colour_t bgcolour,
     coord_int_t x,
     coord_int_t y)
 {
+    const coord_int_t yrect = y-(font->height-1);
+    fill_rectangle(
+        x, yrect,
+        x+column->width-1, yrect+row_height-1,
+        bgcolour);
     switch (column->alignment) {
     case TABLE_ALIGN_RIGHT:
     {
@@ -44,7 +51,7 @@ static inline utf8_cstr_t table_cell(
             return font_draw_text(
                 font,
                 x, y,
-                text_colour,
+                fgcolour,
                 content);
         }
         break;
@@ -62,7 +69,7 @@ static inline utf8_cstr_t table_cell(
             return font_draw_text(
                 font,
                 x, y,
-                text_colour,
+                fgcolour,
                 content);
         }
         break;
@@ -77,7 +84,7 @@ static inline utf8_cstr_t table_cell(
     return font_draw_text_ellipsis(
         font,
         x, y,
-        text_colour,
+        fgcolour,
         content,
         column->width);
 }
@@ -86,7 +93,8 @@ void table_row(
     struct table_t *ctx,
     const struct font_t *font,
     const utf8_cstr_t *columns,
-    const colour_t text_colour)
+    const colour_t fgcolour,
+    const colour_t bgcolour)
 {
     coord_int_t x = ctx->x0;
     coord_int_t y = ctx->row_offset;
@@ -94,8 +102,11 @@ void table_row(
     const utf8_cstr_t *column_text = columns;
     const struct table_column_t *column_decl = ctx->columns;
     for (unsigned int i = 0; i < ctx->column_count; i++) {
-        table_cell(font, *column_text, column_decl, text_colour,
-                   x, y);
+        table_cell(
+            font, ctx->row_height,
+            *column_text, column_decl,
+            fgcolour, bgcolour,
+            x, y);
 
         x += column_decl->width;
 
@@ -110,7 +121,8 @@ void table_row_onebuffer(
     struct table_t *ctx,
     const struct font_t *font,
     utf8_cstr_t columns,
-    const colour_t text_colour)
+    const colour_t fgcolour,
+    const colour_t bgcolour)
 {
     coord_int_t x = ctx->x0;
     coord_int_t y = ctx->row_offset;
@@ -118,7 +130,10 @@ void table_row_onebuffer(
     const struct table_column_t *column_decl = ctx->columns;
     for (unsigned int i = 0; i < ctx->column_count; i++) {
         columns = table_cell(
-            font, columns, column_decl, text_colour, x, y);
+            font, ctx->row_height,
+            columns, column_decl,
+            fgcolour, bgcolour,
+            x, y);
 
         x += column_decl->width;
 

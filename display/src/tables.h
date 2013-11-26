@@ -60,7 +60,8 @@ void table_row(
     struct table_t *ctx,
     const struct font_t *font,
     const utf8_cstr_t *columns,
-    const colour_t text_colour);
+    const colour_t fgcolour,
+    const colour_t bgcolour);
 
 /**
  * Draw a table row
@@ -76,6 +77,7 @@ void table_row_onebuffer(
     struct table_t *ctx,
     const struct font_t *font,
     utf8_cstr_t columns,
-    const colour_t text_colour);
+    const colour_t fgcolour,
+    const colour_t bgcolour);
 
 #endif
