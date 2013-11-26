@@ -213,7 +213,8 @@ class Renderer:
 
     def __init__(self, font_family, font_size,
             weight=Pango.Weight.NORMAL,
-            export_dir=None):
+            export_dir=None,
+            flip=False):
         font_descr = Pango.FontDescription()
         font_descr.set_family(font_family)
         font_descr.set_size(font_size * Pango.SCALE)
@@ -232,6 +233,8 @@ class Renderer:
         self._layout.set_font_description(font_descr)
 
         self._export_dir = export_dir
+        self._flip = flip
+        self._font_size = font_size
 
     def render_ustr(self, ustr):
         self._buffer[:] = self._nullbuffer[:]
@@ -346,6 +349,20 @@ class Renderer:
                 "wb") as f:
             surf.write_to_png(f)
 
+    def flip(self, width, height, data):
+        result = [None] * (width*height)
+
+        def srcpos(x, y):
+            return y*width+x
+
+        def resultpos(x, y):
+            return x*height+y
+
+        for y in range(height):
+            for x in range(width):
+                result[resultpos(x, y)] = data[srcpos(x, y)]
+
+        return bytearray(result)
 
     def struct_ustr(self, codepoint):
         result = GlyphStruct()
@@ -355,6 +372,8 @@ class Renderer:
         result.width = w
         result.height = h
         result.y0 = baseline
+        if self._flip:
+            data = self.flip(w, h, data)
         result.data = self.compress_alpha(data)
         return result
 
@@ -470,6 +489,15 @@ if __name__ == "__main__":
         help="If set, all glyphs will be exported as PNGs into the "
              "given directory"
     )
+    parser.add_argument(
+        "--no-flip",
+        action="store_false",
+        dest="flip",
+        default=True,
+        help="If flip is enabled, the glyphs will be rotated by 90°, to"
+             " accomodate to the default orientation of the MI0283QT "
+             "display."
+    )
 
     args = parser.parse_args()
 
@@ -494,7 +522,8 @@ if __name__ == "__main__":
         args.font,
         args.size,
         weight=args.weight,
-        export_dir=args.export_dir)
+        export_dir=args.export_dir,
+        flip=args.flip)
     font = renderer.struct_font(codepoints)
     font.name = args.structname
     font.section = args.elf_section
