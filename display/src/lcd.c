@@ -206,13 +206,13 @@ void lcd_init()
 
 void lcd_setarea(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1)
 {
-  lcd_wrcmd8(LCD_CMD_COLUMN);
-  lcd_wrdata16(y0);
-  lcd_wrdata16(y1);
+    lcd_wrcmd8(LCD_CMD_COLUMN);
+    lcd_wrdata16(y0);
+    lcd_wrdata16(y1);
 
-  lcd_wrcmd8(LCD_CMD_PAGE);
-  lcd_wrdata16(x0);
-  lcd_wrdata16(x1);
+    lcd_wrcmd8(LCD_CMD_PAGE);
+    lcd_wrdata16(x0);
+    lcd_wrdata16(x1);
 }
 
 inline void lcd_setpixel(const uint16_t x0, const uint16_t y0,
