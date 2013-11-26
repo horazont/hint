@@ -4,9 +4,11 @@
 #include "draw.h"
 #include "font.h"
 
+#include "common/types.h"
+
 struct table_column_t {
     coord_int_t width;
-    // todo: aligment
+    table_column_alignment_t alignment;
 };
 
 struct table_t {

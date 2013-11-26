@@ -22,6 +22,66 @@ void table_start(
     ctx->row_offset = y0;
 }
 
+static inline utf8_cstr_t table_cell(
+    const struct font_t *font,
+    utf8_cstr_t content,
+    const struct table_column_t *column,
+    const colour_t text_colour,
+    coord_int_t x,
+    coord_int_t y)
+{
+    switch (column->alignment) {
+    case TABLE_ALIGN_RIGHT:
+    {
+        coord_int_t width, height, depth;
+        font_text_metrics(
+            font,
+            content,
+            &width, &height, &depth);
+        if (width < column->width) {
+            // text will fit, so we can do right alignment
+            x += (column->width - width);
+            return font_draw_text(
+                font,
+                x, y,
+                text_colour,
+                content);
+        }
+        break;
+    }
+    case TABLE_ALIGN_CENTER:
+    {
+        coord_int_t width, height, depth;
+        font_text_metrics(
+            font,
+            content,
+            &width, &height, &depth);
+        if (width < column->width) {
+            // text will fit, so we can do center alignment
+            x += (column->width - width) / 2;
+            return font_draw_text(
+                font,
+                x, y,
+                text_colour,
+                content);
+        }
+        break;
+    }
+    default:
+    case TABLE_ALIGN_LEFT:
+    {
+        // drawing happens at the end
+        break;
+    }
+    }
+    return font_draw_text_ellipsis(
+        font,
+        x, y,
+        text_colour,
+        content,
+        column->width);
+}
+
 void table_row(
     struct table_t *ctx,
     const struct font_t *font,
@@ -34,12 +94,8 @@ void table_row(
     const utf8_cstr_t *column_text = columns;
     const struct table_column_t *column_decl = ctx->columns;
     for (unsigned int i = 0; i < ctx->column_count; i++) {
-        font_draw_text_ellipsis(
-            font,
-            x, y,
-            text_colour,
-            *column_text,
-            column_decl->width);
+        table_cell(font, *column_text, column_decl, text_colour,
+                   x, y);
 
         x += column_decl->width;
 
