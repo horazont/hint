@@ -15,6 +15,7 @@
 #include "comm.h"
 #include "common/comm_lpc1114.h"
 #include "time.h"
+#include "buffer.h"
 
 #include "lpc111x.h"
 
@@ -138,12 +139,43 @@ static inline coord_int_t abs(const coord_int_t v)
 
 enum command_state_t {
     STATE_IDLE,
-    STATE_DRAWING_IMAGE
+    STATE_DRAWING_IMAGE,
+    STATE_TABLE
 };
 
 static struct lpc_cmd_t msg_cmd VAR_RAM;
 static msg_length_t msg_cmd_length VAR_RAM;
 static enum command_state_t cmd_state VAR_RAM = STATE_IDLE;
+
+static struct table_t *table_ctx VAR_RAM = NULL;
+
+static struct font_t *get_font(const uint16_t font_id)
+{
+    struct font_t *font = NULL;
+    switch (font_id) {
+    case LPC_FONT_DEJAVU_SANS_8PX:
+    {
+        font = &dejavu_sans_8px;
+        break;
+    }
+    case LPC_FONT_DEJAVU_SANS_12PX:
+    {
+        font = &dejavu_sans_12px;
+        break;
+    }
+    case LPC_FONT_DEJAVU_SANS_20PX_BF:
+    {
+        font = &dejavu_sans_20px_bf;
+        break;
+    }
+    default:
+    {
+        font = &dejavu_sans_8px;
+        break;
+    }
+    }
+    return font;
+}
 
 static inline void handle_idle_command()
 {
@@ -157,17 +189,6 @@ static inline void handle_idle_command()
             msg_cmd.args.draw_rect.x1,
             msg_cmd.args.draw_rect.y1,
             msg_cmd.args.draw_rect.colour);
-        uint8_t buffer[5];
-        buffer[4] = '\0';
-        coord_to_hex(msg_cmd.args.draw_rect.x0, &buffer[0]);
-        font_draw_text(&dejavu_sans_12px, 50, 50, 0xffff, &buffer[0]);
-        coord_to_hex(msg_cmd.args.draw_rect.x1, &buffer[0]);
-        font_draw_text(&dejavu_sans_12px, 50, 64, 0xffff, &buffer[0]);
-        coord_to_hex(msg_cmd.args.draw_rect.y0, &buffer[0]);
-        font_draw_text(&dejavu_sans_12px, 50, 78, 0xffff, &buffer[0]);
-        coord_to_hex(msg_cmd.args.draw_rect.y1, &buffer[0]);
-        font_draw_text(&dejavu_sans_12px, 50, 92, 0xffff, &buffer[0]);
-
         lcd_disable();
         break;
     }
@@ -185,43 +206,14 @@ static inline void handle_idle_command()
     }
     case LPC_CMD_DRAW_TEXT:
     {
-        struct font_t *font = NULL;
-        switch (msg_cmd.args.draw_text.font) {
-        case LPC_FONT_DEJAVU_SANS_8PX:
-        {
-            font = &dejavu_sans_8px;
-            break;
-        }
-        case LPC_FONT_DEJAVU_SANS_12PX:
-        {
-            font = &dejavu_sans_12px;
-            break;
-        }
-        case LPC_FONT_DEJAVU_SANS_20PX_BF:
-        {
-            font = &dejavu_sans_20px_bf;
-            break;
-        }
-        default:
-        {
-            font = &dejavu_sans_8px;
-            break;
-        }
-        }
         lcd_enable();
         font_draw_text(
-            font,
+            get_font(msg_cmd.args.draw_text.font),
             msg_cmd.args.draw_text.x0,
             msg_cmd.args.draw_text.y0,
-            msg_cmd.args.draw_text.colour,
+            msg_cmd.args.draw_text.fgcolour,
             msg_cmd.args.draw_text.text);
         lcd_disable();
-        break;
-    }
-    case LPC_CMD_DRAW_IMAGE_DATA:
-    case LPC_CMD_DRAW_IMAGE_END:
-    {
-        //~ comm_tx_nak(MSG_ADDRESS_HOST, MSG_NAK_CODE_UNKNOWN_COMMAND);
         break;
     }
     case LPC_CMD_DRAW_IMAGE_START:
@@ -235,6 +227,52 @@ static inline void handle_idle_command()
             msg_cmd.args.draw_image_start.y1);
         lcd_drawstart();
         cmd_state = STATE_DRAWING_IMAGE;
+        break;
+    }
+    case LPC_CMD_TABLE_START:
+    {
+        table_ctx = buffer_alloc(sizeof(struct table_t));
+        struct table_column_t *columns = buffer_alloc(
+            sizeof(struct table_column_t)*msg_cmd.args.table_start.column_count);
+        if (!table_ctx || !columns) {
+            comm_tx_nak(MSG_ADDRESS_HOST, MSG_NAK_OUT_OF_MEMORY);
+            buffer_release_all();
+            break;
+        }
+
+        for (int i = 0;
+            i < msg_cmd.args.table_start.column_count;
+            i++)
+        {
+            columns[i].width = msg_cmd.args.table_start.columns[i].width;
+            columns[i].alignment = msg_cmd.args.table_start.columns[i].alignment;
+        }
+
+        table_init(
+            table_ctx,
+            columns,
+            msg_cmd.args.table_start.column_count,
+            msg_cmd.args.table_start.row_height);
+
+        table_start(
+            table_ctx,
+            msg_cmd.args.table_start.x0,
+            msg_cmd.args.table_start.y0);
+
+        cmd_state = STATE_TABLE;
+        break;
+    }
+    case LPC_CMD_DRAW_IMAGE_DATA:
+    case LPC_CMD_DRAW_IMAGE_END:
+    case LPC_CMD_TABLE_ROW:
+    case LPC_CMD_TABLE_END:
+    {
+        comm_tx_nak(MSG_ADDRESS_HOST, MSG_NAK_CODE_ORDER);
+        break;
+    }
+    default:
+    {
+        comm_tx_nak(MSG_ADDRESS_HOST, MSG_NAK_CODE_UNKNOWN_COMMAND);
         break;
     }
     }
@@ -262,7 +300,36 @@ static inline void handle_draw_image_command()
     }
     default:
     {
-        //~ comm_tx_nak(MSG_ADDRESS_HOST, MSG_NAK_CODE_ORDER);
+        comm_tx_nak(MSG_ADDRESS_HOST, MSG_NAK_CODE_ORDER);
+        break;
+    }
+    }
+}
+
+static inline void handle_table_command()
+{
+    switch (msg_cmd.cmd) {
+    case LPC_CMD_TABLE_ROW:
+    {
+        lcd_enable();
+        table_row_onebuffer(
+            table_ctx,
+            get_font(msg_cmd.args.table_row.font),
+            &msg_cmd.args.table_row.contents[0],
+            msg_cmd.args.table_row.fgcolour,
+            msg_cmd.args.table_row.bgcolour);
+        lcd_disable();
+        break;
+    }
+    case LPC_CMD_TABLE_END:
+    {
+        buffer_release_all();
+        cmd_state = STATE_IDLE;
+        break;
+    }
+    default:
+    {
+        comm_tx_nak(MSG_ADDRESS_HOST, MSG_NAK_CODE_ORDER);
         break;
     }
     }
@@ -270,6 +337,13 @@ static inline void handle_draw_image_command()
 
 static inline void handle_command()
 {
+    if (msg_cmd.cmd == LPC_CMD_RESET_STATE) {
+        cmd_state = STATE_IDLE;
+        lcd_disable();
+        buffer_release_all();
+        return;
+    }
+
     switch (cmd_state) {
     case STATE_IDLE:
     {
@@ -279,6 +353,11 @@ static inline void handle_command()
     case STATE_DRAWING_IMAGE:
     {
         handle_draw_image_command();
+        break;
+    }
+    case STATE_TABLE:
+    {
+        handle_table_command();
         break;
     }
     }
