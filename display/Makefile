@@ -78,7 +78,7 @@ inc/projectconfig.h:
 	ln -s ../src/config.h $@
 
 src/generated_font_data.inc: $(GENFONT)
-	$(GENFONT) \
+	$(GENFONT) --no-flip \
 		-r 0x20 0x7e \
 		-r 0xa1 0xff \
 		-x 0xad \
@@ -87,13 +87,13 @@ src/generated_font_data.inc: $(GENFONT)
 		--section ".text#" \
 		-- \
 		"DejaVu Sans" 12 dejavu_sans_12px > $@
-	$(GENFONT) --bfseries \
+	$(GENFONT) --no-flip --bfseries \
 		-r "'0'" "'9'" \
 		-c "':'" "'°'" "'C'" \
 		-c 0xfffd \
 		-- \
 		Cantarell 20 dejavu_sans_20px_bf >> $@
-	$(GENFONT) \
+	$(GENFONT) --no-flip \
 		-r "'A'" "'Z'" \
 		-r "'0'" "'9'" \
 		-c "'.'" "':'" \
