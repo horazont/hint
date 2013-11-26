@@ -38,12 +38,22 @@ void dump_buffer(FILE *dest, const uint8_t *buffer, int len)
     }
 }
 
+void comm_dump_header(const struct msg_header_t *hdr)
+{
+    fprintf(stderr, "dumping message@%08lx: header: \n", (uint64_t)hdr);
+    dump_buffer(stderr, (const uint8_t*)hdr, sizeof(struct msg_header_t));
+}
+
+void comm_dump_body(const struct msg_header_t *hdr, const uint8_t *buffer)
+{
+    fprintf(stderr, "        message@%08lx: payload: \n", (uint64_t)hdr);
+    dump_buffer(stderr, buffer, hdr->payload_length);
+}
+
 void comm_dump_message(const struct msg_header_t *item)
 {
-    fprintf(stderr, "dumping message@%08lx: header: \n", (uint64_t)item);
-    dump_buffer(stderr, (const uint8_t*)item, sizeof(struct msg_header_t));
-    fprintf(stderr, "        message@%08lx: payload: \n", (uint64_t)item);
-    dump_buffer(stderr, &((const uint8_t*)item)[sizeof(struct msg_header_t)], item->payload_length);
+    comm_dump_header(item);
+    comm_dump_body(item, &((const uint8_t*)item)[sizeof(struct msg_header_t)]);
 }
 
 speed_t get_baudrate(uint32_t baudrate)
