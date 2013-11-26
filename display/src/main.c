@@ -488,11 +488,12 @@ int main(void)
         }
         case EV_TOUCH:
         {
-            coord_int_t x, y;
+            coord_int_t x, y, z;
             x = touch_get_x();
             y = touch_get_y();
+            z = touch_get_z();
 
-            if (abs(prevx - x) + abs(prevy + y) <= 4) {
+            if (abs(prevx - x) + abs(prevy - y) <= 3) {
                 prevx = x;
                 prevy = y;
                 break;
@@ -501,6 +502,11 @@ int main(void)
             prevx = x;
             prevy = y;
 
+            if (z == 0) {
+                prevx = -100;
+                prevy = -100;
+            }
+
             lcd_enable();
             fill_rectangle(x-2, y-2, x+2, y+2, 0x001f);
             lcd_disable();
@@ -508,7 +514,7 @@ int main(void)
             msg_payload.subject = LPC_SUBJECT_TOUCH_EVENT;
             msg_payload.payload.touch_ev.x = x;
             msg_payload.payload.touch_ev.y = y;
-            msg_payload.payload.touch_ev.z = touch_get_z();
+            msg_payload.payload.touch_ev.z = z;
             msg_header.payload_length = sizeof(struct lpc_msg_t);
             msg_checksum = checksum((const uint8_t*)&msg_payload,
                                     msg_header.payload_length);
