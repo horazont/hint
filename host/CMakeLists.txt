@@ -15,11 +15,11 @@ ExternalProject_Add(libcouplet
     INSTALL_COMMAND echo)
 
 set(SOURCES
-    "hintd.c"
-    "queue.c"
-    "comm.c"
-    "broker.c"
-    "timestamp.c")
+    "src/hintd.c"
+    "src/queue.c"
+    "src/comm.c"
+    "src/broker.c"
+    "src/timestamp.c")
 
 set(STATIC_LIBS
     "libcouplet/src/libcouplet/.libs/libcouplet.a")
