@@ -19,6 +19,19 @@ enum comm_state_t
     COMM_OPEN
 };
 
+void *comm_alloc_message(
+    const msg_address_t recipient,
+    const msg_length_t payload_length)
+{
+    struct msg_header_t *msg = malloc(
+        sizeof(struct msg_header_t) + payload_length);
+    memset(msg, 0, sizeof(struct msg_header_t));
+    msg->sender = MSG_ADDRESS_HOST;
+    msg->recipient = recipient;
+    msg->payload_length = payload_length;
+    return msg;
+}
+
 void dump_buffer(FILE *dest, const uint8_t *buffer, int len)
 {
     if (len == 0) {

@@ -82,6 +82,11 @@ struct __attribute__((packed)) lpc_cmd_t {
     } args;
 };
 
+struct __attribute__((packed)) lpc_cmd_msg_t {
+    struct msg_header_t header;
+    struct lpc_cmd_t payload;
+};
+
 #if __STDC_VERSION__ >= 201112L
 
 _Static_assert(sizeof(struct lpc_cmd_t) <= MSG_MAX_PAYLOAD,

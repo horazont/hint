@@ -55,6 +55,10 @@ struct comm_t
     struct timespec _tx_timestamp;
 };
 
+void *comm_alloc_message(
+    const msg_address_t recipient,
+    const msg_length_t payload_length);
+
 void comm_dump_message(const struct msg_header_t *item);
 
 void comm_init(
