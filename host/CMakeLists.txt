@@ -19,7 +19,7 @@ set(SOURCES
     "src/queue.c"
     "src/comm.c"
     "src/broker.c"
-    "src/timestamp.c")
+    "src/lpcdisplay.c")
 
 set(STATIC_LIBS
     "libcouplet/src/libcouplet/.libs/libcouplet.a")
