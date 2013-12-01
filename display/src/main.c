@@ -163,6 +163,11 @@ static struct font_t *get_font(const uint16_t font_id)
         font = &dejavu_sans_12px;
         break;
     }
+    case LPC_FONT_DEJAVU_SANS_12PX_BF:
+    {
+        font = &dejavu_sans_12px_bf;
+        break;
+    }
     case LPC_FONT_DEJAVU_SANS_20PX_BF:
     {
         font = &dejavu_sans_20px_bf;

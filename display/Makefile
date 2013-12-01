@@ -88,6 +88,15 @@ src/generated_font_data.inc: $(GENFONT)
 		-- \
 		"DejaVu Sans" 12 dejavu_sans_12px > $@
 	$(GENFONT) --no-flip --bfseries \
+		-r 0x20 0x7e \
+		-r 0xa1 0xff \
+		-x 0xad \
+		-c 0xfffd \
+		-c 0x2026 \
+		--section ".text#" \
+		-- \
+		"DejaVu Sans" 12 dejavu_sans_12px_bf >> $@
+	$(GENFONT) --no-flip --bfseries \
 		-r "'0'" "'9'" \
 		-c "':'" "'°'" "'C'" \
 		-c 0xfffd \

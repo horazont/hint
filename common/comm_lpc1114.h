@@ -72,6 +72,7 @@ struct __attribute__((packed)) lpc_cmd_table_row_t {
 
 #define LPC_FONT_DEJAVU_SANS_8PX      (0x10)
 #define LPC_FONT_DEJAVU_SANS_12PX     (0x20)
+#define LPC_FONT_DEJAVU_SANS_12PX_BF  (0x21)
 #define LPC_FONT_DEJAVU_SANS_20PX_BF  (0x31)
 
 struct __attribute__((packed)) lpc_cmd_t {
