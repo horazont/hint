@@ -3,8 +3,8 @@
 
 #include <stdint.h>
 
-typedef uint16_t colour_t;
-typedef int16_t coord_int_t;
+#include "common/types.h"
+
 struct point_t {
     coord_int_t x, y;
 };

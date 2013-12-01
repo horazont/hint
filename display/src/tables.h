@@ -6,11 +6,6 @@
 
 #include "common/types.h"
 
-struct table_column_t {
-    coord_int_t width;
-    table_column_alignment_t alignment;
-};
-
 struct table_t {
     const struct table_column_t *columns;
     uint8_t column_count;

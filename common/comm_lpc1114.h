@@ -43,10 +43,7 @@ struct __attribute__((packed)) lpc_cmd_table_start_t {
     uint16_t column_count;
     int16_t x0, y0;
     int16_t row_height;
-    struct __attribute__((packed)) {
-        int16_t width;
-        table_column_alignment_t alignment;
-    } columns[0];
+    struct table_column_t __attribute__((packed)) columns[0];
 };
 
 struct __attribute__((packed)) lpc_cmd_table_row_t {
