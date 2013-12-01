@@ -13,7 +13,7 @@ typedef uint8_t table_column_alignment_t;
 #define TABLE_ALIGN_RIGHT (1)
 #define TABLE_ALIGN_CENTER (2)
 
-struct table_column_t {
+struct __attribute__((packed)) table_column_t {
     coord_int_t width;
     table_column_alignment_t alignment;
 };
