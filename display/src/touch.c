@@ -101,9 +101,6 @@ static coord_int_t raw_y VAR_RAM;
 static coord_int_t raw_z VAR_RAM;
 static coord_int_t last_x VAR_RAM;
 static coord_int_t last_y VAR_RAM;
-static coord_int_t cal_x VAR_RAM;
-static coord_int_t cal_y VAR_RAM;
-static coord_int_t cal_z VAR_RAM;
 
 /* static coord_int_t intr_tmp VAR_RAM; */
 
@@ -232,9 +229,6 @@ void touch_init()
     raw_z = 0;
     last_x = 0;
     last_y = 0;
-    cal_x = 0;
-    cal_y = 0;
-    cal_z = 0;
 
     HIZUP(XP);
     HIZUP(XM);
@@ -361,7 +355,7 @@ coord_int_t touch_get_y()
 
 coord_int_t touch_get_z()
 {
-    return cal_z;
+    return raw_z;
 }
 
 coord_int_t touch_get_raw_x()
@@ -447,14 +441,13 @@ void touch_sample()
                 // x and y are swapped
                 raw_x = 1023-y1;
                 raw_y = x1;
-                cal_z = z;
+                raw_z = z;
             }
         }
     }
     else
     {
         raw_z = 0;
-        cal_z = 0;
     }
 
     //stop adc
