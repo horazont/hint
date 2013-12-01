@@ -26,7 +26,7 @@ LD = $(TARGET_TOOLCHAIN)gcc
 SIZE = $(TARGET_TOOLCHAIN)size
 OBJCOPY = $(TARGET_TOOLCHAIN)objcopy
 OBJDUMP = $(TARGET_TOOLCHAIN)objdump
-GENFONT = utils/genfont.py
+GENFONT = ../utils/genfont.py
 
 # flags
 INCLUDE_PATHS = -I$(ROOT) -I$(ROOT)/inc -I$(CODEBASEDIR)/core -I$(CODEBASEDIR) -I../
