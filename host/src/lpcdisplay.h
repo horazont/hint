@@ -5,6 +5,14 @@
 
 #include "comm.h"
 
+void lpcd_draw_line(
+    struct comm_t *comm,
+    const coord_int_t x0,
+    const coord_int_t y0,
+    const coord_int_t x1,
+    const coord_int_t y1,
+    const colour_t colour);
+
 void lpcd_draw_rectangle(
     struct comm_t *comm,
     const coord_int_t x0,

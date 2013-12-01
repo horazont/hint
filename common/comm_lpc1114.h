@@ -21,6 +21,11 @@ struct __attribute__((packed)) lpc_cmd_draw_rect_t {
     int16_t x0, y0, x1, y1;
 };
 
+struct __attribute__((packed)) lpc_cmd_draw_line_t {
+    uint16_t colour;
+    int16_t x0, y0, x1, y1;
+};
+
 struct __attribute__((packed)) lpc_cmd_draw_image_start_t {
     int16_t x0, y0, x1, y1;
 };
@@ -63,6 +68,7 @@ struct __attribute__((packed)) lpc_cmd_table_row_t {
 #define LPC_CMD_TABLE_START         (0x08)
 #define LPC_CMD_TABLE_ROW           (0x09)
 #define LPC_CMD_TABLE_END           (0x0A)
+#define LPC_CMD_DRAW_LINE           (0x0B)
 
 #define LPC_FONT_DEJAVU_SANS_8PX      (0x10)
 #define LPC_FONT_DEJAVU_SANS_12PX     (0x20)
@@ -73,6 +79,7 @@ struct __attribute__((packed)) lpc_cmd_t {
     union {
         struct lpc_cmd_draw_rect_t fill_rect;
         struct lpc_cmd_draw_rect_t draw_rect;
+        struct lpc_cmd_draw_line_t draw_line;
         struct lpc_cmd_draw_image_start_t draw_image_start;
         struct lpc_cmd_draw_image_data_t draw_image_data;
         struct lpc_cmd_draw_text draw_text;

@@ -262,6 +262,18 @@ static inline void handle_idle_command()
         cmd_state = STATE_TABLE;
         break;
     }
+    case LPC_CMD_DRAW_LINE:
+    {
+        lcd_enable();
+        draw_line(
+            msg_cmd.args.draw_line.x0,
+            msg_cmd.args.draw_line.y0,
+            msg_cmd.args.draw_line.x1,
+            msg_cmd.args.draw_line.y1,
+            msg_cmd.args.draw_line.colour);
+        lcd_disable();
+        break;
+    }
     case LPC_CMD_DRAW_IMAGE_DATA:
     case LPC_CMD_DRAW_IMAGE_END:
     case LPC_CMD_TABLE_ROW:

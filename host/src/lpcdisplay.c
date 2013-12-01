@@ -4,6 +4,28 @@
 
 #include <string.h>
 
+void lpcd_draw_line(
+    struct comm_t *comm,
+    const coord_int_t x0,
+    const coord_int_t y0,
+    const coord_int_t x1,
+    const coord_int_t y1,
+    const colour_t colour)
+{
+    const int payload_length = sizeof(lpc_cmd_id_t) +
+                               sizeof(struct lpc_cmd_draw_line_t);
+    struct lpc_cmd_msg_t *msg = comm_alloc_message(
+        MSG_ADDRESS_LPC1114, payload_length);
+    msg->payload.cmd = LPC_CMD_DRAW_LINE;
+    msg->payload.args.draw_line.x0 = x0;
+    msg->payload.args.draw_line.y0 = y0;
+    msg->payload.args.draw_line.x1 = x1;
+    msg->payload.args.draw_line.y1 = y1;
+    msg->payload.args.draw_line.colour = colour;
+
+    comm_enqueue_msg(comm, msg);
+}
+
 void lpcd_draw_rectangle(
     struct comm_t *comm,
     const coord_int_t x0,
