@@ -510,7 +510,7 @@ int main(void)
             y = touch_get_y();
             z = touch_get_z();
 
-            if (abs(prevx - x) + abs(prevy - y) <= 3) {
+            if ((z > 0) && (abs(prevx - x) + abs(prevy - y) <= 3)) {
                 prevx = x;
                 prevy = y;
                 break;
