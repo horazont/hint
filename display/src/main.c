@@ -524,9 +524,9 @@ int main(void)
                 prevy = -100;
             }
 
-            lcd_enable();
-            fill_rectangle(x-2, y-2, x+2, y+2, 0x001f);
-            lcd_disable();
+            //~ lcd_enable();
+            //~ fill_rectangle(x-2, y-2, x+2, y+2, 0x001f);
+            //~ lcd_disable();
 
             msg_payload.subject = LPC_SUBJECT_TOUCH_EVENT;
             msg_payload.payload.touch_ev.x = x;
