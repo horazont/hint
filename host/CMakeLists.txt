@@ -19,6 +19,7 @@ set(SOURCES
     "src/queue.c"
     "src/comm.c"
     "src/broker.c"
+    "src/timestamp.c"
     "src/array.c"
     "src/lpcdisplay.c")
 
