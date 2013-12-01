@@ -50,17 +50,19 @@ void lpcd_draw_rectangle(
 
 void lpcd_draw_text(
     struct comm_t *comm,
-    const char *text,
-    const int font,
     const coord_int_t x0,
     const coord_int_t y0,
-    const colour_t colour)
+    const int font,
+    const colour_t colour,
+    const char *text)
 {
     const int text_buflen = strlen(text)+1;
-    const int payload_length = sizeof(lpc_cmd_id_t) + text_buflen;
+    const int payload_length = sizeof(lpc_cmd_id_t) +
+                               sizeof(struct lpc_cmd_draw_text) +
+                               text_buflen;
     struct lpc_cmd_msg_t *msg = comm_alloc_message(
         MSG_ADDRESS_LPC1114, payload_length);
-    msg->payload.cmd = LPC_CMD_DRAW_RECT;
+    msg->payload.cmd = LPC_CMD_DRAW_TEXT;
     msg->payload.args.draw_text.fgcolour = colour;
     msg->payload.args.draw_text.font = font;
     msg->payload.args.draw_text.x0 = x0;
@@ -147,11 +149,13 @@ void lpcd_table_start(
     msg->payload.args.table_start.x0 = x0;
     msg->payload.args.table_start.y0 = y0;
     msg->payload.args.table_start.row_height = row_height;
+    msg->payload.args.table_start.column_count = column_count;
     memcpy(
         &msg->payload.args.table_start.columns[0],
         &columns[0],
         sizeof(struct table_column_t)*column_count);
 
+    comm_dump_message((struct msg_header_t*)msg);
     comm_enqueue_msg(comm, msg);
 }
 

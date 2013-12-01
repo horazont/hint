@@ -23,11 +23,11 @@ void lpcd_draw_rectangle(
 
 void lpcd_draw_text(
     struct comm_t *comm,
-    const char *text,
-    const int font,
     const coord_int_t x0,
     const coord_int_t y0,
-    const colour_t colour);
+    const int font,
+    const colour_t colour,
+    const char *text);
 
 void lpcd_fill_rectangle(
     struct comm_t *comm,
