@@ -356,7 +356,6 @@ void *broker_thread(struct broker_t *state)
             task = broker_get_next_task(state);
         }
 
-        fprintf(stderr, "polling (timeout=%d)\n", timeout);
         poll(&pollfds[0], FD_COUNT, timeout);
 
         if (pollfds[FD_RECV].revents & POLLIN) {
