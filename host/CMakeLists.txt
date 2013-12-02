@@ -23,7 +23,8 @@ set(SOURCES
     "src/timestamp.c"
     "src/array.c"
     "src/lpcdisplay.c"
-    "src/xmppintf.c")
+    "src/xmppintf.c"
+    "src/departure.c")
 
 set(STATIC_LIBS
     ${CMAKE_BINARY_DIR}/libcouplet/src/libcouplet/.libs/libcouplet.a)

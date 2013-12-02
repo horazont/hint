@@ -7,7 +7,41 @@
 #include <time.h>
 
 const char *xmppintf_ns_sensor = "http://xmpp.zombofant.net/xmlns/sensor";
+
 const char *xmppintf_ns_public_transport = "http://xmpp.zombofant.net/xmlns/public-transport";
+/*
+ * in an iq set, this defines the interval at which push updates shall
+ * be sent
+ * <departure xmlns=xmppintf_ns_public_transport>
+ *   <interval>30</interval>
+ * </departure>
+ *
+ * in an iq result to a set operation, this returns the actual interval
+ * which has been configured
+ * <departure xmlns=xmppintf_ns_public_transport>
+ *   <interval>30</interval>
+ * </departure>
+ *
+ * in an iq get, this asks the remote to provide current departure data
+ * <departure xmlns=xmppintf_ns_public_transport>
+ *   <data />
+ * </departure>
+ *
+ * in an iq result to a get or in an iq set push message, this carries
+ * the information
+ * <departure xmlns=xmppintf_ns_public_transport>
+ *   <data>
+ *     <!-- @eta is the authorative information (extrapolated if no
+ *          current data has been requested) -->
+ *     <dt lane="62" destination="Löbtau Süd" eta="3.12"/>
+ *     <dt lane="85" destination="Löbtau Süd" eta="4.2"/>
+ *   </data>
+ * </departure>
+ *
+ * (a set push message must be replied to with an empty result message)
+ *
+ */
+
 const char *xmppintf_ns_ping = "urn:xmpp:ping";
 
 /* utilities */
@@ -26,6 +60,61 @@ xmpp_stanza_t* iq(xmpp_ctx_t *const ctx, const char *type,
     }
     return node;
 }
+
+xmpp_stanza_t *iq_error(
+    xmpp_ctx_t *const ctx,
+    xmpp_stanza_t *const in_reply_to,
+    const char *type,
+    const char *error_condition,
+    const char *text)
+{
+    xmpp_stanza_t *iq_error = iq(
+        ctx,
+        "error",
+        xmpp_stanza_get_attribute(in_reply_to, "from"),
+        xmpp_stanza_get_attribute(in_reply_to, "id"));
+    xmpp_stanza_t *error = xmpp_stanza_new(ctx);
+    xmpp_stanza_set_name(error, "error");
+    xmpp_stanza_set_attribute(error, "type", type);
+
+    xmpp_stanza_t *forbidden = xmpp_stanza_new(ctx);
+    xmpp_stanza_set_name(forbidden, error_condition);
+    xmpp_stanza_set_ns(forbidden, "urn:ietf:params:xml:ns:xmpp-stanzas");
+    xmpp_stanza_add_child(error, forbidden);
+    xmpp_stanza_release(forbidden);
+
+    if (text) {
+        xmpp_stanza_t *text_cont = xmpp_stanza_new(ctx);
+        xmpp_stanza_set_name(text_cont, "text");
+
+        xmpp_stanza_t *text_node = xmpp_stanza_new(ctx);
+        xmpp_stanza_set_text(text_node, text);
+        xmpp_stanza_add_child(text_cont, text_node);
+        xmpp_stanza_release(text_node);
+
+        xmpp_stanza_add_child(error, text_cont);
+        xmpp_stanza_release(text_cont);
+    }
+
+    xmpp_stanza_add_child(iq_error, error);
+    xmpp_stanza_release(error);
+
+    return iq_error;
+}
+
+void iq_reply_empty_result(
+    xmpp_conn_t *const conn,
+    xmpp_stanza_t *const in_reply_to)
+{
+    xmpp_stanza_t *result = iq(
+        xmpp_conn_get_context(conn),
+        "result",
+        xmpp_stanza_get_attribute(in_reply_to, "from"),
+        xmpp_stanza_get_id(in_reply_to));
+    xmpp_send(conn, result);
+    xmpp_stanza_release(result);
+}
+
 
 void add_text(
     xmpp_ctx_t *const ctx,
@@ -49,6 +138,13 @@ int xmppintf_handle_ping_reply(
 int xmppintf_handle_ping_timeout(
     xmpp_conn_t *const conn,
     void *const userdata);
+int xmppintf_handle_public_transport_set(
+    xmpp_conn_t *const conn,
+    xmpp_stanza_t *const stanza,
+    void *const userdata);
+int xmppintf_handle_public_transport_set_data(
+    struct xmpp_t *xmpp,
+    xmpp_stanza_t *const data_stanza);
 int xmppintf_handle_time_request(
     xmpp_conn_t *const conn,
     xmpp_stanza_t *const stanza,
@@ -81,7 +177,7 @@ void xmppintf_conn_state_change(xmpp_conn_t * const conn,
             &xmppintf_handle_version_request,
             "jabber:iq:version",
             "iq",
-            0,
+            NULL,
             userdata);
 
         xmpp_handler_add(
@@ -89,7 +185,7 @@ void xmppintf_conn_state_change(xmpp_conn_t * const conn,
             &xmppintf_handle_last_activity_request,
             "jabber:iq:last",
             "iq",
-            0,
+            NULL,
             userdata);
 
         xmpp_handler_add(
@@ -97,7 +193,15 @@ void xmppintf_conn_state_change(xmpp_conn_t * const conn,
             &xmppintf_handle_time_request,
             "urn:xmpp:time",
             "iq",
-            0,
+            NULL,
+            userdata);
+
+        xmpp_handler_add(
+            conn,
+            &xmppintf_handle_public_transport_set,
+            xmppintf_ns_public_transport,
+            "iq",
+            "set",
             userdata);
 
         xmppintf_set_presence(xmpp, PRESENCE_AVAILABLE, NULL);
@@ -136,6 +240,26 @@ void xmppintf_free(struct xmpp_t *xmpp)
         free(xmpp->pass);
     }
     free(xmpp->ping.peer);
+}
+
+void xmppintf_free_queue_item(struct xmpp_queue_item_t *item)
+{
+    switch (item->type)
+    {
+    case QUEUE_DEPARTURE_DATA:
+    {
+        array_free(&item->data.departure->entries);
+        free(item->data.departure);
+        break;
+    }
+    default:
+    {
+        fprintf(stderr, "xmppintf: error: unknown queue item type in "
+                        "free: %d\n",
+                        item->type);
+    }
+    }
+    free(item);
 }
 
 int xmppintf_handle_last_activity_request(
@@ -201,6 +325,124 @@ int xmppintf_handle_ping_timeout(
     xmpp_disconnect(xmpp->conn);
     xmpp->ping.pending = false;
 
+    return 0;
+}
+
+int xmppintf_handle_public_transport_set(
+    xmpp_conn_t *const conn,
+    xmpp_stanza_t *const stanza,
+    void *const userdata)
+{
+    struct xmpp_t *xmpp = userdata;
+
+    assert(strcmp(xmpp_stanza_get_type(stanza), "set") == 0);
+    assert(strcmp(xmpp_stanza_get_ns(stanza), xmppintf_ns_public_transport) == 0);
+
+    xmpp_stanza_t *child = xmpp_stanza_get_children(stanza);
+    if (!child) {
+        xmpp_stanza_t *result = iq_error(
+            xmpp->ctx,
+            stanza,
+            "modify",
+            "bad-request",
+            NULL);
+        xmpp_send(conn, result);
+        xmpp_stanza_release(result);
+        return 1;
+    }
+
+    const char *child_name = xmpp_stanza_get_name(child);
+    printf("%s\n", child_name);
+
+    if (strcmp(child_name, "data") == 0) {
+        if (xmppintf_handle_public_transport_set_data(xmpp, child)) {
+            iq_reply_empty_result(conn, stanza);
+        } else {
+            xmpp_stanza_t *result = iq_error(
+                xmpp->ctx,
+                stanza,
+                "modify",
+                "bad-request",
+                NULL);
+            xmpp_send(conn, result);
+            xmpp_stanza_release(result);
+        }
+    } else {
+        xmpp_stanza_t *result = iq_error(
+            xmpp->ctx,
+            stanza,
+            "modify",
+            "feature-not-implemented",
+            NULL);
+        xmpp_send(conn, result);
+        xmpp_stanza_release(result);
+    }
+
+    return 1;
+}
+
+int xmppintf_handle_public_transport_set_data(
+    struct xmpp_t *xmpp,
+    xmpp_stanza_t *const data_stanza)
+{
+    struct xmpp_queue_item_t *item = xmppintf_new_queue_item(
+        QUEUE_DEPARTURE_DATA);
+
+    struct array_t *dept_array = &item->data.departure->entries;
+
+    xmpp_stanza_t *child = xmpp_stanza_get_children(data_stanza);
+    while (child) {
+        char *eta = xmpp_stanza_get_attribute(child, "eta");
+        char *dest = xmpp_stanza_get_attribute(child, "destination");
+        char *lane = xmpp_stanza_get_attribute(child, "lane");
+        if (!eta || !dest || !lane) {
+            goto error;
+        }
+        if (*eta == '\0') {
+            goto error;
+        }
+        if (strlen(lane) > 2) {
+            goto error;
+        }
+
+        struct dept_row_t *row = malloc(sizeof(struct dept_row_t));
+        if (!row) {
+            goto out_of_memory;
+        }
+
+        // strcpy is safe here, we checked the length before
+        strcpy(row->lane, lane);
+        char *endptr = NULL;
+        row->remaining_time = strtol(eta, &endptr, 10);
+        if (*endptr == '\0') {
+            // we checked *eta == '\0' before!
+            free(row);
+            goto error;
+        }
+        row->destination = strdup(dest);
+        if (!row->destination) {
+            free(row);
+            goto out_of_memory;
+        }
+        array_push(dept_array, INTPTR_MAX, row);
+
+        child = xmpp_stanza_get_next(child);
+    }
+
+    queue_push(&xmpp->recv_queue, item);
+    write(xmpp->recv_fd, "d", 1);
+
+    return 1;
+
+out_of_memory:
+    fprintf(stderr, "xmppintf: out of memory, dropping data stanza\n");
+error:
+    while (!array_empty(dept_array)) {
+        struct dept_row_t *row = array_pop(dept_array, -1);
+        free(row->destination);
+        free(row);
+    }
+    xmppintf_free_queue_item(item);
     return 0;
 }
 
@@ -331,6 +573,42 @@ void xmppintf_init(
     pthread_mutex_init(&xmpp->conn_mutex, NULL);
     pthread_create(
         &xmpp->thread, NULL, (void*(*)(void*))&xmppintf_thread, xmpp);
+}
+
+struct xmpp_queue_item_t *xmppintf_new_queue_item(
+    enum xmpp_queue_item_type_t type)
+{
+    struct xmpp_queue_item_t *result =
+        malloc(sizeof(struct xmpp_queue_item_t));
+    if (!result) {
+        return result;
+    }
+
+    result->type = type;
+    switch (type)
+    {
+    case QUEUE_DEPARTURE_DATA:
+    {
+        result->data.departure =
+            malloc(sizeof(struct xmpp_departure_data_t));
+        if (!result->data.departure) {
+            free(result);
+            return NULL;
+        }
+
+        array_init(&result->data.departure->entries, 4);
+        break;
+    }
+    default:
+    {
+        fprintf(stderr, "xmppintf: error: unknown queue item type in "
+                        "new: %d\n",
+                        result->type);
+        free(result);
+        return NULL;
+    }
+    }
+    return result;
 }
 
 int xmppintf_send_ping(xmpp_conn_t *const conn, void *const userdata)

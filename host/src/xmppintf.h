@@ -5,6 +5,8 @@
 #include <libcouplet/couplet.h>
 
 #include "queue.h"
+#include "array.h"
+#include "departure.h"
 
 extern const char *xmppintf_ns_sensor;
 extern const char *xmppintf_ns_public_transport;
@@ -14,6 +16,21 @@ enum xmpp_presence_status_t {
     PRESENCE_AVAILABLE,
     PRESENCE_AWAY,
     PRESENCE_UNAVAILABLE
+};
+
+enum xmpp_queue_item_type_t {
+    QUEUE_DEPARTURE_DATA
+};
+
+struct xmpp_departure_data_t {
+    struct array_t entries;
+};
+
+struct xmpp_queue_item_t {
+    enum xmpp_queue_item_type_t type;
+    union {
+        struct xmpp_departure_data_t *departure;
+    } data;
 };
 
 struct xmpp_t {
@@ -42,11 +59,14 @@ struct xmpp_t {
 };
 
 void xmppintf_free(struct xmpp_t *xmpp);
+void xmppintf_free_queue_item(struct xmpp_queue_item_t *item);
 void xmppintf_init(
     struct xmpp_t *xmpp,
     const char *jid,
     const char *pass,
     const char *ping_peer);
+struct xmpp_queue_item_t *xmppintf_new_queue_item(
+    enum xmpp_queue_item_type_t type);
 void *xmppintf_thread(struct xmpp_t *xmpp);
 void xmppintf_set_presence(
     struct xmpp_t *xmpp,

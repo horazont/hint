@@ -91,12 +91,6 @@ void screen_free(struct screen_t *screen);
 
 /* screen: departure times */
 
-struct dept_row_t {
-    char lane[2];
-    char *destination;
-    int remaining_time;
-};
-
 struct screen_dept_t {
     struct array_t rows;
 };
