@@ -22,15 +22,17 @@ set(SOURCES
     "src/screen.c"
     "src/timestamp.c"
     "src/array.c"
-    "src/lpcdisplay.c")
+    "src/lpcdisplay.c"
+    "src/xmppintf.c")
 
 set(STATIC_LIBS
-    "libcouplet/src/libcouplet/.libs/libcouplet.a")
+    ${CMAKE_BINARY_DIR}/libcouplet/src/libcouplet/.libs/libcouplet.a)
 
 include_directories("../")
 include_directories(".")
+include_directories(${CMAKE_BINARY_DIR}/libcouplet/src/libcouplet/include)
 
 add_executable(hintd
     ${SOURCES})
 add_dependencies(hintd libcouplet)
-target_link_libraries(hintd pthread)
+target_link_libraries(hintd pthread ${STATIC_LIBS} ssl resolv expat)
