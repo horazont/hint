@@ -37,7 +37,10 @@ void broker_handle_touch_move(
 void broker_handle_touch_up(
     struct broker_t *broker,
     coord_int_t x, coord_int_t y);
-void broker_init(struct broker_t *broker, struct comm_t *comm);
+void broker_init(
+    struct broker_t *broker,
+    struct comm_t *comm,
+    struct xmpp_t *xmpp);
 void broker_process_lpc_message(
     struct broker_t *broker, struct lpc_msg_t *msg);
 void broker_process_message(struct broker_t *broker, void *item);
@@ -136,9 +139,13 @@ void broker_handle_touch_up(
     broker->touch_is_up = true;
 }
 
-void broker_init(struct broker_t *broker, struct comm_t *comm)
+void broker_init(
+    struct broker_t *broker,
+    struct comm_t *comm,
+    struct xmpp_t *xmpp)
 {
     broker->comm = comm;
+    broker->xmpp = xmpp;
     broker->touch_is_up = true;
     broker->active_screen = 0;
     array_init(&broker->tasks, 32);
@@ -328,12 +335,16 @@ int broker_tab_hit_test(
 
 void *broker_thread(struct broker_t *state)
 {
-#define FD_COUNT 1
-#define FD_RECV 0
+#define FD_COUNT 2
+#define FD_RECV_COMM 0
+#define FD_RECV_XMPP 1
     struct pollfd pollfds[FD_COUNT];
     pollfds[0].fd = state->comm->recv_fd;
     pollfds[0].events = POLLIN;
     pollfds[0].revents = 0;
+    pollfds[1].fd = state->xmpp->recv_fd;
+    pollfds[1].events = POLLIN;
+    pollfds[1].revents = 0;
 
     broker_repaint_screen(state);
     broker_repaint_tabbar(state);
@@ -358,9 +369,9 @@ void *broker_thread(struct broker_t *state)
 
         poll(&pollfds[0], FD_COUNT, timeout);
 
-        if (pollfds[FD_RECV].revents & POLLIN) {
+        if (pollfds[FD_RECV_COMM].revents & POLLIN) {
             char act;
-            read(pollfds[FD_RECV].fd, &act, 1);
+            read(pollfds[FD_RECV_COMM].fd, &act, 1);
             if (queue_empty(&state->comm->recv_queue)) {
                 fprintf(stderr, "broker: BUG: recv trigger received, "
                                 "but queue is empty!\n");
@@ -369,6 +380,11 @@ void *broker_thread(struct broker_t *state)
             void *item = queue_pop(&state->comm->recv_queue);
             assert(item != NULL);
             broker_process_message(state, item);
+        }
+        if (pollfds[FD_RECV_XMPP].revents & POLLIN) {
+            char act;
+            read(pollfds[FD_RECV_XMPP].fd, &act, 1);
+            fprintf(stderr, "broker: received trigger from xmpp\n");
         }
     }
 

@@ -5,6 +5,7 @@
 
 #include "comm.h"
 #include "screen.h"
+#include "xmppintf.h"
 
 #define SCREEN_COUNT                    (2)
 #define SCREEN_BUS_MONITOR              (0)
@@ -30,6 +31,7 @@ struct broker_t {
     pthread_t thread;
 
     struct comm_t *comm;
+    struct xmpp_t *xmpp;
 
     bool touch_is_up;
     struct screen_t screens[SCREEN_COUNT];
@@ -50,8 +52,10 @@ void broker_enqueue_new_task_in(
     void *userdata);
 void broker_enqueue_task(struct broker_t *broker, struct task_t *task);
 
-
-void broker_init(struct broker_t *broker, struct comm_t *comm);
+void broker_init(
+    struct broker_t *broker,
+    struct comm_t *comm,
+    struct xmpp_t *xmpp);
 
 void *broker_thread(struct broker_t *state);
 
