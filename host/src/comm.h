@@ -71,6 +71,8 @@ void comm_init(
     const char *devfile,
     uint32_t baudrate);
 
+bool comm_is_available(struct comm_t *comm);
+
 void comm_enqueue_msg(struct comm_t *comm, void *msg);
 
 void *comm_thread(struct comm_t *state);

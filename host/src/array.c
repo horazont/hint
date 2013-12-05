@@ -94,3 +94,11 @@ void *array_set(struct array_t *array, intptr_t idx, void *dataptr)
     array->ptrs[idx] = dataptr;
     return result;
 }
+
+void array_swap(struct array_t *a, struct array_t *b)
+{
+    struct array_t tmp;
+    memcpy(&tmp, a, sizeof(struct array_t));
+    memcpy(a, b, sizeof(struct array_t));
+    memcpy(b, &tmp, sizeof(struct array_t));
+}

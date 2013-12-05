@@ -44,7 +44,10 @@ void broker_init(
     struct xmpp_t *xmpp);
 void broker_process_lpc_message(
     struct broker_t *broker, struct lpc_msg_t *msg);
-void broker_process_message(struct broker_t *broker, void *item);
+void broker_process_comm_message(struct broker_t *broker, void *item);
+void broker_process_xmpp_message(
+    struct broker_t *broker,
+    struct xmpp_queue_item_t *item);
 void broker_repaint_screen(
     struct broker_t *broker);
 void broker_repaint_tabbar(
@@ -198,7 +201,7 @@ void broker_process_lpc_message(
     }
 }
 
-void broker_process_message(struct broker_t *broker, void *item)
+void broker_process_comm_message(struct broker_t *broker, void *item)
 {
     struct msg_header_t *hdr = (struct msg_header_t *)item;
     switch (HDR_GET_SENDER(*hdr)) {
@@ -334,6 +337,51 @@ int broker_tab_hit_test(
     return index;
 }
 
+void _broker_thread_handle_comm(
+    struct broker_t *broker, int fd)
+{
+    char act = recv_char(fd);
+    switch (act)
+    {
+    case COMM_PIPECHAR_MESSAGE:
+    {
+        if (queue_empty(&broker->comm->recv_queue)) {
+            fprintf(stderr, "broker: BUG: comm recv trigger received, "
+                            "but queue is empty!\n");
+            return;
+        }
+        void *item = queue_pop(&broker->comm->recv_queue);
+        assert(item != NULL);
+        broker_process_comm_message(broker, item);
+        break;
+    }
+    case COMM_PIPECHAR_FAILED:
+    {
+        fprintf(stderr, "broker: debug: comm failed.\n");
+        // handler will remove itself upon it’s next call
+        break;
+    }
+    case COMM_PIPECHAR_READY:
+    {
+        fprintf(stderr, "broker: debug: comm ready.\n");
+        broker_repaint_screen(broker);
+        broker_repaint_tabbar(broker);
+        broker_enqueue_new_task_in(
+            broker, &broker_update_time, 0, NULL);
+        break;
+    }
+    default:
+        panicf("unknown comm pipechar: %c\n", act);
+    }
+}
+
+void _broker_thread_handle_xmpp(
+    struct broker_t *broker, int fd)
+{
+    char act = recv_char(fd);
+    fprintf(stderr, "broker: debug: xmpp message received\n");
+}
+
 void *broker_thread(struct broker_t *state)
 {
 #define FD_COUNT 2
@@ -346,11 +394,6 @@ void *broker_thread(struct broker_t *state)
     pollfds[1].fd = state->xmpp->recv_fd;
     pollfds[1].events = POLLIN;
     pollfds[1].revents = 0;
-
-    broker_repaint_screen(state);
-    broker_repaint_tabbar(state);
-    broker_enqueue_new_task_in(
-        state, &broker_update_time, 0, NULL);
 
     while (true)
     {
@@ -372,19 +415,12 @@ void *broker_thread(struct broker_t *state)
         poll(&pollfds[0], FD_COUNT, timeout);
 
         if (pollfds[FD_RECV_COMM].revents & POLLIN) {
-            char act = recv_char(pollfds[FD_RECV_COMM].fd);
-            if (queue_empty(&state->comm->recv_queue)) {
-                fprintf(stderr, "broker: BUG: recv trigger received, "
-                                "but queue is empty!\n");
-                continue;
-            }
-            void *item = queue_pop(&state->comm->recv_queue);
-            assert(item != NULL);
-            broker_process_message(state, item);
+            _broker_thread_handle_comm(
+                state, pollfds[FD_RECV_COMM].fd);
         }
         if (pollfds[FD_RECV_XMPP].revents & POLLIN) {
-            char act = recv_char(pollfds[FD_RECV_XMPP].fd);
-            fprintf(stderr, "broker: received trigger from xmpp\n");
+            _broker_thread_handle_xmpp(
+                state, pollfds[FD_RECV_XMPP].fd);
         }
     }
 
@@ -396,6 +432,9 @@ bool broker_update_time(
     struct timespec *next_run,
     void *userdata)
 {
+    if (!comm_is_available(broker->comm)) {
+        return false;
+    }
     broker_repaint_time(broker);
     timestamp_gettime(next_run);
     timestamp_add_msec(next_run, 1000);

@@ -92,4 +92,9 @@ intptr_t array_push(struct array_t *array, intptr_t idx, void *dataptr);
  */
 void *array_set(struct array_t *array, intptr_t idx, void *dataptr);
 
+/**
+ * Swaps the data between a and b in constant time.
+ */
+void array_swap(struct array_t *a, struct array_t *b);
+
 #endif

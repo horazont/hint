@@ -179,6 +179,15 @@ void comm_init(
     pthread_create(&comm->thread, NULL, (void*(*)(void*))&comm_thread, comm);
 }
 
+bool comm_is_available(struct comm_t *comm)
+{
+    bool result = true;
+    pthread_mutex_lock(&comm->data_mutex);
+    result = comm->_fd != 0;
+    pthread_mutex_unlock(&comm->data_mutex);
+    return result;
+}
+
 void comm_enqueue_msg(struct comm_t *comm, void *msg)
 {
     queue_push(&comm->send_queue, msg);
@@ -205,7 +214,9 @@ int _comm_open(struct comm_t *state)
     tcsetattr(fd, TCSANOW, &port_settings);
     tcflush(fd, TCIOFLUSH);
 
+    pthread_mutex_lock(&state->data_mutex);
     state->_fd = fd;
+    pthread_mutex_unlock(&state->data_mutex);
     return 0;
 }
 
