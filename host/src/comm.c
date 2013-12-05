@@ -349,7 +349,7 @@ bool _comm_thread_state_open_tx(struct comm_t *state, uint8_t *buffer)
         return false;
     }
     state->_pending_ack = buffer;
-    clock_gettime(CLOCK_MONOTONIC_RAW, &state->_tx_timestamp);
+    timestamp_gettime(&state->_tx_timestamp);
     return true;
 }
 
@@ -369,8 +369,8 @@ bool _comm_thread_state_open(struct comm_t *state, struct pollfd pollfds[2])
     int timeout = -1;
     if (state->_pending_ack != NULL) {
         struct timespec curr_time;
-        clock_gettime(CLOCK_MONOTONIC_RAW, &curr_time);
-        uint32_t dt = timedelta_in_msec(&curr_time, &state->_tx_timestamp);
+        timestamp_gettime(&curr_time);
+        uint32_t dt = timestamp_delta_in_msec(&curr_time, &state->_tx_timestamp);
         if (dt < RETRANSMISSION_TIMEOUT) {
             timeout = RETRANSMISSION_TIMEOUT - dt;
         } else {
@@ -450,8 +450,8 @@ bool _comm_thread_state_open(struct comm_t *state, struct pollfd pollfds[2])
     if (state->_pending_ack != NULL)
     {
         struct timespec curr_time;
-        clock_gettime(CLOCK_MONOTONIC_RAW, &curr_time);
-        uint32_t dt = timedelta_in_msec(&curr_time, &state->_tx_timestamp);
+        timestamp_gettime(&curr_time);
+        uint32_t dt = timestamp_delta_in_msec(&curr_time, &state->_tx_timestamp);
         if (dt >= RETRANSMISSION_TIMEOUT) {
             fprintf(stderr, "comm: retransmission\n");
             _comm_thread_state_open_tx(state, state->_pending_ack);

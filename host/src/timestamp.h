@@ -6,6 +6,12 @@
 #include <stdbool.h>
 #include <stdio.h>
 
+void timestamp_add_msec(
+    struct timespec *to, uint32_t msec);
+
+int32_t timestamp_delta_in_msec(
+    const struct timespec *a, const struct timespec *b);
+
 static inline bool timestamp_less(
     const struct timespec *a, const struct timespec *b)
 {
@@ -24,11 +30,9 @@ static inline void timestamp_print(
     fprintf(stderr, "tv_sec=%ld; tv_nsec=%ld;\n", a->tv_sec, a->tv_nsec);
 }
 
-void timestamp_add_msec(
-    struct timespec *to, uint32_t msec);
+void timestamp_sanity_check();
 
-uint32_t timedelta_in_msec(
-    const struct timespec *a, const struct timespec *b);
+void timestamp_gettime(struct timespec *t);
 
 #endif
 

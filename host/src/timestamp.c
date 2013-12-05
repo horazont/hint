@@ -1,5 +1,15 @@
 #include "timestamp.h"
 
+#include <errno.h>
+#include <string.h>
+#include <assert.h>
+
+#include "utils.h"
+
+#ifndef CLOCK_MONOTONIC_RAW
+#define CLOCK_MONOTONIC_RAW (4)
+#endif
+
 void timestamp_add_msec(
     struct timespec *to, uint32_t msec)
 {
@@ -11,17 +21,17 @@ void timestamp_add_msec(
     }
 }
 
-uint32_t timedelta_in_msec(
+int32_t timestamp_delta_in_msec(
     const struct timespec *a, const struct timespec *b)
 {
     if (timestamp_less(a, b)) {
-        return 0;
+        return -timestamp_delta_in_msec(b, a);
     }
-    if ((a->tv_sec - b->tv_sec) >= (UINT32_MAX/1000)) {
-        return UINT32_MAX;
+    if ((a->tv_sec - b->tv_sec) >= (INT32_MAX/1000)) {
+        return INT32_MAX;
     }
 
-    uint32_t result = (a->tv_sec - b->tv_sec) * 1000;
+    int32_t result = (a->tv_sec - b->tv_sec) * 1000;
     if (result == 0) {
         result += (a->tv_nsec - b->tv_nsec) / 1000000;
     } else {
@@ -32,3 +42,22 @@ uint32_t timedelta_in_msec(
 
     return result;
 }
+
+void timestamp_sanity_check()
+{
+    struct timespec t;
+    int result = clock_gettime(CLOCK_MONOTONIC_RAW, &t);
+    if (result != 0) {
+        panicf("timestamp: sanity check failed: "
+               "clock_gettime(CLOCK_MONOTONIC_RAW, &t) does not "
+               "work: %d (%s)\n",
+               errno, strerror(errno));
+    }
+}
+
+void timestamp_gettime(struct timespec *t)
+{
+    int result = clock_gettime(CLOCK_MONOTONIC_RAW, t);
+    assert(result == 0);
+}
+

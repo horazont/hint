@@ -85,7 +85,7 @@ void broker_enqueue_new_task_in(
     void *userdata)
 {
     struct timespec now;
-    clock_gettime(CLOCK_MONOTONIC_RAW, &now);
+    timestamp_gettime(&now);
     timestamp_add_msec(&now, in_msec);
     broker_enqueue_new_task_at(broker, func, &now, userdata);
 }
@@ -358,8 +358,9 @@ void *broker_thread(struct broker_t *state)
         struct task_t *task = broker_get_next_task(state);
         while (task) {
             struct timespec curr_time;
-            clock_gettime(CLOCK_MONOTONIC_RAW, &curr_time);
-            timeout = timedelta_in_msec(&task->run_at, &curr_time);
+            timestamp_gettime(&curr_time);
+            timeout = timestamp_delta_in_msec(
+                &task->run_at, &curr_time);
             if (timeout > 0) {
                 break;
             } else {
@@ -396,7 +397,7 @@ bool broker_update_time(
     void *userdata)
 {
     broker_repaint_time(broker);
-    clock_gettime(CLOCK_MONOTONIC_RAW, next_run);
+    timestamp_gettime(next_run);
     timestamp_add_msec(next_run, 1000);
     return true;
 }

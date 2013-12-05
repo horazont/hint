@@ -6,6 +6,7 @@
 
 #include "common/comm.h"
 #include "queue.h"
+#include "timestamp.h"
 
 #define RECONNECT_TIMEOUT (3000)
 #define READ_TIMEOUT (100)
