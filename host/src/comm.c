@@ -54,13 +54,13 @@ void dump_buffer(FILE *dest, const uint8_t *buffer, int len)
 
 void comm_dump_header(const struct msg_header_t *hdr)
 {
-    fprintf(stderr, "dumping message@%08lx: header: \n", (uint64_t)hdr);
+    fprintf(stderr, "dumping message@%p: header: \n", (void*)hdr);
     dump_buffer(stderr, (const uint8_t*)hdr, sizeof(struct msg_header_t));
 }
 
 void comm_dump_body(const struct msg_header_t *hdr, const uint8_t *buffer)
 {
-    fprintf(stderr, "        message@%08lx: payload: \n", (uint64_t)hdr);
+    fprintf(stderr, "        message@%p: payload: \n", (void*)hdr);
     dump_buffer(stderr, buffer, HDR_GET_PAYLOAD_LENGTH(*hdr));
 }
 
