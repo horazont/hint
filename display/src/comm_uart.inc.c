@@ -203,7 +203,7 @@ static inline bool uart_rx_recv()
     return true;
 }
 
-static inline void uart_rx_irq()
+void uart_rx_irq()
 {
     switch (uart_rx_state) {
     case RX_IDLE:
@@ -335,6 +335,44 @@ static inline void uart_rx_irq()
     }
 }
 
+static inline void uart_rx_irq_end_of_transmission()
+{
+    switch (uart_rx_state) {
+    case RX_IDLE:
+    {
+        // okay
+        break;
+    }
+    case RX_DUMP:
+    {
+        // just stop dumping
+        uart_rx_state = RX_IDLE;
+        break;
+    }
+    case RX_RECEIVE_CHECKSUM:
+    case RX_RECEIVE_HEADER:
+    case RX_RECEIVE_PAYLOAD:
+    {
+        switch (HDR_GET_RECIPIENT(uart.state.curr_header)) {
+        case MSG_ADDRESS_LPC1114:
+        {
+            // not routed, release buffer
+            appbuffer_back->in_use = false;
+            break;
+        }
+        default:
+        {
+            // routed message, release buffer
+            uart.route_buffer.in_use = false;
+            break;
+        }
+        }
+        uart_rx_state = RX_IDLE;
+        break;
+    }
+    }
+}
+
 /* code: interrupt handler */
 
 void UART_IRQHandler(void)
@@ -343,10 +381,16 @@ void UART_IRQHandler(void)
     switch (iir & (0x7<<1)) {
     case (0x3<<1):
     case (0x2<<1):
-    case (0x6<<1):
     {
         // UART rx event
         uart_rx_irq();
+        break;
+    }
+    case (0x6<<1): // character timeout
+    {
+        // UART rx event
+        uart_rx_irq();
+        uart_rx_irq_end_of_transmission();
         break;
     }
     case (0x1<<1):
