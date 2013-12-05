@@ -368,7 +368,7 @@ bool _comm_thread_state_open(struct comm_t *state, struct pollfd pollfds[2])
 {
     if (state->_pending_ack == NULL) {
         if (!queue_empty(&state->send_queue)) {
-            fprintf(stderr, "comm: debug: starting tx\n");
+            //~ fprintf(stderr, "comm: debug: starting tx\n");
             uint8_t *buffer = queue_pop(&state->send_queue);
             assert(buffer);
             if (!_comm_thread_state_open_tx(state, buffer)) {
