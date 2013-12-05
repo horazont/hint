@@ -6,6 +6,8 @@
 #include <assert.h>
 #include <time.h>
 
+#include "utils.h"
+
 const char *xmppintf_ns_sensor = "http://xmpp.zombofant.net/xmlns/sensor";
 
 const char *xmppintf_ns_public_transport = "http://xmpp.zombofant.net/xmlns/public-transport";
@@ -205,18 +207,21 @@ void xmppintf_conn_state_change(xmpp_conn_t * const conn,
             userdata);
 
         xmppintf_set_presence(xmpp, PRESENCE_AVAILABLE, NULL);
+        send_char(xmpp->my_recv_fd, XMPPINTF_PIPECHAR_READY);
         xmppintf_send_ping(xmpp->conn, xmpp);
         break;
     }
     case XMPP_CONN_DISCONNECT:
     {
         fprintf(stderr, "xmpp: disconnected\n");
+        send_char(xmpp->my_recv_fd, XMPPINTF_PIPECHAR_FAILED);
         xmpp_stop(xmpp->ctx);
         break;
     }
     case XMPP_CONN_FAIL:
     {
         fprintf(stderr, "xmpp: failed\n");
+        send_char(xmpp->my_recv_fd, XMPPINTF_PIPECHAR_FAILED);
         xmpp_stop(xmpp->ctx);
         break;
     }
@@ -246,7 +251,7 @@ void xmppintf_free_queue_item(struct xmpp_queue_item_t *item)
 {
     switch (item->type)
     {
-    case QUEUE_DEPARTURE_DATA:
+    case XMPP_DEPARTURE_DATA:
     {
         array_free(&item->data.departure->entries);
         free(item->data.departure);
@@ -254,9 +259,8 @@ void xmppintf_free_queue_item(struct xmpp_queue_item_t *item)
     }
     default:
     {
-        fprintf(stderr, "xmppintf: error: unknown queue item type in "
-                        "free: %d\n",
-                        item->type);
+        panicf("xmppintf: error: unknown queue item type in free: %d\n",
+               item->type);
     }
     }
     free(item);
@@ -351,8 +355,24 @@ int xmppintf_handle_public_transport_set(
         return 1;
     }
 
+    if ((strcmp(xmpp_stanza_get_ns(child),
+                xmppintf_ns_public_transport) != 0) ||
+        (strcmp(xmpp_stanza_get_name(child), "departure") != 0))
+    {
+        xmpp_stanza_t *result = iq_error(
+            xmpp->ctx,
+            stanza,
+            "modify",
+            "feature-not-implemented",
+            NULL);
+        xmpp_send(conn, result);
+        xmpp_stanza_release(result);
+        return 1;
+    }
+
+    child = xmpp_stanza_get_children(child);
+
     const char *child_name = xmpp_stanza_get_name(child);
-    printf("%s\n", child_name);
 
     if (strcmp(child_name, "data") == 0) {
         if (xmppintf_handle_public_transport_set_data(xmpp, child)) {
@@ -386,7 +406,7 @@ int xmppintf_handle_public_transport_set_data(
     xmpp_stanza_t *const data_stanza)
 {
     struct xmpp_queue_item_t *item = xmppintf_new_queue_item(
-        QUEUE_DEPARTURE_DATA);
+        XMPP_DEPARTURE_DATA);
 
     struct array_t *dept_array = &item->data.departure->entries;
 
@@ -430,7 +450,7 @@ int xmppintf_handle_public_transport_set_data(
     }
 
     queue_push(&xmpp->recv_queue, item);
-    write(xmpp->recv_fd, "d", 1);
+    send_char(xmpp->my_recv_fd, XMPPINTF_PIPECHAR_MESSAGE);
 
     return 1;
 
@@ -587,7 +607,7 @@ struct xmpp_queue_item_t *xmppintf_new_queue_item(
     result->type = type;
     switch (type)
     {
-    case QUEUE_DEPARTURE_DATA:
+    case XMPP_DEPARTURE_DATA:
     {
         result->data.departure =
             malloc(sizeof(struct xmpp_departure_data_t));
@@ -601,11 +621,8 @@ struct xmpp_queue_item_t *xmppintf_new_queue_item(
     }
     default:
     {
-        fprintf(stderr, "xmppintf: error: unknown queue item type in "
-                        "new: %d\n",
-                        result->type);
-        free(result);
-        return NULL;
+        panicf("xmppintf: error: unknown queue item type in new: %d\n",
+               result->type);
     }
     }
     return result;

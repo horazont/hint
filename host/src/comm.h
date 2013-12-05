@@ -12,6 +12,10 @@
 #define WRITE_TIMEOUT (READ_TIMEOUT*2)
 #define RETRANSMISSION_TIMEOUT (500)
 
+#define COMM_PIPECHAR_READY ('r')
+#define COMM_PIPECHAR_FAILED ('f')
+#define COMM_PIPECHAR_MESSAGE ('m')
+
 enum comm_status_t
 {
     //! everything went fine

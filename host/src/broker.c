@@ -12,6 +12,7 @@
 
 #include "lpcdisplay.h"
 #include "timestamp.h"
+#include "utils.h"
 
 #define TABBAR_LEFT ((LCD_WIDTH-1)-SCREEN_MARGIN_RIGHT)
 #define TABBAR_TOP (SCREEN_CLIENT_AREA_TOP+4)
@@ -370,8 +371,7 @@ void *broker_thread(struct broker_t *state)
         poll(&pollfds[0], FD_COUNT, timeout);
 
         if (pollfds[FD_RECV_COMM].revents & POLLIN) {
-            char act;
-            read(pollfds[FD_RECV_COMM].fd, &act, 1);
+            char act = recv_char(pollfds[FD_RECV_COMM].fd);
             if (queue_empty(&state->comm->recv_queue)) {
                 fprintf(stderr, "broker: BUG: recv trigger received, "
                                 "but queue is empty!\n");
@@ -382,8 +382,7 @@ void *broker_thread(struct broker_t *state)
             broker_process_message(state, item);
         }
         if (pollfds[FD_RECV_XMPP].revents & POLLIN) {
-            char act;
-            read(pollfds[FD_RECV_XMPP].fd, &act, 1);
+            char act = recv_char(pollfds[FD_RECV_XMPP].fd);
             fprintf(stderr, "broker: received trigger from xmpp\n");
         }
     }

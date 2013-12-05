@@ -11,6 +11,7 @@
 #include <errno.h>
 #include <poll.h>
 
+#include "utils.h"
 #include "timestamp.h"
 
 enum comm_state_t
@@ -400,7 +401,7 @@ bool _comm_thread_state_open(struct comm_t *state, struct pollfd pollfds[2])
                    HDR_GET_PAYLOAD_LENGTH(hdr));
             queue_push(&state->recv_queue, buffer);
             free(payload);
-            write(state->_recv_fd, "p", 1);
+            send_char(state->_recv_fd, COMM_PIPECHAR_MESSAGE);
             break;
         }
         case COMM_ERR_CONTROL:
@@ -484,6 +485,8 @@ void *comm_thread(struct comm_t *state)
                 sm = COMM_OPEN;
                 pollfds[1].fd = state->_fd;
                 fprintf(stderr, "comm: opened serial device\n");
+                // signal enabling of serial device
+                send_char(state->_recv_fd, COMM_PIPECHAR_READY);
             } else {
                 fprintf(stderr, "comm: open of `%s' failed, will try "
                         "again in %d ms\n",

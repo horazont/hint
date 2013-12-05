@@ -8,6 +8,10 @@
 #include "array.h"
 #include "departure.h"
 
+#define XMPPINTF_PIPECHAR_READY ('r')
+#define XMPPINTF_PIPECHAR_FAILED ('f')
+#define XMPPINTF_PIPECHAR_MESSAGE ('m')
+
 extern const char *xmppintf_ns_sensor;
 extern const char *xmppintf_ns_public_transport;
 extern const char *xmppintf_ns_ping;
@@ -19,7 +23,7 @@ enum xmpp_presence_status_t {
 };
 
 enum xmpp_queue_item_type_t {
-    QUEUE_DEPARTURE_DATA
+    XMPP_DEPARTURE_DATA
 };
 
 struct xmpp_departure_data_t {
