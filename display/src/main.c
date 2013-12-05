@@ -63,7 +63,7 @@ void PIOINT0_IRQHandler(void)
 {
     struct msg_buffer_t *msg = comm_get_rx_message();
 
-    if (msg->msg.header.payload_length == 0) {
+    if (HDR_GET_PAYLOAD_LENGTH(msg->msg.header) == 0) {
         comm_release_rx_message();
         return;
     }
@@ -383,9 +383,9 @@ static inline void handle_command()
 
 int main(void)
 {
-    struct msg_header_t msg_header;
-    msg_header.sender = MSG_ADDRESS_LPC1114;
-    msg_header.recipient = MSG_ADDRESS_HOST;
+    struct msg_header_t msg_header = {0};
+    HDR_SET_SENDER(msg_header, MSG_ADDRESS_LPC1114);
+    HDR_SET_RECIPIENT(msg_header, MSG_ADDRESS_HOST);
     struct lpc_msg_t msg_payload;
     msg_checksum_t msg_checksum;
     coord_int_t prevx = -1;
@@ -491,9 +491,9 @@ int main(void)
         case EV_COMM:
         {
             struct msg_buffer_t *msg = comm_get_rx_message();
-            msg_cmd_length = msg->msg.header.payload_length;
-            memcpy(&msg_cmd, &msg->msg.data[0], msg->msg.header.payload_length);
-            bool send_ack = (msg->msg.header.sender == MSG_ADDRESS_HOST);
+            msg_cmd_length = HDR_GET_PAYLOAD_LENGTH(msg->msg.header);
+            memcpy(&msg_cmd, &msg->msg.data[0], HDR_GET_PAYLOAD_LENGTH(msg->msg.header));
+            bool send_ack = (HDR_GET_SENDER(msg->msg.header) == MSG_ADDRESS_HOST);
             comm_release_rx_message();
 
             if (send_ack) {
@@ -532,9 +532,9 @@ int main(void)
             msg_payload.payload.touch_ev.x = x;
             msg_payload.payload.touch_ev.y = y;
             msg_payload.payload.touch_ev.z = z;
-            msg_header.payload_length = sizeof(struct lpc_msg_t);
+            HDR_SET_PAYLOAD_LENGTH(msg_header, sizeof(struct lpc_msg_t));
             msg_checksum = checksum((const uint8_t*)&msg_payload,
-                                    msg_header.payload_length);
+                                    sizeof(struct lpc_msg_t));
 
             comm_tx_message(&msg_header,
                             (const uint8_t*)&msg_payload,

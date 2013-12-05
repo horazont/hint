@@ -36,7 +36,7 @@ LD_SCRIPT = $(CODEBASEDIR)/lpc1xxx/linkscript.ld
 LD_TEMP = $(BIN)/memory.ld
 CPU_TYPE = cortex-m0
 
-BASEFLAGS = -Wall -Wextra -Werror
+BASEFLAGS = -Wall -Wextra -Werror -D__LITTLE_ENDIAN
 OPTFLAGS = -Os
 
 ifeq (TRUE,$(DEBUG))

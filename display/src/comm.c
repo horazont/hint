@@ -78,12 +78,11 @@ static inline enum msg_status_t comm_tx_message_uart(
 
 enum msg_status_t comm_tx_ack(const msg_address_t recipient)
 {
-    struct msg_header_t hdr = {
-        .sender = MSG_ADDRESS_LPC1114,
-        .recipient = recipient,
-        .payload_length = 0,
-        .flags = MSG_FLAG_ACK
-        };
+    struct msg_header_t hdr = {0};
+    HDR_SET_FLAGS(hdr, MSG_FLAG_ACK);
+    HDR_SET_PAYLOAD_LENGTH(hdr, 0);
+    HDR_SET_SENDER(hdr, MSG_ADDRESS_LPC1114);
+    HDR_SET_RECIPIENT(hdr, recipient);
     return comm_tx_message(&hdr, NULL, 0);
 }
 
@@ -91,12 +90,11 @@ enum msg_status_t comm_tx_nak(
     const msg_address_t recipient,
     const uint8_t nak_code)
 {
-    struct msg_header_t hdr = {
-        .sender = MSG_ADDRESS_LPC1114,
-        .recipient = recipient,
-        .payload_length = 0,
-        .flags = MSG_FLAG_NAK | (nak_code & 0xF)
-        };
+    struct msg_header_t hdr = {0};
+    HDR_SET_FLAGS(hdr, MSG_FLAG_NAK | (nak_code & 0xF));
+    HDR_SET_PAYLOAD_LENGTH(hdr, 0);
+    HDR_SET_SENDER(hdr, MSG_ADDRESS_LPC1114);
+    HDR_SET_RECIPIENT(hdr, recipient);
     return comm_tx_message(&hdr, NULL, 0);
 }
 
@@ -105,7 +103,7 @@ enum msg_status_t comm_tx_message(
     const uint8_t *payload,
     const msg_checksum_t checksum)
 {
-    switch (hdr->recipient) {
+    switch (HDR_GET_RECIPIENT(*hdr)) {
     case MSG_ADDRESS_LPC1114:
     {
         return MSG_INVALID_ADDRESS;

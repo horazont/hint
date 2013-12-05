@@ -21,11 +21,7 @@ static uart_rx_state_t uart_rx_state VAR_RAM = RX_IDLE;
 static uart_tx_state_t uart_tx_state VAR_RAM = TX_IDLE;
 static struct comm_port_t uart VAR_RAM = {
     .state = {
-        .curr_header = {
-            .payload_length = 0,
-            .sender = MSG_ADDRESS_LPC1114,
-            .recipient = MSG_ADDRESS_LPC1114
-        },
+        .curr_header = {0},
         .recv_dest = 0,
         .recv_end = 0,
         .trns_src = 0,
@@ -133,7 +129,7 @@ static inline void uart_tx_irq()
         if (!uart_tx_trns()) {
             return;
         }
-        uint16_t len = uart.queue[uart.active_queue].header->payload_length;
+        uint16_t len = HDR_GET_PAYLOAD_LENGTH(*uart.queue[uart.active_queue].header);
         if (len == 0) {
             // allow tx-ing payloadless messages
             uart_tx_state = TX_IDLE;
@@ -223,7 +219,7 @@ static inline void uart_rx_irq()
             return;
         }
 
-        switch (uart.state.curr_header.recipient) {
+        switch (HDR_GET_RECIPIENT(uart.state.curr_header)) {
         case MSG_ADDRESS_LPC1114:
         {
             // this is me! either forward to local buffer or discard.
@@ -231,7 +227,9 @@ static inline void uart_rx_irq()
                 //~ dropped_message = true;
                 //~ problem = COMM_ERR_NO_BACKBUFFER_AVAILABLE;
                 uart_rx_state = RX_DUMP;
-                uart.state.remaining = uart.state.curr_header.payload_length+sizeof(msg_checksum_t);
+                uart.state.remaining =
+                    HDR_GET_PAYLOAD_LENGTH(uart.state.curr_header)
+                    +sizeof(msg_checksum_t);
                 return;
             }
             appbuffer_back->in_use = true;
@@ -247,7 +245,9 @@ static inline void uart_rx_irq()
                 //~ dropped_message = true;
                 //~ problem = COMM_ERR_NO_ROUTEBUFFER_AVAILABLE;
                 uart_rx_state = RX_DUMP;
-                uart.state.remaining = uart.state.curr_header.payload_length+sizeof(msg_checksum_t);
+                uart.state.remaining =
+                    HDR_GET_PAYLOAD_LENGTH(uart.state.curr_header)
+                    +sizeof(msg_checksum_t);
                 return;
             }
 
@@ -260,14 +260,16 @@ static inline void uart_rx_irq()
             //~ dropped_message = true;
             //~ problem = COMM_ERR_UNKNOWN_RECIPIENT;
             uart_rx_state = RX_DUMP;
-            uart.state.remaining = uart.state.curr_header.payload_length+sizeof(msg_checksum_t);
+            uart.state.remaining =
+                HDR_GET_PAYLOAD_LENGTH(uart.state.curr_header)
+                +sizeof(msg_checksum_t);
             return;
         }
         }
 
         uart_rx_state = RX_RECEIVE_PAYLOAD;
         uart.state.recv_dest = &uart.state.dest_msg->msg.data[0];
-        uart.state.recv_end = uart.state.recv_dest + uart.state.curr_header.payload_length;
+        uart.state.recv_end = uart.state.recv_dest + HDR_GET_PAYLOAD_LENGTH(uart.state.curr_header);
         // we can smoothly continue here if more data is available
     }
     case RX_RECEIVE_PAYLOAD:
@@ -287,7 +289,7 @@ static inline void uart_rx_irq()
         uart_rx_state = RX_IDLE;
         copy_header(&uart.state.dest_msg->msg.header,
                     &uart.state.curr_header);
-        switch (uart.state.curr_header.recipient) {
+        switch (HDR_GET_RECIPIENT(uart.state.curr_header)) {
         case MSG_ADDRESS_LPC1114:
         {
             if (!frontbuffer_locked) {

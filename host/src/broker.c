@@ -176,9 +176,9 @@ void broker_process_lpc_message(
     switch (msg->subject) {
     case LPC_SUBJECT_TOUCH_EVENT:
     {
-        const coord_int_t x = msg->payload.touch_ev.x;
-        const coord_int_t y = msg->payload.touch_ev.y;
-        const coord_int_t z = msg->payload.touch_ev.z;
+        const coord_int_t x = le16toh(msg->payload.touch_ev.x);
+        const coord_int_t y = le16toh(msg->payload.touch_ev.y);
+        const coord_int_t z = le16toh(msg->payload.touch_ev.z);
         if (broker->touch_is_up && (z > 0)) {
             broker_handle_touch_down(broker, x, y);
         } else if ((!broker->touch_is_up) && (z > 0)) {
@@ -200,7 +200,7 @@ void broker_process_lpc_message(
 void broker_process_message(struct broker_t *broker, void *item)
 {
     struct msg_header_t *hdr = (struct msg_header_t *)item;
-    switch (hdr->sender) {
+    switch (HDR_GET_SENDER(*hdr)) {
     case MSG_ADDRESS_HOST:
     {
         fprintf(stderr, "broker: received message from meself\n");
@@ -210,7 +210,7 @@ void broker_process_message(struct broker_t *broker, void *item)
     {
         struct lpc_msg_t msg;
         memcpy(&msg, &((uint8_t*)item)[sizeof(struct msg_header_t)],
-               hdr->payload_length);
+               HDR_GET_PAYLOAD_LENGTH(*hdr));
         free(item);
         broker_process_lpc_message(broker, &msg);
         return;
@@ -223,7 +223,7 @@ void broker_process_message(struct broker_t *broker, void *item)
     default:
     {
         fprintf(stderr, "broker: unknown sender address: %d\n",
-                        hdr->sender);
+                        HDR_GET_SENDER(*hdr));
         break;
     }
     }

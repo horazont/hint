@@ -2,6 +2,7 @@
 
 #include "common/comm_lpc1114.h"
 
+#include <alloca.h>
 #include <string.h>
 
 void lpcd_draw_line(
@@ -16,12 +17,12 @@ void lpcd_draw_line(
                                sizeof(struct lpc_cmd_draw_line_t);
     struct lpc_cmd_msg_t *msg = comm_alloc_message(
         MSG_ADDRESS_LPC1114, payload_length);
-    msg->payload.cmd = LPC_CMD_DRAW_LINE;
-    msg->payload.args.draw_line.x0 = x0;
-    msg->payload.args.draw_line.y0 = y0;
-    msg->payload.args.draw_line.x1 = x1;
-    msg->payload.args.draw_line.y1 = y1;
-    msg->payload.args.draw_line.colour = colour;
+    msg->payload.cmd = htole16(LPC_CMD_DRAW_LINE);
+    msg->payload.args.draw_line.x0 = htole16(x0);
+    msg->payload.args.draw_line.y0 = htole16(y0);
+    msg->payload.args.draw_line.x1 = htole16(x1);
+    msg->payload.args.draw_line.y1 = htole16(y1);
+    msg->payload.args.draw_line.colour = htole16(colour);
 
     comm_enqueue_msg(comm, msg);
 }
@@ -38,12 +39,12 @@ void lpcd_draw_rectangle(
                                sizeof(struct lpc_cmd_draw_rect_t);
     struct lpc_cmd_msg_t *msg = comm_alloc_message(
         MSG_ADDRESS_LPC1114, payload_length);
-    msg->payload.cmd = LPC_CMD_DRAW_RECT;
-    msg->payload.args.draw_rect.x0 = x0;
-    msg->payload.args.draw_rect.y0 = y0;
-    msg->payload.args.draw_rect.x1 = x1;
-    msg->payload.args.draw_rect.y1 = y1;
-    msg->payload.args.draw_rect.colour = colour;
+    msg->payload.cmd = htole16(LPC_CMD_DRAW_RECT);
+    msg->payload.args.draw_rect.x0 = htole16(x0);
+    msg->payload.args.draw_rect.y0 = htole16(y0);
+    msg->payload.args.draw_rect.x1 = htole16(x1);
+    msg->payload.args.draw_rect.y1 = htole16(y1);
+    msg->payload.args.draw_rect.colour = htole16(colour);
 
     comm_enqueue_msg(comm, msg);
 }
@@ -62,11 +63,11 @@ void lpcd_draw_text(
                                text_buflen;
     struct lpc_cmd_msg_t *msg = comm_alloc_message(
         MSG_ADDRESS_LPC1114, payload_length);
-    msg->payload.cmd = LPC_CMD_DRAW_TEXT;
-    msg->payload.args.draw_text.fgcolour = colour;
+    msg->payload.cmd = htole16(LPC_CMD_DRAW_TEXT);
+    msg->payload.args.draw_text.fgcolour = htole16(colour);
     msg->payload.args.draw_text.font = font;
-    msg->payload.args.draw_text.x0 = x0;
-    msg->payload.args.draw_text.y0 = y0;
+    msg->payload.args.draw_text.x0 = htole16(x0);
+    msg->payload.args.draw_text.y0 = htole16(y0);
     memcpy(&msg->payload.args.draw_text.text[0], text, text_buflen);
 
     comm_enqueue_msg(comm, msg);
@@ -84,11 +85,11 @@ void lpcd_fill_rectangle(
                                sizeof(struct lpc_cmd_draw_rect_t);
     struct lpc_cmd_msg_t *msg = comm_alloc_message(
         MSG_ADDRESS_LPC1114, payload_length);
-    msg->payload.cmd = LPC_CMD_FILL_RECT;
-    msg->payload.args.fill_rect.x0 = x0;
-    msg->payload.args.fill_rect.y0 = y0;
-    msg->payload.args.fill_rect.x1 = x1;
-    msg->payload.args.fill_rect.y1 = y1;
+    msg->payload.cmd = htole16(LPC_CMD_FILL_RECT);
+    msg->payload.args.fill_rect.x0 = htole16(x0);
+    msg->payload.args.fill_rect.y0 = htole16(y0);
+    msg->payload.args.fill_rect.x1 = htole16(x1);
+    msg->payload.args.fill_rect.y1 = htole16(y1);
     msg->payload.args.fill_rect.colour = colour;
 
     comm_enqueue_msg(comm, msg);
@@ -100,7 +101,7 @@ void lpcd_table_end(
     const int payload_length = sizeof(lpc_cmd_id_t);
     struct lpc_cmd_msg_t *msg = comm_alloc_message(
         MSG_ADDRESS_LPC1114, payload_length);
-    msg->payload.cmd = LPC_CMD_TABLE_END;
+    msg->payload.cmd = htole16(LPC_CMD_TABLE_END);
 
     comm_enqueue_msg(comm, msg);
 }
@@ -119,10 +120,10 @@ void lpcd_table_row(
         columns_len;
     struct lpc_cmd_msg_t *msg = comm_alloc_message(
         MSG_ADDRESS_LPC1114, payload_length);
-    msg->payload.cmd = LPC_CMD_TABLE_ROW;
+    msg->payload.cmd = htole16(LPC_CMD_TABLE_ROW);
     msg->payload.args.table_row.font = font;
-    msg->payload.args.table_row.fgcolour = fgcolour;
-    msg->payload.args.table_row.bgcolour = bgcolour;
+    msg->payload.args.table_row.fgcolour = htole16(fgcolour);
+    msg->payload.args.table_row.bgcolour = htole16(bgcolour);
     memcpy(
         &msg->payload.args.table_row.contents[0],
         columns,
@@ -145,17 +146,25 @@ void lpcd_table_start(
         sizeof(struct table_column_t) * column_count;
     struct lpc_cmd_msg_t *msg = comm_alloc_message(
         MSG_ADDRESS_LPC1114, payload_length);
-    msg->payload.cmd = LPC_CMD_TABLE_START;
-    msg->payload.args.table_start.x0 = x0;
-    msg->payload.args.table_start.y0 = y0;
-    msg->payload.args.table_start.row_height = row_height;
-    msg->payload.args.table_start.column_count = column_count;
+    msg->payload.cmd = htole16(LPC_CMD_TABLE_START);
+    msg->payload.args.table_start.x0 = htole16(x0);
+    msg->payload.args.table_start.y0 = htole16(y0);
+    msg->payload.args.table_start.row_height = htole16(row_height);
+    msg->payload.args.table_start.column_count = htole16(column_count);
+
+    struct table_column_t *columns_encoded =
+        alloca(sizeof(struct table_column_t)*column_count);
+    for (int i = 0; i < column_count; i++) {
+        columns_encoded[i].width = htole16(columns[i].width);
+        columns_encoded[i].alignment = columns[i].alignment;
+
+    }
+
     memcpy(
         &msg->payload.args.table_start.columns[0],
-        &columns[0],
+        &columns_encoded[0],
         sizeof(struct table_column_t)*column_count);
 
-    comm_dump_message((struct msg_header_t*)msg);
     comm_enqueue_msg(comm, msg);
 }
 

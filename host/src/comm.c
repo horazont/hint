@@ -26,9 +26,9 @@ void *comm_alloc_message(
     struct msg_header_t *msg = malloc(
         sizeof(struct msg_header_t) + payload_length);
     memset(msg, 0, sizeof(struct msg_header_t));
-    msg->sender = MSG_ADDRESS_HOST;
-    msg->recipient = recipient;
-    msg->payload_length = payload_length;
+    HDR_SET_SENDER(*msg, MSG_ADDRESS_HOST);
+    HDR_SET_RECIPIENT(*msg, recipient);
+    HDR_SET_PAYLOAD_LENGTH(*msg, payload_length);
     return msg;
 }
 
@@ -60,7 +60,7 @@ void comm_dump_header(const struct msg_header_t *hdr)
 void comm_dump_body(const struct msg_header_t *hdr, const uint8_t *buffer)
 {
     fprintf(stderr, "        message@%08lx: payload: \n", (uint64_t)hdr);
-    dump_buffer(stderr, buffer, hdr->payload_length);
+    dump_buffer(stderr, buffer, HDR_GET_PAYLOAD_LENGTH(*hdr));
 }
 
 void comm_dump_message(const struct msg_header_t *item)
@@ -264,13 +264,17 @@ enum comm_status_t _comm_read_checked(int fd, void *const buf, intptr_t len)
 bool _comm_send(int fd, const struct msg_header_t *hdr, const uint8_t *payload)
 {
     enum comm_status_t result = COMM_ERR_NONE;
-    msg_checksum_t cs = checksum(payload, hdr->payload_length);
+    msg_checksum_t cs = checksum(payload, HDR_GET_PAYLOAD_LENGTH(*hdr));
 
-    result = _comm_write_checked(fd, hdr, sizeof(struct msg_header_t));
+    struct msg_header_t hdr_encoded = {hdr->data};
+    header_to_wire(&hdr_encoded);
+
+    result = _comm_write_checked(fd, &hdr_encoded, sizeof(struct msg_header_t));
     if (result != COMM_ERR_NONE) {
         return result;
     }
-    result = _comm_write_checked(fd, payload, hdr->payload_length);
+    result = _comm_write_checked(
+        fd, payload, HDR_GET_PAYLOAD_LENGTH(*hdr));
     if (result != COMM_ERR_NONE) {
         return result;
     }
@@ -289,18 +293,22 @@ enum comm_status_t _comm_recv(int fd, struct msg_header_t *hdr, uint8_t **payloa
         return result;
     }
 
-    if (hdr->payload_length > MSG_MAX_PAYLOAD) {
+    wire_to_header(hdr);
+
+    const msg_length_t length = HDR_GET_PAYLOAD_LENGTH(*hdr);
+
+    if (length > MSG_MAX_PAYLOAD) {
         return COMM_ERR_PROTOCOL_VIOLATION;
     }
 
-    if (hdr->payload_length == 0) {
+    if (length == 0) {
         *payload = NULL;
         return COMM_ERR_CONTROL;
     }
 
-    *payload = malloc(hdr->payload_length);
+    *payload = malloc(length);
 
-    result = _comm_read_checked(fd, *payload, hdr->payload_length);
+    result = _comm_read_checked(fd, *payload, length);
     if (result != COMM_ERR_NONE) {
         free(*payload);
         *payload = NULL;
@@ -385,10 +393,11 @@ bool _comm_thread_state_open(struct comm_t *state, struct pollfd pollfds[2])
         case COMM_ERR_NONE:
         {
             buffer = malloc(sizeof(struct msg_header_t)+
-                            hdr.payload_length);
+                            HDR_GET_PAYLOAD_LENGTH(hdr));
             assert(buffer);
             memcpy(&buffer[0], &hdr, sizeof(struct msg_header_t));
-            memcpy(&buffer[sizeof(struct msg_header_t)], payload, hdr.payload_length);
+            memcpy(&buffer[sizeof(struct msg_header_t)], payload,
+                   HDR_GET_PAYLOAD_LENGTH(hdr));
             queue_push(&state->recv_queue, buffer);
             free(payload);
             write(state->_recv_fd, "p", 1);
@@ -396,14 +405,14 @@ bool _comm_thread_state_open(struct comm_t *state, struct pollfd pollfds[2])
         }
         case COMM_ERR_CONTROL:
         {
-            if (hdr.flags == MSG_FLAG_ACK) {
-                fprintf(stderr, "comm: debug: ack received\n");
+            if (HDR_GET_FLAGS(hdr) == MSG_FLAG_ACK) {
+                //~ fprintf(stderr, "comm: debug: ack received\n");
                 free(state->_pending_ack);
                 state->_pending_ack = NULL;
             } else {
                 comm_dump_message(&hdr);
                 fprintf(stderr, "comm: unknown control flags: %02x\n",
-                        hdr.flags);
+                        HDR_GET_FLAGS(hdr));
             }
             break;
         }
