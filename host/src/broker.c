@@ -235,6 +235,32 @@ void broker_process_comm_message(struct broker_t *broker, void *item)
     free(item);
 }
 
+void broker_process_xmpp_message(
+    struct broker_t *broker,
+    struct xmpp_queue_item_t *item)
+{
+    switch (item->type)
+    {
+    case XMPP_DEPARTURE_DATA:
+    {
+        screen_dept_update_data(
+            &broker->screens[SCREEN_BUS_MONITOR],
+            &item->data.departure->entries);
+        xmppintf_free_queue_item(item);
+        item = NULL;
+        if (broker->active_screen == SCREEN_BUS_MONITOR) {
+            screen_repaint(&broker->screens[broker->active_screen]);
+        }
+        break;
+    }
+    default:
+    {
+        panicf("broker: unknown xmpp message type %d\n",
+               item->type);
+    }
+    }
+}
+
 void broker_repaint_screen(
     struct broker_t *broker)
 {
@@ -379,7 +405,33 @@ void _broker_thread_handle_xmpp(
     struct broker_t *broker, int fd)
 {
     char act = recv_char(fd);
-    fprintf(stderr, "broker: debug: xmpp message received\n");
+    switch (act)
+    {
+    case XMPPINTF_PIPECHAR_MESSAGE:
+    {
+        if (queue_empty(&broker->xmpp->recv_queue)) {
+            fprintf(stderr, "broker: BUG: xmpp recv trigger received, "
+                            "but queue is empty!\n");
+            return;
+        }
+        void *item = queue_pop(&broker->xmpp->recv_queue);
+        assert(item != NULL);
+        broker_process_xmpp_message(broker, item);
+        break;
+    }
+    case XMPPINTF_PIPECHAR_FAILED:
+    {
+        fprintf(stderr, "broker: debug: xmpp failed.\n");
+        break;
+    }
+    case XMPPINTF_PIPECHAR_READY:
+    {
+        fprintf(stderr, "broker: debug: xmpp ready.\n");
+        break;
+    }
+    default:
+        panicf("unknown xmpp pipechar: %c\n", act);
+    }
 }
 
 void *broker_thread(struct broker_t *state)

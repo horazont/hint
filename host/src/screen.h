@@ -13,7 +13,7 @@
 #define SCREEN_MARGIN_RIGHT                 (62)
 #define SCREEN_MARGIN_BOTTOM                (0)
 
-#define SCREEN_CLIENT_AREA_TOP              (22)
+#define SCREEN_CLIENT_AREA_TOP              (24)
 #define SCREEN_CLIENT_AREA_LEFT             (2)
 #define SCREEN_CLIENT_AREA_RIGHT            ((LCD_WIDTH-1)-64)
 #define SCREEN_CLIENT_AREA_BOTTOM           ((LCD_HEIGHT-1)-2)
@@ -29,6 +29,8 @@
 #define TAB_WIDTH                           (60)
 #define TAB_HEIGHT                          (28)
 #define TAB_PADDING                         (4)
+
+#define MAX_DEPT_ROWS                       (14)
 
 struct screen_t;
 
@@ -96,6 +98,9 @@ struct screen_dept_t {
 };
 
 void screen_dept_init(struct screen_t *screen);
+void screen_dept_update_data(
+    struct screen_t *screen,
+    struct array_t *new_data);
 
 /* screen: weather */
 

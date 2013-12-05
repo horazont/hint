@@ -2,11 +2,15 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
+#include <assert.h>
 
 #include "common/types.h"
 #include "common/comm_lpc1114.h"
 
 #include "lpcdisplay.h"
+#include "departure.h"
+#include "utils.h"
 
 /* screen: utilities */
 
@@ -158,6 +162,8 @@ void screen_dept_init(struct screen_t *screen)
 
 void screen_dept_repaint(struct screen_t *screen)
 {
+    struct screen_dept_t *dept = screen->private;
+
     static struct table_column_t columns[3];
     columns[0].width = 28;
     columns[0].alignment = TABLE_ALIGN_LEFT;
@@ -167,6 +173,12 @@ void screen_dept_repaint(struct screen_t *screen)
     columns[2].alignment = TABLE_ALIGN_RIGHT;
 
     static const char* header = "L#\0Fahrtziel\0min";
+
+    //~ lpcd_fill_rectangle(
+        //~ screen->comm,
+        //~ SCREEN_CLIENT_AREA_LEFT, SCREEN_CLIENT_AREA_TOP,
+        //~ SCREEN_CLIENT_AREA_LEFT+180, SCREEN_CLIENT_AREA_BOTTOM,
+        //~ 0xffff);
 
     lpcd_table_start(
         screen->comm,
@@ -179,6 +191,84 @@ void screen_dept_repaint(struct screen_t *screen)
         0x0000, 0xffff,
         header, 17);
 
+    char *buffer = NULL;
+    intptr_t buflen = 0;
+
+    int len = array_length(&dept->rows);
+    if (len > MAX_DEPT_ROWS) {
+        len = MAX_DEPT_ROWS;
+    }
+    for (int i = 0; i < len; i++) {
+        struct dept_row_t *row = array_get(&dept->rows, i);
+
+        const intptr_t required_length =
+            strlen(row->lane) + 1 +
+            strlen(row->destination) + 1 +
+            5 + // fixed length for eta
+            1 // NUL
+            ;
+
+        if (required_length > buflen) {
+            char *new_buffer = realloc(buffer, required_length);
+            if (!new_buffer) {
+                panicf("screen_dept_repaint: out of memory\n");
+            }
+            buflen = required_length;
+            buffer = new_buffer;
+        }
+
+        char *pos = buffer;
+        intptr_t remlength = buflen;
+        intptr_t total_length = 0;
+        int written = snprintf(
+            pos, remlength,
+            "%s", (char*)row->lane)+1;
+        assert(written < remlength);
+        pos += written;
+        total_length += written;
+        remlength -= written;
+
+        written = snprintf(
+            pos, remlength,
+            "%s", row->destination)+1;
+        assert(written < remlength);
+        pos += written;
+        total_length += written;
+        remlength -= written;
+
+        if (row->eta < -9) {
+            written = snprintf(
+                pos, remlength,
+                "-∞")+1;
+        } else if (row->eta > 99) {
+            written = snprintf(
+                pos, remlength,
+                "+∞")+1;
+        } else {
+            written = snprintf(
+                pos, remlength,
+                "%d", row->eta)+1;
+        }
+        assert(written < remlength);
+        total_length += written;
+
+        lpcd_table_row(
+            screen->comm,
+            LPC_FONT_DEJAVU_SANS_12PX,
+            0x0000, 0xffff,
+            buffer, total_length);
+    }
+
+    static const char *empty = "\0\0";
+    for (int i = array_length(&dept->rows); i < MAX_DEPT_ROWS; i++) {
+        // fill with empty buffer
+        lpcd_table_row(
+            screen->comm,
+            LPC_FONT_DEJAVU_SANS_12PX,
+            0x0000, 0xffff,
+            empty, 3);
+    }
+
     lpcd_table_end(screen->comm);
 }
 
@@ -186,6 +276,19 @@ void screen_dept_show(struct screen_t *screen)
 {
     screen_draw_background(screen);
     screen->repaint(screen);
+}
+
+void screen_dept_update_data(
+    struct screen_t *screen,
+    struct array_t *new_data)
+{
+    struct screen_dept_t *dept = screen->private;
+    array_swap(&dept->rows, new_data);
+    while (!array_empty(new_data)) {
+        struct dept_row_t *row = array_pop(new_data, -1);
+        free(row->destination);
+        free(row);
+    }
 }
 
 /* screen: weather */

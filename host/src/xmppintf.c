@@ -340,7 +340,6 @@ int xmppintf_handle_public_transport_set(
     struct xmpp_t *xmpp = userdata;
 
     assert(strcmp(xmpp_stanza_get_type(stanza), "set") == 0);
-    assert(strcmp(xmpp_stanza_get_ns(stanza), xmppintf_ns_public_transport) == 0);
 
     xmpp_stanza_t *child = xmpp_stanza_get_children(stanza);
     if (!child) {
@@ -412,17 +411,32 @@ int xmppintf_handle_public_transport_set_data(
 
     xmpp_stanza_t *child = xmpp_stanza_get_children(data_stanza);
     while (child) {
+        if (strcmp(xmpp_stanza_get_name(child), "dt") != 0) {
+            fprintf(stderr,
+                "xmppintf_handle_public_transport_set_data: "
+                "unknown <data /> child: <%s />",
+                xmpp_stanza_get_name(child));
+            continue;
+        }
         char *eta = xmpp_stanza_get_attribute(child, "eta");
         char *dest = xmpp_stanza_get_attribute(child, "destination");
         char *lane = xmpp_stanza_get_attribute(child, "lane");
         if (!eta || !dest || !lane) {
+            fprintf(stderr,
+                "xmppintf_handle_public_transport_set_data: missing "
+                "attributes on <dt />\n");
             goto error;
         }
         if (*eta == '\0') {
+            fprintf(stderr,
+                "xmppintf_handle_public_transport_set_data: @eta is "
+                "empty string\n");
             goto error;
         }
         if (strlen(lane) > 2) {
-            goto error;
+            fprintf(stderr,
+                "xmppintf_handle_public_transport_set_data: @lane is "
+                "too long: %s\n", lane);
         }
 
         struct dept_row_t *row = malloc(sizeof(struct dept_row_t));
@@ -431,11 +445,15 @@ int xmppintf_handle_public_transport_set_data(
         }
 
         // strcpy is safe here, we checked the length before
-        strcpy(row->lane, lane);
+        strncpy(row->lane, lane, 3);
+        row->lane[2] = '\0';
         char *endptr = NULL;
-        row->remaining_time = strtol(eta, &endptr, 10);
-        if (*endptr == '\0') {
+        row->eta = strtol(eta, &endptr, 10);
+        if (*endptr != '\0') {
             // we checked *eta == '\0' before!
+            fprintf(stderr,
+                "xmppintf_handle_public_transport_set_data: @eta is "
+                "not integer\n");
             free(row);
             goto error;
         }
@@ -585,7 +603,7 @@ void xmppintf_init(
 
     xmpp_initialize();
 
-    xmpp->log = xmpp_get_default_logger(XMPP_LEVEL_DEBUG);
+    xmpp->log = xmpp_get_default_logger(XMPP_LEVEL_INFO);
     xmpp->ctx = NULL;
     xmpp->conn = NULL;
     xmpp->curr_status = PRESENCE_UNAVAILABLE;

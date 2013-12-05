@@ -4,7 +4,7 @@
 struct dept_row_t {
     char lane[3];
     char *destination;
-    int remaining_time;
+    int eta;
 };
 
 #endif
