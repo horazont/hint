@@ -118,7 +118,7 @@ _Static_assert(sizeof(struct msg_header_t) == sizeof(uint32_t),
 
 #define CHECKSUM_PUSH(prefix, value) do { \
     prefix##_A = (prefix##_A + value) % CHECKSUM_PRIME; \
-    prefix##_B = (prefix##_B + prefix##_B) % CHECKSUM_PRIME; \
+    prefix##_B = (prefix##_A + prefix##_B) % CHECKSUM_PRIME; \
     } while (0)
 
 #define CHECKSUM_FINALIZE(prefix) (prefix##_A << 4) | (prefix##_B)
