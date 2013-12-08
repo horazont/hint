@@ -366,8 +366,8 @@ enum comm_status_t comm_read_checked(int fd, void *const buf, intptr_t len)
             return COMM_ERR_DISCONNECTED;
         } else if (pollfd.revents & POLLIN) {
             intptr_t read_this_time = read(fd, buffer, len - read_total);
-            fprintf(stdout, "<< ");
-            dump_buffer(stdout, buffer, read_this_time);
+            //~ fprintf(stdout, "<< ");
+            //~ dump_buffer(stdout, buffer, read_this_time);
             assert(read_this_time > 0);
             read_total += read_this_time;
             buffer += read_this_time;
@@ -387,8 +387,8 @@ enum comm_status_t comm_recv(int fd, struct msg_header_t *hdr, uint8_t **payload
 
     *hdr = wire_to_raw(&encoded);
 
-    fprintf(stderr, "== received ==\n");
-    comm_dump_header(hdr);
+    //~ fprintf(stderr, "== received ==\n");
+    //~ comm_dump_header(hdr);
 
     const msg_length_t length = HDR_GET_PAYLOAD_LENGTH(*hdr);
 
@@ -410,7 +410,7 @@ enum comm_status_t comm_recv(int fd, struct msg_header_t *hdr, uint8_t **payload
         return result;
     }
 
-    comm_dump_body(hdr, *payload);
+    //~ comm_dump_body(hdr, *payload);
 
     msg_checksum_t received_checksum = 0;
     result = comm_read_checked(fd, &received_checksum, sizeof(msg_checksum_t));
@@ -420,7 +420,7 @@ enum comm_status_t comm_recv(int fd, struct msg_header_t *hdr, uint8_t **payload
         return result;
     }
 
-    comm_dump_checksum(hdr, received_checksum);
+    //~ comm_dump_checksum(hdr, received_checksum);
 
     msg_checksum_t reference_checksum = checksum(*payload, length);
     if (received_checksum != reference_checksum) {
@@ -447,9 +447,9 @@ enum comm_status_t comm_send(int fd, const struct msg_header_t *hdr, const uint8
 
     struct msg_encoded_header_t hdr_encoded = raw_to_wire(hdr);
 
-    fprintf(stderr, "== sending ==\n");
-    comm_dump_message(hdr);
-    comm_dump_checksum(hdr, cs);
+    //~ fprintf(stderr, "== sending ==\n");
+    //~ comm_dump_message(hdr);
+    //~ comm_dump_checksum(hdr, cs);
 
     result = comm_write_checked(fd, &hdr_encoded, sizeof(struct msg_encoded_header_t));
     if (result != COMM_ERR_NONE) {
@@ -921,8 +921,8 @@ enum comm_status_t comm_write_checked(int fd, const void *const buf, intptr_t le
         } else if (pollfd.revents & POLLOUT) {
             intptr_t written_this_time = write(
                 fd, buffer, len - written_total);
-            fprintf(stdout, ">> ");
-            dump_buffer(stdout, buffer, written_this_time);
+            //~ fprintf(stdout, ">> ");
+            //~ dump_buffer(stdout, buffer, written_this_time);
             assert(written_this_time > 0);
             written_total += written_this_time;
             buffer += written_this_time;
