@@ -34,5 +34,7 @@ void timestamp_sanity_check();
 
 void timestamp_gettime(struct timespec *t);
 
+void timestamp_gettime_in_future(struct timespec *t, int32_t msec);
+
 #endif
 

@@ -10,28 +10,10 @@
 #include <stdio.h>
 #include <errno.h>
 #include <poll.h>
+#include <stdarg.h>
 
 #include "utils.h"
 #include "timestamp.h"
-
-enum comm_state_t
-{
-    COMM_CLOSED = 0,
-    COMM_OPEN
-};
-
-void *comm_alloc_message(
-    const msg_address_t recipient,
-    const msg_length_t payload_length)
-{
-    struct msg_header_t *msg = malloc(
-        sizeof(struct msg_header_t) + payload_length);
-    memset(msg, 0, sizeof(struct msg_header_t));
-    HDR_SET_SENDER(*msg, MSG_ADDRESS_HOST);
-    HDR_SET_RECIPIENT(*msg, recipient);
-    HDR_SET_PAYLOAD_LENGTH(*msg, payload_length);
-    return msg;
-}
 
 void dump_buffer(FILE *dest, const uint8_t *buffer, int len)
 {
@@ -50,24 +32,6 @@ void dump_buffer(FILE *dest, const uint8_t *buffer, int len)
     if (len > 0) {
         fprintf(dest, "\n");
     }
-}
-
-void comm_dump_header(const struct msg_header_t *hdr)
-{
-    fprintf(stderr, "dumping message@%p: header: \n", (void*)hdr);
-    dump_buffer(stderr, (const uint8_t*)hdr, sizeof(struct msg_header_t));
-}
-
-void comm_dump_body(const struct msg_header_t *hdr, const uint8_t *buffer)
-{
-    fprintf(stderr, "        message@%p: payload: \n", (void*)hdr);
-    dump_buffer(stderr, buffer, HDR_GET_PAYLOAD_LENGTH(*hdr));
-}
-
-void comm_dump_message(const struct msg_header_t *item)
-{
-    comm_dump_header(item);
-    comm_dump_body(item, &((const uint8_t*)item)[sizeof(struct msg_header_t)]);
 }
 
 speed_t get_baudrate(uint32_t baudrate)
@@ -143,6 +107,170 @@ speed_t get_baudrate(uint32_t baudrate)
 
 }
 
+// forward declarations
+
+void *comm_alloc_message(
+    const msg_address_t recipient,
+    const msg_length_t payload_length);
+bool comm_check_datafd_error(
+    struct comm_t *comm,
+    struct pollfd *datafd);
+const char *comm_conn_state_str(const enum comm_conn_state_t state);
+void comm_dump_body(
+    const struct msg_header_t *hdr,
+    const uint8_t *buffer);
+void comm_dump_header(const struct msg_header_t *hdr);
+void comm_dump_message(const struct msg_header_t *item);
+void comm_enqueue_msg(struct comm_t *comm, void *msg);
+void comm_init(
+    struct comm_t *comm,
+    const char *devfile,
+    uint32_t baudrate);
+bool comm_is_available(struct comm_t *comm);
+int comm_open(struct comm_t *state);
+enum comm_status_t comm_read_checked(
+    int fd, void *const buf, intptr_t len);
+enum comm_status_t comm_recv(
+    int fd, struct msg_header_t *hdr, uint8_t **payload);
+enum comm_status_t comm_send(
+    int fd, const struct msg_header_t *hdr, const uint8_t *payload);
+enum comm_status_t comm_send_ping(struct comm_t *comm);
+void comm_timed_disable(struct comm_t *comm);
+void comm_timed_in_future(struct comm_t *comm, int32_t msec);
+char comm_wait(struct pollfd *pollfds, int timeout);
+enum comm_status_t comm_write_checked(
+    int fd, const void *const buf, intptr_t len);
+void comm_thread_handle_packet(
+    struct comm_t *state,
+    struct msg_header_t *hdr,
+    uint8_t *payload);
+void comm_thread_handle_unexpected_control(
+    struct comm_t *state,
+    struct msg_header_t *hdr);
+bool comm_thread_state_open_tx(struct comm_t *state, uint8_t *buffer);
+void comm_thread_state_closed(
+    struct comm_t *comm,
+    struct pollfd *datafd,
+    bool timed_out);
+void comm_thread_state_open(
+    struct comm_t *comm,
+    struct pollfd *datafd,
+    bool timed_out);
+void comm_thread_state_established(
+    struct comm_t *comm,
+    struct pollfd *datafd,
+    bool timed_out);
+void comm_thread_state_out_of_sync(
+    struct comm_t *comm,
+    struct pollfd *datafd,
+    bool timed_out);
+void comm_thread_to_state_closed(struct comm_t *comm);
+void comm_thread_to_state_open(struct comm_t *comm);
+void comm_thread_to_state_established(struct comm_t *comm);
+void comm_thread_to_state_out_of_sync(struct comm_t *comm);
+void *comm_thread(struct comm_t *comm);
+
+// end of forward declarations
+
+void *comm_alloc_message(
+    const msg_address_t recipient,
+    const msg_length_t payload_length)
+{
+    struct msg_header_t *msg = malloc(
+        sizeof(struct msg_header_t) + payload_length);
+    memset(msg, 0, sizeof(struct msg_header_t));
+    HDR_SET_SENDER(*msg, MSG_ADDRESS_HOST);
+    HDR_SET_RECIPIENT(*msg, recipient);
+    HDR_SET_PAYLOAD_LENGTH(*msg, payload_length);
+    return msg;
+}
+
+bool comm_check_datafd_error(
+    struct comm_t *comm,
+    struct pollfd *datafd)
+{
+    if (datafd->revents & (POLLERR|POLLHUP)) {
+        fprintf(stderr, "comm: datafd error, switching to closed state\n");
+        comm_thread_to_state_closed(comm);
+        comm_timed_in_future(comm, 0);
+        return true;
+    }
+    return false;
+}
+
+const char *comm_conn_state_str(const enum comm_conn_state_t state)
+{
+    switch  (state)
+    {
+    case COMM_CONN_CLOSED:
+    {
+        return "closed";
+    }
+    case COMM_CONN_OPEN:
+    {
+        return "open";
+    }
+    case COMM_CONN_ESTABLISHED:
+    {
+        return "established";
+    }
+    case COMM_CONN_OUT_OF_SYNC:
+    {
+        return "out-of-sync";
+    }
+    default:
+    {
+        return "??";
+    }
+    }
+}
+
+void comm_printf(const struct comm_t *comm, const char *format, ...)
+{
+    fprintf(stderr, "comm[%s]: ", comm_conn_state_str(comm->_conn_state));
+    va_list arglist;
+    va_start(arglist, format);
+    vfprintf(stderr, format, arglist);
+    va_end(arglist);
+}
+
+void comm_dump_body(const struct msg_header_t *hdr, const uint8_t *buffer)
+{
+    fprintf(stderr, "        message@%p: payload: \n", (void*)hdr);
+    dump_buffer(stderr, buffer, HDR_GET_PAYLOAD_LENGTH(*hdr));
+}
+
+void comm_dump_checksum(const struct msg_header_t *hdr, const msg_checksum_t checksum)
+{
+    fprintf(stderr, "        message@%p: checksum: %02x\n", (void*)hdr, checksum);
+}
+
+void comm_dump_header(const struct msg_header_t *hdr)
+{
+    fprintf(stderr, "dumping message@%p: header: \n", (void*)hdr);
+    dump_buffer(stderr, (const uint8_t*)hdr, sizeof(struct msg_header_t));
+    fprintf(stderr, "    payload_length = 0x%02x\n",
+                    HDR_GET_PAYLOAD_LENGTH(*hdr));
+    fprintf(stderr, "    flags          = 0x%02x\n",
+                    HDR_GET_FLAGS(*hdr));
+    fprintf(stderr, "    sender         = 0x%01x\n",
+                    HDR_GET_SENDER(*hdr));
+    fprintf(stderr, "    recipient      = 0x%01x\n",
+                    HDR_GET_RECIPIENT(*hdr));
+}
+
+void comm_dump_message(const struct msg_header_t *item)
+{
+    comm_dump_header(item);
+    comm_dump_body(item, &((const uint8_t*)item)[sizeof(struct msg_header_t)]);
+}
+
+void comm_enqueue_msg(struct comm_t *comm, void *msg)
+{
+    queue_push(&comm->send_queue, msg);
+    write(comm->signal_fd, "m", 1);
+}
+
 void comm_init(
     struct comm_t *comm,
     const char *devfile,
@@ -166,9 +294,10 @@ void comm_init(
     comm->recv_fd = fds[0];
 
     comm->_devfile = strdup(devfile);
-    comm->_fd = 0;
+    comm->_fd = -1;
     comm->_baudrate = baudrate;
     comm->_pending_ack = NULL;
+    comm->_conn_state = COMM_CONN_CLOSED;
 
     comm->terminated = false;
 
@@ -183,18 +312,12 @@ bool comm_is_available(struct comm_t *comm)
 {
     bool result = true;
     pthread_mutex_lock(&comm->data_mutex);
-    result = comm->_fd != 0;
+    result = comm->_fd != -1;
     pthread_mutex_unlock(&comm->data_mutex);
     return result;
 }
 
-void comm_enqueue_msg(struct comm_t *comm, void *msg)
-{
-    queue_push(&comm->send_queue, msg);
-    write(comm->signal_fd, "m", 1);
-}
-
-int _comm_open(struct comm_t *state)
+int comm_open(struct comm_t *state)
 {
     int fd = open(state->_devfile, O_RDWR|O_CLOEXEC|O_NOCTTY);
     if (fd < 0) {
@@ -202,7 +325,10 @@ int _comm_open(struct comm_t *state)
     }
 
     if (fcntl(fd, F_SETFL, O_NONBLOCK) != 0) {
-        fprintf(stderr, "fcntl(comm_device, F_SETFL, O_NONBLOCK) failed: %d: %s\n", errno, strerror(errno));
+        comm_printf(state, "fcntl(comm_device, F_SETFL, O_NONBLOCK) "
+                           "failed: %d: %s\n",
+                           errno,
+                           strerror(errno));
     }
 
     struct termios port_settings;
@@ -220,34 +346,7 @@ int _comm_open(struct comm_t *state)
     return 0;
 }
 
-enum comm_status_t _comm_write_checked(int fd, const void *const buf, intptr_t len)
-{
-    struct pollfd pollfd;
-    pollfd.fd = fd;
-    pollfd.events = POLLOUT;
-    pollfd.revents = 0;
-
-    const uint8_t *buffer = buf;
-    intptr_t written_total = 0;
-    while (written_total < len) {
-        int status = poll(&pollfd, 1, WRITE_TIMEOUT);
-        if (status == 0) {
-            return COMM_ERR_TIMEOUT;
-        }
-        if (pollfd.revents & (POLLERR|POLLHUP)) {
-            return COMM_ERR_DISCONNECTED;
-        } else if (pollfd.revents & POLLOUT) {
-            intptr_t written_this_time = write(
-                fd, buffer, len - written_total);
-            assert(written_this_time > 0);
-            written_total += written_this_time;
-            buffer += written_this_time;
-        }
-    }
-    return COMM_ERR_NONE;
-}
-
-enum comm_status_t _comm_read_checked(int fd, void *const buf, intptr_t len)
+enum comm_status_t comm_read_checked(int fd, void *const buf, intptr_t len)
 {
     struct pollfd pollfd;
     pollfd.fd = fd;
@@ -257,14 +356,18 @@ enum comm_status_t _comm_read_checked(int fd, void *const buf, intptr_t len)
     intptr_t read_total = 0;
     uint8_t *buffer = buf;
     while (read_total < len) {
-        int status = poll(&pollfd, 1, READ_TIMEOUT);
+        int status = poll(&pollfd, 1, COMM_READ_TIMEOUT);
         if (status == 0) {
+            fprintf(stderr, "comm: timeout: dumping buffer:\n");
+            //~ dump_buffer(stderr, buf, read_total);
             return COMM_ERR_TIMEOUT;
         }
         if (pollfd.revents & (POLLERR|POLLHUP)) {
             return COMM_ERR_DISCONNECTED;
         } else if (pollfd.revents & POLLIN) {
             intptr_t read_this_time = read(fd, buffer, len - read_total);
+            fprintf(stdout, "<< ");
+            dump_buffer(stdout, buffer, read_this_time);
             assert(read_this_time > 0);
             read_total += read_this_time;
             buffer += read_this_time;
@@ -273,39 +376,19 @@ enum comm_status_t _comm_read_checked(int fd, void *const buf, intptr_t len)
     return COMM_ERR_NONE;
 }
 
-bool _comm_send(int fd, const struct msg_header_t *hdr, const uint8_t *payload)
+enum comm_status_t comm_recv(int fd, struct msg_header_t *hdr, uint8_t **payload)
 {
-    enum comm_status_t result = COMM_ERR_NONE;
-    msg_checksum_t cs = checksum(payload, HDR_GET_PAYLOAD_LENGTH(*hdr));
-
-    struct msg_header_t hdr_encoded = {hdr->data};
-    header_to_wire(&hdr_encoded);
-
-    result = _comm_write_checked(fd, &hdr_encoded, sizeof(struct msg_header_t));
-    if (result != COMM_ERR_NONE) {
-        return result;
-    }
-    result = _comm_write_checked(
-        fd, payload, HDR_GET_PAYLOAD_LENGTH(*hdr));
-    if (result != COMM_ERR_NONE) {
-        return result;
-    }
-    result = _comm_write_checked(fd, &cs, sizeof(msg_checksum_t));
-    if (result != COMM_ERR_NONE) {
-        return result;
-    }
-    return true;
-}
-
-enum comm_status_t _comm_recv(int fd, struct msg_header_t *hdr, uint8_t **payload)
-{
-    enum comm_status_t result = _comm_read_checked(
-        fd, hdr, sizeof(struct msg_header_t));
+    struct msg_encoded_header_t encoded;
+    enum comm_status_t result = comm_read_checked(
+        fd, &encoded, sizeof(struct msg_encoded_header_t));
     if (result != COMM_ERR_NONE) {
         return result;
     }
 
-    wire_to_header(hdr);
+    *hdr = wire_to_raw(&encoded);
+
+    fprintf(stderr, "== received ==\n");
+    comm_dump_header(hdr);
 
     const msg_length_t length = HDR_GET_PAYLOAD_LENGTH(*hdr);
 
@@ -320,26 +403,494 @@ enum comm_status_t _comm_recv(int fd, struct msg_header_t *hdr, uint8_t **payloa
 
     *payload = malloc(length);
 
-    result = _comm_read_checked(fd, *payload, length);
-    if (result != COMM_ERR_NONE) {
-        free(*payload);
-        *payload = NULL;
-        return result;
-    }
-    msg_checksum_t checksum = 0;
-    result = _comm_read_checked(fd, &checksum, sizeof(msg_checksum_t));
+    result = comm_read_checked(fd, *payload, length);
     if (result != COMM_ERR_NONE) {
         free(*payload);
         *payload = NULL;
         return result;
     }
 
-    // TODO: validate checksum
+    comm_dump_body(hdr, *payload);
+
+    msg_checksum_t received_checksum = 0;
+    result = comm_read_checked(fd, &received_checksum, sizeof(msg_checksum_t));
+    if (result != COMM_ERR_NONE) {
+        free(*payload);
+        *payload = NULL;
+        return result;
+    }
+
+    comm_dump_checksum(hdr, received_checksum);
+
+    msg_checksum_t reference_checksum = checksum(*payload, length);
+    if (received_checksum != reference_checksum) {
+        comm_dump_header(hdr);
+        comm_dump_body(hdr, *payload);
+        comm_dump_checksum(hdr, received_checksum);
+        comm_dump_checksum(hdr, reference_checksum);
+        free(*payload);
+        *payload = NULL;
+        return COMM_ERR_CHECKSUM_ERROR;
+    }
+
+    if (HDR_GET_FLAGS(*hdr) != 0) {
+        return COMM_ERR_FLAGS;
+    }
 
     return COMM_ERR_NONE;
 }
 
-char _comm_wait(struct pollfd *pollfds, int timeout)
+enum comm_status_t comm_send(int fd, const struct msg_header_t *hdr, const uint8_t *payload)
+{
+    enum comm_status_t result = COMM_ERR_NONE;
+    msg_checksum_t cs = checksum(payload, HDR_GET_PAYLOAD_LENGTH(*hdr));
+
+    struct msg_encoded_header_t hdr_encoded = raw_to_wire(hdr);
+
+    fprintf(stderr, "== sending ==\n");
+    comm_dump_message(hdr);
+    comm_dump_checksum(hdr, cs);
+
+    result = comm_write_checked(fd, &hdr_encoded, sizeof(struct msg_encoded_header_t));
+    if (result != COMM_ERR_NONE) {
+        return result;
+    }
+    if (payload && (HDR_GET_PAYLOAD_LENGTH(*hdr) > 0)) {
+        result = comm_write_checked(
+            fd, payload, HDR_GET_PAYLOAD_LENGTH(*hdr));
+        if (result != COMM_ERR_NONE) {
+            return result;
+        }
+        result = comm_write_checked(fd, &cs, sizeof(msg_checksum_t));
+        if (result != COMM_ERR_NONE) {
+            return result;
+        }
+    }
+    return result;
+}
+
+enum comm_status_t comm_send_ping(struct comm_t *comm)
+{
+    static const struct msg_header_t msg = HDR_INIT(
+        MSG_ADDRESS_HOST,
+        MSG_ADDRESS_LPC1114,
+        0,
+        MSG_FLAG_ECHO);
+    return comm_send(comm->_fd, &msg, NULL);
+}
+
+void comm_thread_handle_packet(
+    struct comm_t *comm,
+    struct msg_header_t *hdr,
+    uint8_t *payload)
+{
+    uint8_t *buffer = malloc(sizeof(struct msg_header_t)+
+                             HDR_GET_PAYLOAD_LENGTH(*hdr));
+    if (!buffer) {
+        panicf("comm: failed to allocate memory for queue buffer\n");
+        // does not return
+    }
+    memcpy(&buffer[0], hdr, sizeof(struct msg_header_t));
+    memcpy(&buffer[sizeof(struct msg_header_t)], payload,
+           HDR_GET_PAYLOAD_LENGTH(*hdr));
+
+    queue_push(&comm->recv_queue, buffer);
+    free(payload);
+    send_char(comm->_recv_fd, COMM_PIPECHAR_MESSAGE);
+}
+
+void comm_thread_handle_unexpected_control(
+    struct comm_t *comm,
+    struct msg_header_t *hdr)
+{
+    comm_printf(comm, "unexpected control packet received\n");
+    //~ comm_dump_header(hdr);
+}
+
+bool comm_thread_state_open_tx(struct comm_t *state, uint8_t *buffer)
+{
+    struct msg_header_t *hdr = (struct msg_header_t*)buffer;
+    enum comm_status_t status = comm_send(
+        state->_fd, hdr, &buffer[sizeof(struct msg_header_t)]);
+    switch (status) {
+    case COMM_ERR_NONE:
+    {
+        break;
+    }
+    case COMM_ERR_DISCONNECTED:
+    case COMM_ERR_TIMEOUT:
+    {
+        queue_push_front(&state->send_queue, buffer);
+        comm_printf(state, "lost connection during send (%d)\n",
+                           status);
+        return false;
+    }
+    default:
+    {
+        panicf("comm: unexpected send result: %d\n", status);
+    }
+    }
+    state->_pending_ack = buffer;
+    timestamp_gettime(&state->_tx_timestamp);
+    return true;
+}
+
+void comm_thread_state_closed(
+    struct comm_t *comm,
+    struct pollfd *datafd,
+    bool timed_out)
+{
+    if (comm_open(comm) == 0) {
+        comm->_conn_state = COMM_CONN_OPEN;
+        comm->_pending_ping = false;
+        datafd->fd = comm->_fd;
+        comm_timed_in_future(comm, 0);
+    } else {
+        comm_timed_in_future(comm, COMM_RECONNECT_TIMEOUT);
+    }
+}
+
+void comm_thread_state_established(
+    struct comm_t *comm,
+    struct pollfd *datafd,
+    bool timed_out)
+{
+    if (comm_check_datafd_error(comm, datafd)) {
+        return;
+    }
+
+    if (datafd->revents & POLLIN) {
+        struct msg_header_t hdr;
+        uint8_t *payload = NULL;
+        switch (comm_recv(comm->_fd, &hdr, &payload)) {
+        case COMM_ERR_NONE:
+        {
+            comm_thread_handle_packet(comm, &hdr, payload);
+            break;
+        }
+        case COMM_ERR_CONTROL:
+        {
+            if (HDR_GET_FLAGS(hdr) == MSG_FLAG_ACK) {
+                free(comm->_pending_ack);
+                comm->_pending_ack = NULL;
+            } else {
+                //~ comm_dump_message(&hdr);
+                comm_thread_handle_unexpected_control(comm, &hdr);
+            }
+            break;
+        }
+        case COMM_ERR_CHECKSUM_ERROR:
+        {
+            comm_printf(comm, "checksum error\n");
+            break;
+        }
+        case COMM_ERR_TIMEOUT:
+        {
+            comm_printf(comm, "timeout\n");
+            comm_thread_to_state_out_of_sync(comm);
+            comm_timed_in_future(comm, 0);
+            return;
+        }
+        case COMM_ERR_DISCONNECTED:
+        {
+            comm_printf(comm, "disconnected\n");
+            return;
+        }
+        default:
+        {
+            panicf("comm[established]: unhandled recv status\n");
+        }
+        }
+    }
+
+    int32_t timeout = -1;
+    if (comm->_pending_ack == NULL) {
+        if (!queue_empty(&comm->send_queue)) {
+            uint8_t *buffer = queue_pop(&comm->send_queue);
+            assert(buffer);
+            if (!comm_thread_state_open_tx(comm, buffer)) {
+                return;
+            }
+            timeout = COMM_RETRANSMISSION_TIMEOUT;
+            comm->_retransmission_counter = 0;
+        }
+    } else {
+        struct timespec curr_time;
+        int32_t dt = timestamp_delta_in_msec(
+            &curr_time,
+            &comm->_tx_timestamp);
+        if (dt < COMM_RETRANSMISSION_TIMEOUT) {
+            timeout = COMM_RETRANSMISSION_TIMEOUT - dt;
+        } else {
+            timeout = COMM_RETRANSMISSION_TIMEOUT;
+        }
+        if (timeout == 0) {
+            if (comm->_retransmission_counter >= COMM_MAX_RETRANSMISSION)
+            {
+                comm_printf(comm, "retransmission counter reached "
+                                  "maximum\n");
+                comm_thread_to_state_open(comm);
+                comm_timed_in_future(comm, 0);
+                return;
+            }
+            if (!comm_thread_state_open_tx(comm, comm->_pending_ack)) {
+                return;
+            }
+            timeout = COMM_RETRANSMISSION_TIMEOUT;
+            comm->_retransmission_counter++;
+        }
+    }
+
+    if (timeout >= 0) {
+        comm_timed_in_future(comm, timeout);
+    } else {
+        comm_timed_disable(comm);
+    }
+}
+
+void comm_thread_state_open(
+    struct comm_t *comm,
+    struct pollfd *datafd,
+    bool timed_out)
+{
+    if (comm_check_datafd_error(comm, datafd)) {
+        return;
+    }
+
+    if (datafd->revents & POLLIN) {
+        struct msg_header_t hdr;
+        uint8_t *payload = NULL;
+        switch (comm_recv(comm->_fd, &hdr, &payload))
+        {
+        case COMM_ERR_NONE:
+        {
+            comm_printf(comm, "received data packet\n");
+            comm_thread_handle_packet(comm, &hdr, payload);
+            break;
+        }
+        case COMM_ERR_DISCONNECTED:
+        {
+            comm_printf(comm, "disconnected\n");
+            comm_thread_to_state_closed(comm);
+            comm_timed_in_future(comm, 0);
+            return;
+        }
+        case COMM_ERR_TIMEOUT:
+        case COMM_ERR_PROTOCOL_VIOLATION:
+        {
+            comm_printf(comm, "timeout or protocol violation\n");
+            // timeouts can happen during resync!
+            // protocol violations might be due to out of syncness
+            // we wait until the next retransmission timeout
+            break;
+        }
+        case COMM_ERR_FLAGS:
+        {
+            comm_printf(comm, "unexpected flags in data packet\n");
+            break;
+        }
+        case COMM_ERR_CHECKSUM_ERROR:
+        {
+            comm_printf(comm, "checksum error\n");
+            break;
+        }
+        case COMM_ERR_CONTROL:
+        {
+            if (comm->_pending_ping &&
+                (HDR_GET_FLAGS(hdr) & (MSG_FLAG_ECHO|MSG_FLAG_ACK)))
+            {
+                // ping response
+                comm_thread_to_state_established(comm);
+                comm_timed_in_future(comm, 0);
+                return;
+            }
+            comm_thread_handle_unexpected_control(comm, &hdr);
+            // wait until next retransmission timeout
+            break;
+        }
+        }
+    } else if (timed_out) {
+        comm_printf(comm, "sending another ping\n");
+        comm_timed_in_future(comm, COMM_RETRANSMISSION_TIMEOUT);
+        comm->_pending_ping = true;
+        const enum comm_status_t status = comm_send_ping(comm);
+        switch (status)
+        {
+        case COMM_ERR_NONE:
+        {
+            break;
+        }
+        case COMM_ERR_DISCONNECTED:
+        {
+            comm_printf(comm, "disconnected\n");
+            comm_thread_to_state_closed(comm);
+            comm_timed_in_future(comm, 0);
+            return;
+        }
+        case COMM_ERR_TIMEOUT:
+        {
+            comm_printf(comm, "timeout\n");
+            // transmission timeout??
+            comm_thread_to_state_closed(comm);
+            comm_timed_in_future(comm, 0);
+            return;
+        }
+        default:
+        {
+            panicf("comm[open]: unexpected send status: %d\n", status);
+        }
+        };
+
+    }
+}
+
+void comm_thread_state_out_of_sync(
+    struct comm_t *comm,
+    struct pollfd *datafd,
+    bool timed_out)
+{
+    if (comm_check_datafd_error(comm, datafd)) {
+        return;
+    }
+
+    comm_thread_to_state_open(comm);
+    comm_timed_in_future(comm, 0);
+}
+
+void comm_thread_to_state_closed(struct comm_t *comm)
+{
+    if (comm->_fd >= 0) {
+        close(comm->_fd);
+        comm->_fd = -1;
+    }
+    if (comm->_conn_state == COMM_CONN_ESTABLISHED) {
+        send_char(comm->_recv_fd, COMM_PIPECHAR_FAILED);
+    }
+    fprintf(stderr, "comm[%s] -> comm[%s]\n",
+                    comm_conn_state_str(comm->_conn_state),
+                    comm_conn_state_str(COMM_CONN_CLOSED));
+    comm->_conn_state = COMM_CONN_CLOSED;
+}
+
+void comm_thread_to_state_established(struct comm_t *comm)
+{
+    if (comm->_conn_state != COMM_CONN_ESTABLISHED) {
+        send_char(comm->_recv_fd, COMM_PIPECHAR_READY);
+    }
+    fprintf(stderr, "comm[%s] -> comm[%s]\n",
+                    comm_conn_state_str(comm->_conn_state),
+                    comm_conn_state_str(COMM_CONN_ESTABLISHED));
+    comm->_conn_state = COMM_CONN_ESTABLISHED;
+}
+
+void comm_thread_to_state_open(struct comm_t *comm)
+{
+    if (comm->_conn_state == COMM_CONN_ESTABLISHED) {
+        send_char(comm->_recv_fd, COMM_PIPECHAR_FAILED);
+    }
+    fprintf(stderr, "comm[%s] -> comm[%s]\n",
+                    comm_conn_state_str(comm->_conn_state),
+                    comm_conn_state_str(COMM_CONN_OPEN));
+    comm->_conn_state = COMM_CONN_OPEN;
+    comm->_pending_ping = false;
+}
+
+void comm_thread_to_state_out_of_sync(struct comm_t *comm)
+{
+    if (comm->_conn_state == COMM_CONN_ESTABLISHED) {
+        send_char(comm->_recv_fd, COMM_PIPECHAR_FAILED);
+    }
+    fprintf(stderr, "comm[%s] -> comm[%s]\n",
+                    comm_conn_state_str(comm->_conn_state),
+                    comm_conn_state_str(COMM_CONN_OUT_OF_SYNC));
+    comm->_conn_state = COMM_CONN_OUT_OF_SYNC;
+}
+
+void *comm_thread(struct comm_t *comm)
+{
+    struct pollfd pollfds[2];
+    pollfds[0].fd = comm->_signal_fd;
+    pollfds[0].events = POLLIN;
+    pollfds[0].revents = 0;
+    pollfds[1].events = POLLIN;
+    pollfds[1].revents = 0;
+
+    comm_thread_to_state_closed(comm);
+    comm_timed_in_future(comm, 0);
+
+    pthread_mutex_lock(&comm->data_mutex);
+    while (!comm->terminated)
+    {
+        pthread_mutex_unlock(&comm->data_mutex);
+        int timeout = -1;
+        if (comm->_timed_event.active) {
+            struct timespec curr_time;
+            timestamp_gettime(&curr_time);
+            timeout = timestamp_delta_in_msec(
+                &comm->_timed_event.next,
+                &curr_time);
+            if (timeout < 0) {
+                timeout = 0;
+            }
+        }
+        int result = poll(&pollfds[0],
+             (comm->_conn_state != COMM_CONN_CLOSED ? 2 : 1),
+             timeout);
+        bool timed_out = true;
+        if (result < 0) {
+            panicf("comm: poll returned error: %d (%s)\n",
+                   errno, strerror(errno));
+        } else {
+            timed_out = result == 0;
+        }
+        switch (comm->_conn_state)
+        {
+        case COMM_CONN_CLOSED:
+        {
+            comm_thread_state_closed(comm, &pollfds[1], timed_out);
+            break;
+        }
+        case COMM_CONN_OPEN:
+        {
+            comm_thread_state_open(comm, &pollfds[1], timed_out);
+            break;
+        }
+        case COMM_CONN_ESTABLISHED:
+        {
+            comm_thread_state_established(comm, &pollfds[1], timed_out);
+            break;
+        }
+        case COMM_CONN_OUT_OF_SYNC:
+        {
+            comm_thread_state_out_of_sync(comm, &pollfds[1], timed_out);
+            break;
+        }
+        default:
+        {
+            panicf("comm: invalid state: %d\n", comm->_conn_state);
+        }
+        }
+        pthread_mutex_lock(&comm->data_mutex);
+    }
+    pthread_mutex_unlock(&comm->data_mutex);
+
+    return NULL;
+}
+
+void comm_timed_disable(struct comm_t *comm)
+{
+    comm->_timed_event.active = false;
+}
+
+void comm_timed_in_future(struct comm_t *comm, int32_t msec)
+{
+    timestamp_gettime_in_future(
+        &comm->_timed_event.next,
+        msec);
+    comm->_timed_event.active = true;
+}
+
+char comm_wait(struct pollfd *pollfds, int timeout)
 {
     if (poll(&pollfds[0], 1, timeout) == 1) {
         if (pollfds[0].revents & POLLIN) {
@@ -351,184 +902,31 @@ char _comm_wait(struct pollfd *pollfds, int timeout)
     return '\0';
 }
 
-bool _comm_thread_state_open_tx(struct comm_t *state, uint8_t *buffer)
+enum comm_status_t comm_write_checked(int fd, const void *const buf, intptr_t len)
 {
-    struct msg_header_t *hdr = (struct msg_header_t*)buffer;
-    if (!_comm_send(state->_fd, hdr, &buffer[sizeof(struct msg_header_t)])) {
-        queue_push_front(&state->send_queue, buffer);
-        fprintf(stderr, "comm: lost connection during send\n");
-        return false;
-    }
-    state->_pending_ack = buffer;
-    timestamp_gettime(&state->_tx_timestamp);
-    return true;
-}
+    struct pollfd pollfd;
+    pollfd.fd = fd;
+    pollfd.events = POLLOUT;
+    pollfd.revents = 0;
 
-bool _comm_thread_state_open(struct comm_t *state, struct pollfd pollfds[2])
-{
-    if (state->_pending_ack == NULL) {
-        if (!queue_empty(&state->send_queue)) {
-            //~ fprintf(stderr, "comm: debug: starting tx\n");
-            uint8_t *buffer = queue_pop(&state->send_queue);
-            assert(buffer);
-            if (!_comm_thread_state_open_tx(state, buffer)) {
-                return false;
-            }
+    const uint8_t *buffer = buf;
+    intptr_t written_total = 0;
+    while (written_total < len) {
+        int status = poll(&pollfd, 1, COMM_WRITE_TIMEOUT);
+        if (status == 0) {
+            return COMM_ERR_TIMEOUT;
         }
-    }
-
-    int timeout = -1;
-    if (state->_pending_ack != NULL) {
-        struct timespec curr_time;
-        timestamp_gettime(&curr_time);
-        uint32_t dt = timestamp_delta_in_msec(&curr_time, &state->_tx_timestamp);
-        if (dt < RETRANSMISSION_TIMEOUT) {
-            timeout = RETRANSMISSION_TIMEOUT - dt;
-        } else {
-            timeout = 0;
-        }
-    } else if (!queue_empty(&state->send_queue)) {
-        timeout = 0;
-    }
-
-    poll(&pollfds[0], 2, timeout);
-    if (pollfds[1].revents & (POLLERR|POLLHUP)) {
-        fprintf(stderr, "comm: disconnected\n");
-        return false;
-    }
-
-    if (pollfds[1].revents & (POLLIN)) {
-        struct msg_header_t hdr;
-        uint8_t *payload = NULL;
-        uint8_t *buffer = NULL;
-        switch (_comm_recv(state->_fd, &hdr, &payload)) {
-        case COMM_ERR_NONE:
-        {
-            buffer = malloc(sizeof(struct msg_header_t)+
-                            HDR_GET_PAYLOAD_LENGTH(hdr));
-            assert(buffer);
-            memcpy(&buffer[0], &hdr, sizeof(struct msg_header_t));
-            memcpy(&buffer[sizeof(struct msg_header_t)], payload,
-                   HDR_GET_PAYLOAD_LENGTH(hdr));
-            queue_push(&state->recv_queue, buffer);
-            free(payload);
-            send_char(state->_recv_fd, COMM_PIPECHAR_MESSAGE);
-            break;
-        }
-        case COMM_ERR_CONTROL:
-        {
-            if (HDR_GET_FLAGS(hdr) == MSG_FLAG_ACK) {
-                //~ fprintf(stderr, "comm: debug: ack received\n");
-                free(state->_pending_ack);
-                state->_pending_ack = NULL;
-            } else {
-                comm_dump_message(&hdr);
-                fprintf(stderr, "comm: unknown control flags: %02x\n",
-                        HDR_GET_FLAGS(hdr));
-            }
-            break;
-        }
-        case COMM_ERR_CHECKSUM_ERROR:
-        {
-            fprintf(stderr, "comm: checksum error\n");
-            break;
-        }
-        case COMM_ERR_TIMEOUT:
-        {
-            fprintf(stderr, "comm: timeout\n");
-            break;
-        }
-        case COMM_ERR_DISCONNECTED:
-        {
-            fprintf(stderr, "comm: lost connection during recv\n");
-            return false;
-        }
-        default:
-        {
-            fprintf(stderr, "comm: unhandled recv status\n");
-            assert(false);
-        }
+        if (pollfd.revents & (POLLERR|POLLHUP)) {
+            return COMM_ERR_DISCONNECTED;
+        } else if (pollfd.revents & POLLOUT) {
+            intptr_t written_this_time = write(
+                fd, buffer, len - written_total);
+            fprintf(stdout, ">> ");
+            dump_buffer(stdout, buffer, written_this_time);
+            assert(written_this_time > 0);
+            written_total += written_this_time;
+            buffer += written_this_time;
         }
     }
-
-    if (pollfds[0].revents & (POLLERR|POLLHUP)) {
-        fprintf(stderr, "comm: trigger pipe closed.\n");
-    } else if (pollfds[0].revents  & (POLLIN)) {
-        char w;
-        read(pollfds[0].fd, &w, 1);
-    }
-
-    if (state->_pending_ack != NULL)
-    {
-        struct timespec curr_time;
-        timestamp_gettime(&curr_time);
-        uint32_t dt = timestamp_delta_in_msec(&curr_time, &state->_tx_timestamp);
-        if (dt >= RETRANSMISSION_TIMEOUT) {
-            fprintf(stderr, "comm: retransmission\n");
-            _comm_thread_state_open_tx(state, state->_pending_ack);
-        }
-    }
-
-    return true;
-}
-
-void *comm_thread(struct comm_t *state)
-{
-    enum comm_state_t sm =
-        (state->_fd == 0 ? COMM_CLOSED : COMM_OPEN);
-
-    struct pollfd pollfds[2];
-    pollfds[0].fd = state->_signal_fd;
-    pollfds[0].events = POLLIN;
-    pollfds[0].revents = 0;
-    pollfds[1].events = POLLIN;
-    pollfds[1].revents = 0;
-
-    pthread_mutex_lock(&state->data_mutex);
-    while (!state->terminated)
-    {
-        pthread_mutex_unlock(&state->data_mutex);
-        switch (sm)
-        {
-        case COMM_CLOSED:
-        {
-            if (_comm_open(state) == 0) {
-                sm = COMM_OPEN;
-                pollfds[1].fd = state->_fd;
-                fprintf(stderr, "comm: opened serial device\n");
-                // signal enabling of serial device
-                send_char(state->_recv_fd, COMM_PIPECHAR_READY);
-            } else {
-                fprintf(stderr, "comm: open of `%s' failed, will try "
-                        "again in %d ms\n",
-                        state->_devfile,
-                        RECONNECT_TIMEOUT);
-                _comm_wait(&pollfds[0], RECONNECT_TIMEOUT);
-            }
-            break;
-        }
-        case COMM_OPEN:
-        {
-            if (!_comm_thread_state_open(state, pollfds)) {
-                fprintf(stderr, "comm: disconnected\n");
-                // disconnect happened
-                sm = COMM_CLOSED;
-                close(state->_fd);
-                state->_fd = 0;
-                if (state->_pending_ack) {
-                    queue_push_front(
-                        &state->recv_queue, state->_pending_ack);
-                    state->_pending_ack = NULL;
-                }
-            }
-            break;
-        }
-        default:
-            assert(false);
-        }
-        pthread_mutex_lock(&state->data_mutex);
-    }
-    pthread_mutex_unlock(&state->data_mutex);
-
-    return NULL;
+    return COMM_ERR_NONE;
 }

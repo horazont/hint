@@ -11,6 +11,7 @@ typedef enum {
 typedef enum {
     TX_IDLE,
     TX_SEND_HEADER,
+    TX_SEND_PSEUDOHEADER,
     TX_SEND_PAYLOAD,
     TX_SEND_CHECKSUM
 } uart_tx_state_t;
@@ -40,12 +41,23 @@ static struct comm_port_t uart VAR_RAM = {
     .route_buffer = {
         .in_use = false
     },
-    .active_queue = 0
+    .active_queue = -1
 };
+
+static uint8_t pending_pings VAR_RAM = 0;
+static struct msg_header_t ping_header VAR_RAM =
+    HDR_INIT(
+        MSG_ADDRESS_LPC1114,
+        MSG_ADDRESS_HOST,
+        0,
+        MSG_FLAG_ACK | MSG_FLAG_ECHO);
+static volatile uint32_t buffer = 0;
 
 static inline void uart_init(const uint32_t baudrate)
 {
     NVIC_DisableIRQ(UART_IRQn);
+
+    buffer = 0xdeadbeef;
 
     /* Set 1.6 UART RXD */
     IOCON_PIO1_6 &= ~IOCON_PIO1_6_FUNC_MASK;
@@ -105,24 +117,36 @@ static inline bool uart_tx_trns()
     return uart.state.trns_src == uart.state.trns_end;
 }
 
-static inline void uart_tx_irq()
+void uart_tx_irq()
 {
     switch (uart_tx_state) {
     case TX_IDLE:
     {
-        for (uint_fast8_t i = 0; i < MSG_QUEUE_SIZE; i++) {
-            if (!uart.queue[i].empty) {
-                uart.active_queue = i;
-                break;
+        if (pending_pings > 0) {
+            pending_pings -= 1;
+            uart_tx_state = TX_SEND_PSEUDOHEADER;
+            uart.state.trns_src = (const volatile uint8_t*)(&ping_header);
+            uart.state.trns_end = uart.state.trns_src + sizeof(struct msg_header_t);
+            // this is more than ugly (we just proceed to
+            // TX_SEND_HEADER). but we can do that because only one
+            // byte gets transmitted per uart_tx_trns() call.
+            uart_tx_irq();
+            break;
+        } else {
+            for (uint_fast8_t i = 0; i < MSG_QUEUE_SIZE; i++) {
+                if (!uart.queue[i].empty) {
+                    uart.active_queue = i;
+                    break;
+                }
             }
+            if (uart.active_queue == -1) {
+                UART_U0IER &= ~(UART_U0IER_THRE_Interrupt_Enabled);
+                return;
+            }
+            uart_tx_state = TX_SEND_HEADER;
+            uart.state.trns_src = (const volatile uint8_t*)uart.queue[uart.active_queue].header;
+            uart.state.trns_end = uart.state.trns_src + sizeof(struct msg_header_t);
         }
-        if (uart.active_queue == -1) {
-            UART_U0IER &= ~(UART_U0IER_THRE_Interrupt_Enabled);
-            return;
-        }
-        uart_tx_state = TX_SEND_HEADER;
-        uart.state.trns_src = (const volatile uint8_t*)uart.queue[uart.active_queue].header;
-        uart.state.trns_end = uart.state.trns_src + sizeof(struct msg_header_t);
     }
     case TX_SEND_HEADER:
     {
@@ -143,6 +167,16 @@ static inline void uart_tx_irq()
         uart_tx_state = TX_SEND_PAYLOAD;
         uart.state.trns_src = uart.queue[uart.active_queue].data;
         uart.state.trns_end = uart.state.trns_src + len;
+        break;
+    }
+    case TX_SEND_PSEUDOHEADER:
+    {
+        if (!uart_tx_trns()) {
+            return;
+        }
+        uart_tx_state = TX_IDLE;
+        // pseudoheader packets are not associated to any buffer, nor
+        // do they have a payload. so just reset to TX_IDLE.
         break;
     }
     case TX_SEND_PAYLOAD:
@@ -222,6 +256,14 @@ void uart_rx_irq()
         switch (HDR_GET_RECIPIENT(uart.state.curr_header)) {
         case MSG_ADDRESS_LPC1114:
         {
+            if (HDR_GET_FLAGS(uart.state.curr_header) & MSG_FLAG_ECHO) {
+                // this is a ping, reply to it asap
+                pending_pings += 1;
+                uart_rx_state = RX_IDLE;
+                uart_tx_trigger();
+                return;
+            }
+
             // this is me! either forward to local buffer or discard.
             if (appbuffer_back->in_use) {
                 //~ dropped_message = true;

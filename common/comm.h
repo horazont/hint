@@ -6,6 +6,11 @@
 
 #ifndef __LITTLE_ENDIAN
 #include <endian.h>
+#else
+#ifndef LITTLE_ENDIAN
+#define LITTLE_ENDIAN 4321
+#define BYTE_ORDER LITTLE_ENDIAN
+#endif
 #endif
 
 typedef uint8_t msg_checksum_t;
@@ -16,18 +21,24 @@ typedef uint16_t msg_length_t;
 #define MSG_ADDRESS_LPC1114                 (0x1)
 #define MSG_ADDRESS_ARDUINO                 (0x2)
 
+//! acknowledgement of a previous message
 #define MSG_FLAG_ACK                        (0x10)
-#define MSG_FLAG_NAK                        (0x20)
-
 //! command not allowed at this time
-#define MSG_NAK_CODE_ORDER                  (0x01)
+#define MSG_FLAG_NAK_CODE_ORDER             (0x20)
 //! unknown command
-#define MSG_NAK_CODE_UNKNOWN_COMMAND        (0x02)
+#define MSG_FLAG_NAK_CODE_UNKNOWN_COMMAND   (0x40)
 //! not enough memory to perform the given operation
-#define MSG_NAK_OUT_OF_MEMORY               (0x03)
+#define MSG_FLAG_NAK_OUT_OF_MEMORY          (0x60)
+//! payload_length must be zero; send reply to the sender with
+//! MSG_FLAG_ACK set in addition to MSG_FLAG_ECHO
+#define MSG_FLAG_ECHO                       (0x80)
 
 struct msg_header_t {
     uint32_t data;
+};
+
+struct msg_encoded_header_t {
+    uint32_t encoded_data;
 };
 
 #define MSG_HDR_MASK_FLAGS                  (0xFF000000)
@@ -38,20 +49,38 @@ struct msg_header_t {
 #define MSG_HDR_SHIFT_SENDER                (12)
 #define MSG_HDR_MASK_RECIPIENT              (0x00000300)
 #define MSG_HDR_SHIFT_RECIPIENT             (8)
+#define MSG_HDR_MASK_RESERVED               (0x000000FF)
+#define MSG_HDR_SHIFT_RESERVED              (0)
 
 #define HDR_GET_(hdr, field) (((hdr).data & MSG_HDR_MASK_##field) >> MSG_HDR_SHIFT_##field)
-#define HDR_SET_(hdr, value, field) {(hdr).data = (((hdr).data & ~MSG_HDR_MASK_##field) | ((value << MSG_HDR_SHIFT_##field) & MSG_HDR_MASK_##field));}
+#define HDR_SET_(hdr, value, field) {(hdr).data = (((hdr).data & ~MSG_HDR_MASK_##field) | (((value) << MSG_HDR_SHIFT_##field) & MSG_HDR_MASK_##field));}
 
 
 #define HDR_GET_FLAGS(hdr) HDR_GET_(hdr, FLAGS)
 #define HDR_GET_PAYLOAD_LENGTH(hdr) HDR_GET_(hdr, PAYLOAD_LENGTH)
 #define HDR_GET_SENDER(hdr) HDR_GET_(hdr, SENDER)
 #define HDR_GET_RECIPIENT(hdr) HDR_GET_(hdr, RECIPIENT)
+#define HDR_GET_RESERVED(hdr) HDR_GET_(hdr, RESERVED)
 
 #define HDR_SET_FLAGS(hdr, value) HDR_SET_(hdr, value, FLAGS)
 #define HDR_SET_PAYLOAD_LENGTH(hdr, value) HDR_SET_(hdr, value, PAYLOAD_LENGTH)
 #define HDR_SET_SENDER(hdr, value) HDR_SET_(hdr, value, SENDER)
 #define HDR_SET_RECIPIENT(hdr, value) HDR_SET_(hdr, value, RECIPIENT)
+#define HDR_SET_RESERVED(hdr, value) HDR_SET_(hdr, value, RESERVED)
+
+#define HDR_SET_MESSAGE_ID(hdr, id) HDR_SET_FLAGS(hdr, (id)&0xF)
+#define HDR_SET_ECHO_ID(hdr, id) HDR_SET_FLAGS(hdr, MSG_FLAG_ECHO | (id&0xF))
+
+#define HDR_COMPOSE(sender, recipient, payload_length, flags) ( \
+    (((sender) << MSG_HDR_SHIFT_SENDER) & MSG_HDR_MASK_SENDER) | \
+    (((recipient) << MSG_HDR_SHIFT_RECIPIENT) & MSG_HDR_MASK_RECIPIENT) | \
+    (((payload_length) << MSG_HDR_SHIFT_PAYLOAD_LENGTH) & MSG_HDR_MASK_PAYLOAD_LENGTH) | \
+    (((flags) << MSG_HDR_SHIFT_FLAGS) & MSG_HDR_MASK_FLAGS))
+#define HDR_INIT(sender, recipient, payload_length, flags) \
+    {HDR_COMPOSE(sender, recipient, payload_length, flags)}
+#define HDR_INIT_EX(sender, recipient, payload_length, flags, reserved) \
+    {HDR_COMPOSE(sender, recipient, payload_length, flags) | ((reserved) & 0xFF)}
+#define HDR_SET(hdrvar, sender, recipient, payload_length, flags) (hdrvar).data = HDR_COMPOSE(sender, recipient, payload_length, flags)
 
 enum msg_status_t {
     MSG_NO_ERROR = 0,
@@ -104,7 +133,34 @@ static inline msg_checksum_t checksum(const uint8_t *buffer, const msg_length_t 
     return CHECKSUM_FINALIZE(adler);
 }
 
-#define header_to_wire(hdrptr) (hdrptr)->data = htole32((hdrptr)->data)
-#define wire_to_header(hdrptr) (hdrptr)->data = le32toh((hdrptr)->data)
+#if BYTE_ORDER == BIG_ENDIAN
+
+static inline struct msg_encoded_header_t raw_to_wire(const struct msg_header_t *raw)
+{
+    struct msg_encoded_header_t encoded = {htole32(raw->data)};
+    return encoded;
+}
+
+static inline struct msg_header_t wire_to_raw(const struct msg_encoded_header_t *encoded)
+{
+    struct msg_header_t raw = {le32toh(encoded->encoded_data)};
+    return raw;
+}
+
+#else
+
+static inline struct msg_encoded_header_t raw_to_wire(const struct msg_header_t *raw)
+{
+    struct msg_encoded_header_t encoded = {raw->data};
+    return encoded;
+}
+
+static inline struct msg_header_t wire_to_raw(const struct msg_encoded_header_t *encoded)
+{
+    struct msg_header_t raw = {encoded->encoded_data};
+    return raw;
+}
+
+#endif
 
 #endif

@@ -91,11 +91,19 @@ enum msg_status_t comm_tx_nak(
     const uint8_t nak_code)
 {
     struct msg_header_t hdr = {0};
-    HDR_SET_FLAGS(hdr, MSG_FLAG_NAK | (nak_code & 0xF));
+    HDR_SET_FLAGS(hdr, nak_code);
     HDR_SET_PAYLOAD_LENGTH(hdr, 0);
     HDR_SET_SENDER(hdr, MSG_ADDRESS_LPC1114);
     HDR_SET_RECIPIENT(hdr, recipient);
     return comm_tx_message(&hdr, NULL, 0);
+}
+
+void comm_debug_tx_pong()
+{
+    NVIC_DisableIRQ(UART_IRQn);
+    pending_pings += 1;
+    NVIC_EnableIRQ(UART_IRQn);
+    uart_tx_trigger();
 }
 
 enum msg_status_t comm_tx_message(

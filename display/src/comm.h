@@ -55,6 +55,8 @@ enum msg_status_t comm_tx_nak(
     const msg_address_t recipient,
     const uint8_t nak_code);
 
+void comm_debug_tx_pong();
+
 /**
  * Transmit a message over the appropriate link. The link is detected
  * by investigating the recipient field in the header.

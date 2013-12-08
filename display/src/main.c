@@ -240,7 +240,7 @@ static inline void handle_idle_command()
         struct table_column_t *columns = buffer_alloc(
             sizeof(struct table_column_t)*msg_cmd.args.table_start.column_count);
         if (!table_ctx || !columns) {
-            comm_tx_nak(MSG_ADDRESS_HOST, MSG_NAK_OUT_OF_MEMORY);
+            comm_tx_nak(MSG_ADDRESS_HOST, MSG_FLAG_NAK_OUT_OF_MEMORY);
             buffer_release_all();
             break;
         }
@@ -284,12 +284,12 @@ static inline void handle_idle_command()
     case LPC_CMD_TABLE_ROW:
     case LPC_CMD_TABLE_END:
     {
-        comm_tx_nak(MSG_ADDRESS_HOST, MSG_NAK_CODE_ORDER);
+        comm_tx_nak(MSG_ADDRESS_HOST, MSG_FLAG_NAK_CODE_ORDER);
         break;
     }
     default:
     {
-        comm_tx_nak(MSG_ADDRESS_HOST, MSG_NAK_CODE_UNKNOWN_COMMAND);
+        comm_tx_nak(MSG_ADDRESS_HOST, MSG_FLAG_NAK_CODE_UNKNOWN_COMMAND);
         break;
     }
     }
@@ -317,7 +317,7 @@ static inline void handle_draw_image_command()
     }
     default:
     {
-        comm_tx_nak(MSG_ADDRESS_HOST, MSG_NAK_CODE_ORDER);
+        comm_tx_nak(MSG_ADDRESS_HOST, MSG_FLAG_NAK_CODE_ORDER);
         break;
     }
     }
@@ -346,7 +346,7 @@ static inline void handle_table_command()
     }
     default:
     {
-        comm_tx_nak(MSG_ADDRESS_HOST, MSG_NAK_CODE_ORDER);
+        comm_tx_nak(MSG_ADDRESS_HOST, MSG_FLAG_NAK_CODE_ORDER);
         break;
     }
     }
@@ -479,6 +479,8 @@ int main(void)
 
         touch_wait_for_clear();
     }
+
+    //~ comm_debug_tx_pong();
 
     fill_rectangle(0, 0, LCD_WIDTH-1, LCD_HEIGHT-1, 0x0000);
 
