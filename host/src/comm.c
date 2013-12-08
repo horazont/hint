@@ -312,7 +312,7 @@ bool comm_is_available(struct comm_t *comm)
 {
     bool result = true;
     pthread_mutex_lock(&comm->data_mutex);
-    result = comm->_fd != -1;
+    result = comm->_conn_state == COMM_CONN_ESTABLISHED;
     pthread_mutex_unlock(&comm->data_mutex);
     return result;
 }
