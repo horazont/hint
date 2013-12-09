@@ -147,6 +147,7 @@ void comm_thread_handle_packet(
 void comm_thread_handle_unexpected_control(
     struct comm_t *state,
     struct msg_header_t *hdr);
+void comm_thread_signalfd(struct comm_t *comm, struct pollfd *signalfd);
 bool comm_thread_state_open_tx(struct comm_t *state, uint8_t *buffer);
 void comm_thread_state_closed(
     struct comm_t *comm,
@@ -546,6 +547,15 @@ void comm_thread_handle_unexpected_control(
     //~ comm_dump_header(hdr);
 }
 
+void comm_thread_signalfd(struct comm_t *comm, struct pollfd *signalfd)
+{
+    if (signalfd->revents & (POLLERR|POLLHUP)) {
+        comm_printf(comm, "signalfd POLLERR|POLLHUP\n");
+    } else if (signalfd->revents & POLLIN) {
+        recv_char(comm->_signal_fd);
+    }
+}
+
 bool comm_thread_state_open_tx(struct comm_t *state, uint8_t *buffer)
 {
     struct msg_header_t *hdr = (struct msg_header_t*)buffer;
@@ -896,6 +906,7 @@ void *comm_thread(struct comm_t *comm)
         } else {
             timed_out = result == 0;
         }
+        comm_thread_signalfd(comm, &pollfds[0]);
         switch (comm->_conn_state)
         {
         case COMM_CONN_CLOSED:
