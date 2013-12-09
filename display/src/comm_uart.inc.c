@@ -237,6 +237,58 @@ static inline bool uart_rx_recv()
     return true;
 }
 
+static inline bool uart_rx_recv_chksummed()
+{
+    while (uart.state.recv_dest != uart.state.recv_end) {
+        uint32_t status = UART_U0LSR;
+        if ((status & UART_U0LSR_RDR_MASK) != UART_U0LSR_RDR_DATA) {
+            return false;
+        }
+        uint8_t byte = UART_U0RBR;
+        *uart.state.recv_dest++ = byte;
+        CHECKSUM_PUSH(uart.state.recv_checksum, byte);
+    }
+    return true;
+}
+
+static inline void uart_rx_irq_end_of_transmission()
+{
+    switch (uart_rx_state) {
+    case RX_IDLE:
+    {
+        // okay
+        break;
+    }
+    case RX_DUMP:
+    {
+        // just stop dumping
+        uart_rx_state = RX_IDLE;
+        break;
+    }
+    case RX_RECEIVE_CHECKSUM:
+    case RX_RECEIVE_HEADER:
+    case RX_RECEIVE_PAYLOAD:
+    {
+        switch (HDR_GET_RECIPIENT(uart.state.curr_header)) {
+        case MSG_ADDRESS_LPC1114:
+        {
+            // not routed, release buffer
+            appbuffer_back->in_use = false;
+            break;
+        }
+        default:
+        {
+            // routed message, release buffer
+            uart.route_buffer.in_use = false;
+            break;
+        }
+        }
+        uart_rx_state = RX_IDLE;
+        break;
+    }
+    }
+}
+
 void uart_rx_irq()
 {
     switch (uart_rx_state) {
@@ -309,6 +361,7 @@ void uart_rx_irq()
         }
         }
 
+        CHECKSUM_CLEAR(uart.state.recv_checksum);
         uart_rx_state = RX_RECEIVE_PAYLOAD;
         uart.state.recv_dest = &uart.state.dest_msg->msg.data[0];
         uart.state.recv_end = uart.state.recv_dest + HDR_GET_PAYLOAD_LENGTH(uart.state.curr_header);
@@ -316,7 +369,7 @@ void uart_rx_irq()
     }
     case RX_RECEIVE_PAYLOAD:
     {
-        if (!uart_rx_recv()) {
+        if (!uart_rx_recv_chksummed()) {
             return;
         }
         uart_rx_state = RX_RECEIVE_CHECKSUM;
@@ -327,6 +380,11 @@ void uart_rx_irq()
     {
         if (!uart_rx_recv()) {
             return;
+        }
+        uint8_t checksum = CHECKSUM_FINALIZE(uart.state.recv_checksum);
+        if (checksum != uart.state.dest_msg->msg.checksum) {
+            uart_rx_irq_end_of_transmission();
+            break;
         }
         uart_rx_state = RX_IDLE;
         copy_header(&uart.state.dest_msg->msg.header,
@@ -372,48 +430,13 @@ void uart_rx_irq()
             uart.state.remaining--;
         }
         uart_rx_state = RX_IDLE;
+        // reset the timer
+        TMR_COMM_TIMEOUT_TCR = (0<<0);
         break;
     }
     }
 }
 
-static inline void uart_rx_irq_end_of_transmission()
-{
-    switch (uart_rx_state) {
-    case RX_IDLE:
-    {
-        // okay
-        break;
-    }
-    case RX_DUMP:
-    {
-        // just stop dumping
-        uart_rx_state = RX_IDLE;
-        break;
-    }
-    case RX_RECEIVE_CHECKSUM:
-    case RX_RECEIVE_HEADER:
-    case RX_RECEIVE_PAYLOAD:
-    {
-        switch (HDR_GET_RECIPIENT(uart.state.curr_header)) {
-        case MSG_ADDRESS_LPC1114:
-        {
-            // not routed, release buffer
-            appbuffer_back->in_use = false;
-            break;
-        }
-        default:
-        {
-            // routed message, release buffer
-            uart.route_buffer.in_use = false;
-            break;
-        }
-        }
-        uart_rx_state = RX_IDLE;
-        break;
-    }
-    }
-}
 
 /* code: interrupt handler */
 
@@ -432,6 +455,7 @@ void UART_IRQHandler(void)
     {
         // UART rx event
         uart_rx_irq();
+        // abort any pending transmission
         uart_rx_irq_end_of_transmission();
         break;
     }

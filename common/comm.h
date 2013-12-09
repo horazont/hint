@@ -116,6 +116,10 @@ _Static_assert(sizeof(struct msg_header_t) == sizeof(uint32_t),
     uint16_t prefix##_A = 1; \
     uint16_t prefix##_B = 0;
 
+#define CHECKSUM_CLEAR(prefix) \
+    prefix##_A = 1; \
+    prefix##_B = 0;
+
 #define CHECKSUM_PUSH(prefix, value) do { \
     prefix##_A = (prefix##_A + value) % CHECKSUM_PRIME; \
     prefix##_B = (prefix##_A + prefix##_B) % CHECKSUM_PRIME; \

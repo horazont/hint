@@ -18,6 +18,8 @@ struct comm_port_t {
         volatile uint8_t *recv_end;
         volatile const uint8_t *trns_src;
         volatile const uint8_t *trns_end;
+        uint16_t recv_checksum_A;
+        uint16_t recv_checksum_B;
         msg_length_t remaining;
         volatile struct msg_buffer_t *dest_msg;
     } state;
