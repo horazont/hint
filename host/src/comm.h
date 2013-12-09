@@ -100,7 +100,9 @@ struct comm_t
         bool active;
         struct timespec next;
     } _timed_event;
-    bool _pending_ping;
+    struct {
+        int ping_counter;
+    } _sync;
 
     enum comm_conn_state_t _conn_state;
 };

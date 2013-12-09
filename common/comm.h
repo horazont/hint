@@ -32,6 +32,11 @@ typedef uint16_t msg_length_t;
 //! payload_length must be zero; send reply to the sender with
 //! MSG_FLAG_ACK set in addition to MSG_FLAG_ECHO
 #define MSG_FLAG_ECHO                       (0x80)
+//! this is a bitmask which forces reset of all communication structures
+//! this includes resetting any buffers
+#define MSG_FLAG_RESET                      (0xFF)
+
+#define MSG_MASK_FLAG_BITS                  (0xF0)
 
 struct msg_header_t {
     uint32_t data;

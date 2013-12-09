@@ -287,10 +287,14 @@ static inline void uart_rx_irq_end_of_transmission()
         break;
     }
     }
+    // reset the timer
+    TMR_COMM_TIMEOUT_TCR = (0<<0);
 }
 
 void uart_rx_irq()
 {
+    // on rx irq, we can reset the timer always
+    TMR_COMM_TIMEOUT_TC = 0;
     switch (uart_rx_state) {
     case RX_IDLE:
     {
@@ -298,6 +302,7 @@ void uart_rx_irq()
         uart.state.recv_dest = (uint8_t*)(&uart.state.curr_header);
         uart.state.recv_end = (uint8_t*)(&uart.state.curr_header) + sizeof(struct msg_header_t);
         // missing break is intentional: receive the first bytes immediately
+        TMR_COMM_TIMEOUT_TCR = (1<<0);
     }
     case RX_RECEIVE_HEADER:
     {
@@ -308,12 +313,22 @@ void uart_rx_irq()
         switch (HDR_GET_RECIPIENT(uart.state.curr_header)) {
         case MSG_ADDRESS_LPC1114:
         {
-            if (HDR_GET_FLAGS(uart.state.curr_header) & MSG_FLAG_ECHO) {
+            switch (HDR_GET_FLAGS(uart.state.curr_header) & MSG_MASK_FLAG_BITS) {
+            case MSG_FLAG_ECHO:
+            {
                 // this is a ping, reply to it asap
                 pending_pings += 1;
                 uart_rx_state = RX_IDLE;
                 uart_tx_trigger();
                 return;
+            }
+            case MSG_FLAG_RESET:
+            {
+                uart_rx_state = RX_IDLE;
+                appbuffer_back->in_use = false;
+                backbuffer_ready = false;
+                return;
+            }
             }
 
             // this is me! either forward to local buffer or discard.
@@ -387,6 +402,8 @@ void uart_rx_irq()
             break;
         }
         uart_rx_state = RX_IDLE;
+        // reset the timer
+        TMR_COMM_TIMEOUT_TCR = (0<<0);
         copy_header(&uart.state.dest_msg->msg.header,
                     &uart.state.curr_header);
         switch (HDR_GET_RECIPIENT(uart.state.curr_header)) {
@@ -437,8 +454,13 @@ void uart_rx_irq()
     }
 }
 
-
 /* code: interrupt handler */
+
+void TIMER32_0_IRQHandler(void)
+{
+    TMR_COMM_TIMEOUT_IR = TMR_COMM_TIMEOUT_IR_RESET;
+    uart_rx_irq_end_of_transmission();
+}
 
 void UART_IRQHandler(void)
 {

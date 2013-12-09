@@ -406,6 +406,7 @@ int main(void)
     SCB_SYSAHBCLKCTRL |= SCB_SYSAHBCLKCTRL_GPIO
                       |  SCB_SYSAHBCLKCTRL_IOCON
                       |  SCB_SYSAHBCLKCTRL_SYS
+                      |  SCB_SYSAHBCLKCTRL_CT32B0
                       |  SCB_SYSAHBCLKCTRL_CT16B1
                       |  SCB_SYSAHBCLKCTRL_ADC;
 
@@ -428,8 +429,17 @@ int main(void)
                                           (0<<16) | //burst off
                                         (0x0<<17) | //10bit
                                         (0x0<<24);  //stop
+
+    TMR_TMR32B0TC = 0;
+    TMR_TMR32B0PR = 48000-1; // prescale to one tick per ms
+    TMR_TMR32B0PC = 0;
+    TMR_TMR32B0MCR = TMR_TMR32B0MCR_MR0_INT_ENABLED | TMR_TMR32B0MCR_MR0_STOP_ENABLED | TMR_TMR32B0MCR_MR0_RESET_ENABLED;
+    TMR_TMR32B0MR0 = 100; // read timeout
+    TMR_TMR32B0CTCR = 0;
+
     ENABLE_IRQ();
 
+    NVIC_EnableIRQ(TIMER_32_0_IRQn);
 
     lcd_init();
     touch_init();

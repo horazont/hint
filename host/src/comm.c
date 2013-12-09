@@ -479,6 +479,45 @@ enum comm_status_t comm_send_ping(struct comm_t *comm)
     return comm_send(comm->_fd, &msg, NULL);
 }
 
+enum comm_status_t comm_send_reset_message(struct comm_t *comm)
+{
+    comm_printf(comm, "sending reset message\n");
+    // we’re advertising a payload which we won’t send completely
+    // we also make sure to send an odd number of bytes
+    static const struct msg_header_t hdr = HDR_INIT(
+        MSG_ADDRESS_HOST,
+        MSG_ADDRESS_LPC1114,
+        0,
+        MSG_FLAG_RESET);
+
+    return comm_send(comm->_fd, &hdr, NULL);
+}
+
+enum comm_status_t comm_send_resync_message(struct comm_t *comm)
+{
+    comm_printf(comm, "sending resync message\n");
+    // we’re advertising a payload which we won’t send completely
+    // we also make sure to send an odd number of bytes
+    static const struct msg_header_t hdr = HDR_INIT(
+        MSG_ADDRESS_HOST,
+        MSG_ADDRESS_LPC1114,
+        13,
+        0);
+    struct msg_encoded_header_t enc = raw_to_wire(&hdr);
+    static const uint8_t fake_payload[] = {0x00, 0x00};
+
+    enum comm_status_t result = comm_write_checked(
+        comm->_fd, &enc, sizeof(struct msg_encoded_header_t));
+    if (result != COMM_ERR_NONE) {
+        return result;
+    }
+
+    result = comm_write_checked(
+        comm->_fd, &fake_payload[0], sizeof(fake_payload));
+
+    return result;
+}
+
 void comm_thread_handle_packet(
     struct comm_t *comm,
     struct msg_header_t *hdr,
@@ -542,8 +581,8 @@ void comm_thread_state_closed(
 {
     if (comm_open(comm) == 0) {
         comm->_conn_state = COMM_CONN_OPEN;
-        comm->_pending_ping = false;
         datafd->fd = comm->_fd;
+        comm_thread_to_state_open(comm);
         comm_timed_in_future(comm, 0);
     } else {
         comm_timed_in_future(comm, COMM_RECONNECT_TIMEOUT);
@@ -616,15 +655,17 @@ void comm_thread_state_established(
         }
     } else {
         struct timespec curr_time;
+        timestamp_gettime(&curr_time);
         int32_t dt = timestamp_delta_in_msec(
             &curr_time,
             &comm->_tx_timestamp);
         if (dt < COMM_RETRANSMISSION_TIMEOUT) {
             timeout = COMM_RETRANSMISSION_TIMEOUT - dt;
         } else {
-            timeout = COMM_RETRANSMISSION_TIMEOUT;
+            timeout = 0;
         }
-        if (timeout == 0) {
+        //~ comm_printf(comm, "rtx timeout = %d (dt=%d)\n", timeout, dt);
+        if (timeout <= 0) {
             if (comm->_retransmission_counter >= COMM_MAX_RETRANSMISSION)
             {
                 comm_printf(comm, "retransmission counter reached "
@@ -633,7 +674,9 @@ void comm_thread_state_established(
                 comm_timed_in_future(comm, 0);
                 return;
             }
+            comm_printf(comm, "retransmission\n");
             if (!comm_thread_state_open_tx(comm, comm->_pending_ack)) {
+                comm->_pending_ack = NULL;
                 return;
             }
             timeout = COMM_RETRANSMISSION_TIMEOUT;
@@ -655,6 +698,15 @@ void comm_thread_state_open(
 {
     if (comm_check_datafd_error(comm, datafd)) {
         return;
+    }
+
+    if (comm->_sync.ping_counter == 0) {
+        comm_send_resync_message(comm);
+        comm->_sync.ping_counter = 1;
+        // make sure to wait some time so that the read on the μC
+        // can time out
+        comm_timed_in_future(comm, COMM_RETRANSMISSION_TIMEOUT*2);
+        timed_out = false;
     }
 
     if (datafd->revents & POLLIN) {
@@ -696,8 +748,7 @@ void comm_thread_state_open(
         }
         case COMM_ERR_CONTROL:
         {
-            if (comm->_pending_ping &&
-                (HDR_GET_FLAGS(hdr) & (MSG_FLAG_ECHO|MSG_FLAG_ACK)))
+            if ((HDR_GET_FLAGS(hdr) & (MSG_FLAG_ECHO|MSG_FLAG_ACK)))
             {
                 // ping response
                 comm_thread_to_state_established(comm);
@@ -712,7 +763,7 @@ void comm_thread_state_open(
     } else if (timed_out) {
         comm_printf(comm, "sending another ping\n");
         comm_timed_in_future(comm, COMM_RETRANSMISSION_TIMEOUT);
-        comm->_pending_ping = true;
+        comm->_sync.ping_counter = (comm->_sync.ping_counter+1) % COMM_MAX_RETRANSMISSION;
         const enum comm_status_t status = comm_send_ping(comm);
         switch (status)
         {
@@ -777,10 +828,12 @@ void comm_thread_to_state_established(struct comm_t *comm)
     if (comm->_conn_state != COMM_CONN_ESTABLISHED) {
         send_char(comm->_recv_fd, COMM_PIPECHAR_READY);
     }
+    comm->_retransmission_counter = 0;
     fprintf(stderr, "comm[%s] -> comm[%s]\n",
                     comm_conn_state_str(comm->_conn_state),
                     comm_conn_state_str(COMM_CONN_ESTABLISHED));
     comm->_conn_state = COMM_CONN_ESTABLISHED;
+    comm_send_reset_message(comm);
 }
 
 void comm_thread_to_state_open(struct comm_t *comm)
@@ -792,7 +845,7 @@ void comm_thread_to_state_open(struct comm_t *comm)
                     comm_conn_state_str(comm->_conn_state),
                     comm_conn_state_str(COMM_CONN_OPEN));
     comm->_conn_state = COMM_CONN_OPEN;
-    comm->_pending_ping = false;
+    comm->_sync.ping_counter = 0;
 }
 
 void comm_thread_to_state_out_of_sync(struct comm_t *comm)
