@@ -248,7 +248,9 @@ void broker_process_xmpp_message(
             &item->data.departure->entries);
         xmppintf_free_queue_item(item);
         item = NULL;
-        if (broker->active_screen == SCREEN_BUS_MONITOR) {
+        if ((broker->active_screen == SCREEN_BUS_MONITOR) &&
+            comm_is_available(broker->comm))
+        {
             screen_repaint(&broker->screens[broker->active_screen]);
         }
         break;
