@@ -394,8 +394,6 @@ void _broker_thread_handle_comm(
         fprintf(stderr, "broker: debug: comm ready.\n");
         broker_repaint_screen(broker);
         broker_repaint_tabbar(broker);
-        broker_enqueue_new_task_in(
-            broker, &broker_update_time, 0, NULL);
         break;
     }
     default:
@@ -449,6 +447,9 @@ void *broker_thread(struct broker_t *state)
     pollfds[1].events = POLLIN;
     pollfds[1].revents = 0;
 
+    broker_enqueue_new_task_in(
+        state, &broker_update_time, 0, NULL);
+
     while (true)
     {
         int32_t timeout = -1;
@@ -486,11 +487,10 @@ bool broker_update_time(
     struct timespec *next_run,
     void *userdata)
 {
+    timestamp_gettime_in_future(next_run, 1000);
     if (!comm_is_available(broker->comm)) {
-        return false;
+        return true;
     }
     broker_repaint_time(broker);
-    timestamp_gettime(next_run);
-    timestamp_add_msec(next_run, 1000);
     return true;
 }
