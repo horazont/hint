@@ -236,7 +236,6 @@ static inline bool uart_rx_recv()
     }
     return true;
 }
-
 static inline bool uart_rx_recv_chksummed()
 {
     while (uart.state.recv_dest != uart.state.recv_end) {

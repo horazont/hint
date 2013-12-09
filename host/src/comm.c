@@ -544,7 +544,7 @@ void comm_thread_handle_unexpected_control(
     struct msg_header_t *hdr)
 {
     comm_printf(comm, "unexpected control packet received\n");
-    //~ comm_dump_header(hdr);
+    comm_dump_header(hdr);
 }
 
 void comm_thread_signalfd(struct comm_t *comm, struct pollfd *signalfd)
@@ -896,9 +896,11 @@ void *comm_thread(struct comm_t *comm)
                 timeout = 0;
             }
         }
+        //~ comm_printf(comm, "timeout = %d\n", timeout);
         int result = poll(&pollfds[0],
              (comm->_conn_state != COMM_CONN_CLOSED ? 2 : 1),
              timeout);
+        //~ comm_printf(comm, "poll_result = %d\n", result);
         bool timed_out = true;
         if (result < 0) {
             panicf("comm: poll returned error: %d (%s)\n",
@@ -985,8 +987,8 @@ enum comm_status_t comm_write_checked(int fd, const void *const buf, intptr_t le
         } else if (pollfd.revents & POLLOUT) {
             intptr_t written_this_time = write(
                 fd, buffer, len - written_total);
-            //~ fprintf(stdout, ">> ");
-            //~ dump_buffer(stdout, buffer, written_this_time);
+            fprintf(stdout, ">> ");
+            dump_buffer(stdout, buffer, written_this_time);
             assert(written_this_time > 0);
             written_total += written_this_time;
             buffer += written_this_time;

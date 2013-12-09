@@ -96,6 +96,7 @@ void broker_enqueue_new_task_in(
 void broker_enqueue_task(struct broker_t *broker, struct task_t *task)
 {
     // FIXME: implement a binary search here
+    fprintf(stderr, "broker: enqueueing task %p\n", (void*)task);
     for (intptr_t i = 0; i < array_length(&broker->tasks); i++) {
         const struct task_t *other_task = array_get(&broker->tasks, i);
         if (timestamp_less(
@@ -115,7 +116,9 @@ struct task_t *broker_get_next_task(struct broker_t *broker)
         return NULL;
     }
 
-    return array_get(&broker->tasks, -1);
+    struct task_t *result = array_get(&broker->tasks, -1);
+    fprintf(stderr, "broker: next task is %p\n", (void*)result);
+    return result;
 }
 
 void broker_handle_touch_down(
@@ -317,11 +320,14 @@ void broker_repaint_time(
 void broker_run_next_task(struct broker_t *broker)
 {
     struct task_t *task = array_pop(&broker->tasks, -1);
+    fprintf(stderr, "broker: running task at %p\n", (void*)task);
     bool run_again = task->func(broker, &task->run_at, task->userdata);
     if (!run_again) {
+        fprintf(stderr, "broker: deleting task %p\n", (void*)task);
         free(task);
         return;
     }
+    fprintf(stderr, "broker: re-enqueueing task %p\n", (void*)task);
     broker_enqueue_task(broker, task);
 }
 
