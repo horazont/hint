@@ -168,3 +168,17 @@ void lpcd_table_start(
     comm_enqueue_msg(comm, msg);
 }
 
+void lpcd_set_brightness(
+    struct comm_t *comm,
+    const uint16_t brightness)
+{
+    const int payload_length =
+        sizeof(lpc_cmd_id_t) +
+        sizeof(struct lpc_cmd_set_brightness_t);
+    struct lpc_cmd_msg_t *msg = comm_alloc_message(
+        MSG_ADDRESS_LPC1114, payload_length);
+    msg->payload.cmd = htole16(LPC_CMD_SET_BRIGHTNESS);
+    msg->payload.args.set_brightness.brightness = htole16(brightness);
+
+    comm_enqueue_msg(comm, msg);
+}

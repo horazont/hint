@@ -51,6 +51,8 @@ void uint32_to_hex(const uint32_t c, uint8_t *dest)
 
 static int irq_called VAR_RAM = 0;
 static volatile bool msg_pending = false;
+static uint16_t lcd_brightness_goal VAR_RAM = 0xC000;
+
 
 void ADC_IRQHandler(void)
 {
@@ -279,6 +281,10 @@ static inline void handle_idle_command()
         lcd_disable();
         break;
     }
+    case LPC_CMD_SET_BRIGHTNESS:
+    {
+        lcd_brightness_goal = 0xffff - msg_cmd.args.set_brightness.brightness;
+    }
     case LPC_CMD_DRAW_IMAGE_DATA:
     case LPC_CMD_DRAW_IMAGE_END:
     case LPC_CMD_TABLE_ROW:
@@ -381,6 +387,14 @@ static inline void handle_command()
 
 }
 
+void TIMER16_1_IRQHandler()
+{
+    uint32_t intermediate = TMR_TMR16B1MR0;
+    intermediate += lcd_brightness_goal;
+    TMR_TMR16B1MR0 = intermediate/2;
+    TMR_TMR16B1IR = TMR_TMR16B1IR_MR3;
+}
+
 int main(void)
 {
     struct msg_header_t msg_header = {0};
@@ -421,7 +435,7 @@ int main(void)
     TMR_TMR16B1CTCR = 0;
     TMR_TMR16B1MR0  = 0xC000;
     TMR_TMR16B1MR3  = 0xFFFF;
-    TMR_TMR16B1MCR  = TMR_TMR16B1MCR_MR3_RESET_ENABLED;
+    TMR_TMR16B1MCR  = TMR_TMR16B1MCR_MR3_RESET_ENABLED | TMR_TMR16B1MCR_MR3_INT_ENABLED;
     TMR_TMR16B1PWMC = TMR_TMR16B1PWMC_PWM0_ENABLED | TMR_TMR16B1PWMC_PWM3_ENABLED; //PWM chn 0 on
     TMR_TMR16B1TCR  = (1<<0); //enable timer
 
@@ -439,6 +453,7 @@ int main(void)
 
     ENABLE_IRQ();
 
+    NVIC_EnableIRQ(TIMER_16_1_IRQn);
     NVIC_EnableIRQ(TIMER_32_0_IRQn);
 
     lcd_init();
@@ -451,6 +466,8 @@ int main(void)
     // use a lower priority for EINT0 so that one can TX and RX inside
     // that interrupt
     NVIC_SetPriority(EINT0_IRQn, 1);
+
+    lcd_brightness_goal = 0xFF00;
 
     _Static_assert(sizeof(unsigned int) == 4, "foo");
     {

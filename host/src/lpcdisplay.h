@@ -56,4 +56,8 @@ void lpcd_table_start(
     const struct table_column_t columns[],
     const int column_count);
 
+void lpcd_set_brightness(
+    struct comm_t *comm,
+    const uint16_t brightness);
+
 #endif

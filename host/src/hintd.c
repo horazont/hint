@@ -8,6 +8,7 @@
 #include "comm.h"
 #include "broker.h"
 #include "utils.h"
+#include "lpcdisplay.h"
 
 int main(int argc, char *argv[])
 {
@@ -26,6 +27,8 @@ int main(int argc, char *argv[])
 
     struct broker_t broker;
     broker_init(&broker, &comm, &xmpp);
+
+    lpcd_set_brightness(&comm, 0x0FFF);
 
     while (1) {
         sleep(1);
