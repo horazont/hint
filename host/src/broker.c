@@ -13,9 +13,21 @@
 #include "lpcdisplay.h"
 #include "timestamp.h"
 #include "utils.h"
+#include "private_config.h"
 
 #define TABBAR_LEFT ((LCD_WIDTH-1)-SCREEN_MARGIN_RIGHT)
 #define TABBAR_TOP (SCREEN_CLIENT_AREA_TOP+4)
+
+/* helper functions */
+
+bool task_less(
+    struct task_t *const task_a,
+    struct task_t *const task_b)
+{
+    return timestamp_less(
+        &task_a->run_at, &task_b->run_at);
+}
+
 
 void broker_enqueue_new_task_at(
     struct broker_t *broker,
@@ -66,6 +78,16 @@ bool broker_update_time(
     struct broker_t *broker,
     struct timespec *next_run,
     void *userdata);
+bool broker_weather_request(
+    struct broker_t *broker,
+    struct timespec *next_run,
+    void *userdata);
+
+void broker_weather_response(
+    struct xmpp_t *xmpp,
+    struct array_t *result,
+    void *const userdata,
+    enum xmpp_request_status_t status);
 
 
 void broker_enqueue_new_task_at(
@@ -95,27 +117,16 @@ void broker_enqueue_new_task_in(
 
 void broker_enqueue_task(struct broker_t *broker, struct task_t *task)
 {
-    // FIXME: implement a binary search here
-    for (intptr_t i = 0; i < array_length(&broker->tasks); i++) {
-        const struct task_t *other_task = array_get(&broker->tasks, i);
-        if (timestamp_less(
-            &other_task->run_at,
-            &task->run_at))
-        {
-            array_push(&broker->tasks, i, task);
-            return;
-        }
-    }
-    array_push(&broker->tasks, INTPTR_MAX, task);
+    heap_insert(&broker->tasks, task);
 }
 
 struct task_t *broker_get_next_task(struct broker_t *broker)
 {
-    if (array_length(&broker->tasks) == 0) {
+    if (heap_length(&broker->tasks) == 0) {
         return NULL;
     }
 
-    return array_get(&broker->tasks, -1);
+    return heap_get_min(&broker->tasks);
 }
 
 void broker_handle_touch_down(
@@ -152,7 +163,7 @@ void broker_init(
     broker->xmpp = xmpp;
     broker->touch_is_up = true;
     broker->active_screen = 0;
-    array_init(&broker->tasks, 32);
+    heap_init(&broker->tasks, 32, (heap_less_t)&task_less);
 
     screen_create(
         &broker->screens[SCREEN_BUS_MONITOR],
@@ -310,13 +321,13 @@ void broker_repaint_time(
     lpcd_draw_text(
         broker->comm,
         CLOCK_POSITION_X, CLOCK_POSITION_Y,
-        LPC_FONT_DEJAVU_SANS_20PX_BF, 0xffff,
+        LPC_FONT_CANTARELL_20PX_BF, 0xffff,
         buffer);
 }
 
 void broker_run_next_task(struct broker_t *broker)
 {
-    struct task_t *task = array_pop(&broker->tasks, -1);
+    struct task_t *task = heap_pop_min(&broker->tasks);
     bool run_again = task->func(broker, &task->run_at, task->userdata);
     if (!run_again) {
         free(task);
@@ -427,6 +438,11 @@ void _broker_thread_handle_xmpp(
     case XMPPINTF_PIPECHAR_READY:
     {
         fprintf(stderr, "broker: debug: xmpp ready.\n");
+        broker_enqueue_new_task_in(
+            broker,
+            &broker_weather_request,
+            0,
+            NULL);
         break;
     }
     default:
@@ -493,4 +509,58 @@ bool broker_update_time(
     }
     broker_repaint_time(broker);
     return true;
+}
+
+bool broker_weather_request(
+    struct broker_t *broker,
+    struct timespec *next_run,
+    void *userdata)
+{
+    timestamp_gettime_in_future(next_run, 15*60*1000);
+    if (!xmppintf_is_available(broker->xmpp)) {
+        return false;
+    }
+    xmppintf_request_weather_data(
+        broker->xmpp,
+        CONFIG_WEATHER_LAT,
+        CONFIG_WEATHER_LON,
+        &broker_weather_response,
+        screen_weather_get_request_array(
+            &broker->screens[SCREEN_WEATHER_INFO]),
+        broker);
+    return true;
+}
+
+void broker_weather_response(
+    struct xmpp_t *const xmpp,
+    struct array_t *result,
+    void *const userdata,
+    enum xmpp_request_status_t status)
+{
+    struct broker_t *broker = userdata;
+    switch (status)
+    {
+    case REQUEST_STATUS_TIMEOUT:
+    case REQUEST_STATUS_ERROR:
+    case REQUEST_STATUS_DISCONNECTED:
+    {
+        fprintf(stderr,
+                "broker: weather response is negative: %d\n",
+                status);
+        break;
+    }
+    case REQUEST_STATUS_SUCCESS:
+    {
+        screen_weather_update(
+            &broker->screens[SCREEN_WEATHER_INFO]);
+        if ((broker->active_screen == SCREEN_WEATHER_INFO) &&
+            comm_is_available(broker->comm))
+        {
+            screen_repaint(
+                &broker->screens[SCREEN_WEATHER_INFO]);
+        }
+        break;
+    }
+    }
+
 }

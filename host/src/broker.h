@@ -6,6 +6,7 @@
 #include "comm.h"
 #include "screen.h"
 #include "xmppintf.h"
+#include "heap.h"
 
 #define SCREEN_COUNT                    (2)
 #define SCREEN_BUS_MONITOR              (0)
@@ -37,7 +38,7 @@ struct broker_t {
     struct screen_t screens[SCREEN_COUNT];
     int active_screen;
 
-    struct array_t tasks;
+    struct heap_t tasks;
 };
 
 void broker_enqueue_new_task_at(

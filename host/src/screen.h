@@ -4,6 +4,7 @@
 #include "array.h"
 #include "comm.h"
 #include "common/types.h"
+#include "weather.h"
 
 #define LCD_WIDTH                           (320)
 #define LCD_HEIGHT                          (240)
@@ -124,24 +125,26 @@ typedef uint16_t weather_type_t;
 #define WEATHER_THUNDERSTORM                (0x0020)
 
 struct weather_info_t {
-    float temperature_kelvin;
-    float precipitation_millimeter;
-    float windstrength_meterpersecond;
+    struct weather_interval_t interval;
     weather_type_t type;
 };
 
-#define WEATHER_TIMESLOTS                   (4)
-
-#define WEATHER_TIMESLOT_MORNING            (0)
-#define WEATHER_TIMESLOT_NOON               (1)
-#define WEATHER_TIMESLOT_EVENING            (2)
-#define WEATHER_TIMESLOT_NIGHT              (3)
+#define WEATHER_TIMESLOTS                   (6)
+#define WEATHER_HOURS_PER_INTERVAL1         (3)
+#define WEATHER_HOURS_PER_INTERVAL2         (6)
 
 struct screen_weather_t {
+    struct array_t request_array;
     struct weather_info_t timeslots[WEATHER_TIMESLOTS];
 };
 
+void screen_weather_free(struct screen_t *screen);
+struct array_t *screen_weather_get_request_array(struct screen_t *screen);
+void screen_weather_hide(struct screen_t *screen);
 void screen_weather_init(struct screen_t *screen);
+void screen_weather_repaint(struct screen_t *screen);
+void screen_weather_show(struct screen_t *screen);
+void screen_weather_update(struct screen_t *screen);
 
 /* screen: misc */
 

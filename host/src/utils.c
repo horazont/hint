@@ -5,6 +5,15 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <assert.h>
+
+const char *isodate_fmt = "%Y-%m-%dT%H:%M:%SZ";
+
+void format_isodate(isodate_buffer buffer, const struct tm *time)
+{
+    size_t result = strftime(buffer, ISODATE_LENGTH+1, isodate_fmt, time);
+    assert(result == ISODATE_LENGTH);
+}
 
 void panicf(const char *format, ...)
 {

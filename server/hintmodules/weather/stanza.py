@@ -47,7 +47,7 @@ class Location(ElementBase):
         self._set_attr("lon", "{:.4f}".format(value))
 
 class Interval(AttributeContainer):
-    name = "interval"
+    name = "i"
     plugin_attrib = "interval"
     interfaces = set(
         ("start", "end"))
@@ -72,7 +72,7 @@ class Interval(AttributeContainer):
         self._set_attr("start", dt.strftime(datefmt))
 
 class PointData(AttributeContainer):
-    name = "point-data"
+    name = "pd"
     plugin_attrib = "point_data"
     interfaces = set(("at",))
 

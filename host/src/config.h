@@ -13,6 +13,10 @@
 #error "Please define CONFIG_COMM_DEVFILE as string"
 #endif
 
+#if !defined(CONFIG_XMPP_WEATHER_PEER)
+#error "Please define CONFIG_XMPP_WEATHER_PEER as string"
+#endif
+
 #ifndef CONFIG_COMM_BAUDRATE
 #define CONFIG_COMM_BAUDRATE (115200)
 #endif

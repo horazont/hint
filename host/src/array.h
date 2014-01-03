@@ -10,6 +10,8 @@ struct array_t {
     void **ptrs;
 };
 
+void array_clear(struct array_t *array);
+
 /**
  * Check whether the array is empty.
  *
@@ -96,5 +98,7 @@ void *array_set(struct array_t *array, intptr_t idx, void *dataptr);
  * Swaps the data between a and b in constant time.
  */
 void array_swap(struct array_t *a, struct array_t *b);
+
+#define array_append(array, dataptr) array_push(array, INTPTR_MAX, dataptr)
 
 #endif

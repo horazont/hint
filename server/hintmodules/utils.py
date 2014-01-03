@@ -1,3 +1,4 @@
+import traceback
 import itertools
 import urllib.error
 import urllib.request
@@ -23,9 +24,10 @@ def http_request(url, user_agent=None, accept=None, last_modified=None, headers=
         use_headers["Accept"] = accept
     use_headers.update(headers)
     if last_modified is not None:
-        headers["If-Modified-Since"] = format_date_time(to_timestamp(last_modified))
+        use_headers["If-Modified-Since"] = format_date_time(
+            to_timestamp(last_modified))
 
-    request = urllib.request.Request(url, headers=headers)
+    request = urllib.request.Request(url, headers=use_headers)
     response = urllib.request.urlopen(request, timeout=3)
     last_modified = response.info().get("Last-Modified", None)
     if last_modified is not None:

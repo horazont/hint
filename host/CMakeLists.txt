@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.6)
 
-set(SHARED_FLAGS "-g -Wall -Wextra -Werror -Wno-unused-parameter")
+set(SHARED_FLAGS "-g -Wall -Wextra -Werror -Wno-unused-parameter -Wno-unused-function")
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99 ${SHARED_FLAGS}")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_GNU_SOURCE")
@@ -39,13 +39,13 @@ else (DEFINED PLATFORM)
 set(LIBS pthread ${LIBS} ssl resolv expat)
 endif (DEFINED PLATFORM)
 
-#~ ExternalProject_Add(libcouplet
-    #~ PREFIX libcouplet
-    #~ GIT_REPOSITORY https://github.com/pasis/libcouplet
-    #~ BUILD_IN_SOURCE 1
-    #~ CONFIGURE_COMMAND ./bootstrap.sh && ${COUPLET_CONFIGURE}
-    #~ BUILD_COMMAND make
-    #~ INSTALL_COMMAND echo)
+# ExternalProject_Add(libcouplet
+#     PREFIX libcouplet
+#     GIT_REPOSITORY https://github.com/pasis/libcouplet
+#     BUILD_IN_SOURCE 1
+#     CONFIGURE_COMMAND ./bootstrap.sh && ${COUPLET_CONFIGURE}
+#     BUILD_COMMAND make
+#     INSTALL_COMMAND echo)
 
 set(SOURCES
     "src/hintd.c"
@@ -55,6 +55,7 @@ set(SOURCES
     "src/screen.c"
     "src/timestamp.c"
     "src/array.c"
+    "src/heap.c"
     "src/lpcdisplay.c"
     "src/xmppintf.c"
     "src/departure.c"

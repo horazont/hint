@@ -156,6 +156,7 @@ class HintBot:
             service = self._get_weather_service_for(
                 uri, lat, lon)
         except ValueError as err:
+            print("ENOSERVICE")
             response["type"] = "error"
             response["error"]["condition"] = "undefined-condition"
             response["error"]["type"] = "modify"
@@ -173,6 +174,7 @@ class HintBot:
                     service.query_data_point(request_stanza)
                     weather_data.append(request_stanza)
         except ValueError as err:
+            print("EINTERVAL")
             response["type"] = "error"
             response["error"]["condition"] = "undefined-condition"
             response["error"]["type"] = "modify"
@@ -180,6 +182,7 @@ class HintBot:
             response.send()
             return
         except hintmodules.errors.ServiceNotAvailable as err:
+            print("service not available")
             response["type"] = "error"
             response["error"]["type"] = "cancel"
             response["error"]["condition"] = "service-unavailable"
@@ -197,8 +200,6 @@ class HintBot:
 
         response.append(weather_data)
         response["type"] = "result"
-
-        print(response)
 
         response.send()
 

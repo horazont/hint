@@ -10,6 +10,9 @@
 #include "utils.h"
 #include "lpcdisplay.h"
 
+#include "weather.h"
+#include "array.h"
+
 int main(int argc, char *argv[])
 {
     struct xmpp_t xmpp;
@@ -17,7 +20,8 @@ int main(int argc, char *argv[])
         &xmpp,
         CONFIG_XMPP_JID,
         CONFIG_XMPP_PASSWORD,
-        CONFIG_XMPP_PING_PEER);
+        CONFIG_XMPP_PING_PEER,
+        CONFIG_XMPP_WEATHER_PEER);
 
     struct comm_t comm;
     comm_init(

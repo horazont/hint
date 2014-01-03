@@ -156,6 +156,7 @@ class Weather:
         response, timestamp = hintmodules.utils.http_request(
             self.url,
             user_agent=self.user_agent,
+            last_modified=self.cached_timestamp,
             accept="application/xml")
         # response, timestamp = open("/home/horazont/tmp/metno.xml", "rb"), datetime.utcnow()
         try:

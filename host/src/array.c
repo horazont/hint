@@ -5,6 +5,11 @@
 #include <assert.h>
 #include <string.h>
 
+void array_clear(struct array_t *array)
+{
+    array->length = 0;
+}
+
 bool array_empty(struct array_t *array)
 {
     return array->length == 0;

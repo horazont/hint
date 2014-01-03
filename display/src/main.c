@@ -170,9 +170,14 @@ static struct font_t *get_font(const uint16_t font_id)
         font = &dejavu_sans_12px_bf;
         break;
     }
-    case LPC_FONT_DEJAVU_SANS_20PX_BF:
+    case LPC_FONT_CANTARELL_20PX_BF:
     {
-        font = &dejavu_sans_20px_bf;
+        font = &cantarell_20px_bf;
+        break;
+    }
+    case LPC_FONT_DEJAVU_SANS_40PX:
+    {
+        font = &dejavu_sans_40px;
         break;
     }
     default:

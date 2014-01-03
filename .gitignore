@@ -1,1 +1,6 @@
 *.geany
+*~
+.#*
+\#*#
+.emacs.desktop*
+__pycache__

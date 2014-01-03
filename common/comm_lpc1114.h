@@ -78,7 +78,8 @@ struct __attribute__((packed)) lpc_cmd_set_brightness_t {
 #define LPC_FONT_DEJAVU_SANS_8PX        (0x10)
 #define LPC_FONT_DEJAVU_SANS_12PX       (0x20)
 #define LPC_FONT_DEJAVU_SANS_12PX_BF    (0x21)
-#define LPC_FONT_DEJAVU_SANS_20PX_BF    (0x31)
+#define LPC_FONT_CANTARELL_20PX_BF      (0x31)
+#define LPC_FONT_DEJAVU_SANS_40PX       (0x40)
 
 struct __attribute__((packed)) lpc_cmd_t {
     lpc_cmd_id_t cmd;

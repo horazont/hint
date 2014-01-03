@@ -5,8 +5,102 @@
 #include <unistd.h>
 #include <assert.h>
 #include <time.h>
+#include <errno.h>
+#include <math.h>
 
 #include "utils.h"
+#include "weather.h"
+#include "timestamp.h"
+
+/* temporary structures for iq callback */
+
+struct weather_callback_t {
+    weather_callback_t callback;
+    struct array_t *data;
+    void *userdata;
+};
+
+void weather_callback_free(struct weather_callback_t *cb)
+{
+    free(cb);
+}
+
+struct weather_callback_t *weather_callback_new(
+    weather_callback_t callback,
+    struct array_t *data,
+    void *userdata)
+{
+    struct weather_callback_t *cb =
+        malloc(sizeof(struct weather_callback_t));
+
+    if (!cb) {
+        panicf("weather_callback_new: out of memory\n");
+    }
+
+    cb->callback = callback;
+    cb->data = data;
+    cb->userdata = userdata;
+
+    return cb;
+}
+
+/* iq callback handling */
+
+typedef void (*iq_response_callback_t)(
+    struct xmpp_t *const xmpp,
+    xmpp_stanza_t *const stanza,
+    void *const userdata,
+    enum xmpp_request_status_t status);
+
+struct iq_callback_t {
+    char *id;
+    struct timespec timeout_at;
+    iq_response_callback_t on_response;
+    void *userdata;
+};
+
+void iq_callback_free(struct iq_callback_t *cb)
+{
+    free(cb->id);
+    free(cb);
+}
+
+struct iq_callback_t *iq_callback_new(
+    const char *id,
+    iq_response_callback_t on_response,
+    int32_t timeout,
+    void *userdata)
+{
+    struct iq_callback_t *cb = malloc(sizeof(struct iq_callback_t));
+    if (!cb) {
+        panicf("new_iq_callback: out of memory\n");
+    }
+
+    cb->id = strdup(id);
+    if (!cb->id) {
+        panicf("new_iq_callback: out of memory\n");
+    }
+
+    cb->on_response = on_response;
+    cb->userdata = userdata;
+    timestamp_gettime_in_future(
+        &cb->timeout_at,
+        timeout);
+
+    return cb;
+}
+
+bool iq_callback_less(
+    struct iq_callback_t *const a,
+    struct iq_callback_t *const b)
+{
+    return timestamp_less(&a->timeout_at, &b->timeout_at);
+}
+
+/* end of iq callback handling */
+
+#define ISODATE_LENGTH 20
+typedef char isodate_buffer[ISODATE_LENGTH];
 
 const char *xmppintf_ns_sensor = "http://xmpp.zombofant.net/xmlns/sensor";
 
@@ -44,7 +138,37 @@ const char *xmppintf_ns_public_transport = "http://xmpp.zombofant.net/xmlns/publ
  *
  */
 
+const char *xmppintf_ns_meteo_service = "http://xmpp.zombofant.net/xmlns/meteo-service";
+
+/* namespace tag names */
+
+const char *xml_meteo_data = "data";
+const char *xml_meteo_sources = "sources";
+const char *xml_meteo_source = "source";
+const char *xml_meteo_location = "l";
+const char *xml_meteo_interval = "i";
+const char *xml_meteo_point_data = "pd";
+const char *xml_meteo_temperature = "t";
+const char *xml_meteo_cloudcoverage = "cc";
+const char *xml_meteo_pressure = "press";
+const char *xml_meteo_fog = "f";
+const char *xml_meteo_humidity = "h";
+const char *xml_meteo_wind_direction = "wd";
+const char *xml_meteo_wind_speed = "ws";
+const char *xml_meteo_precipitation = "prec";
+const char *xml_meteo_attr_value = "v";
+const char *xml_meteo_attr_min = "min";
+const char *xml_meteo_attr_max = "max";
+const char *xml_meteo_attr_temperature_type = "t";
+const char *xml_meteo_attr_temperature_type_air = "air";
+const char *xml_meteo_attr_cloudcoverage_level = "lvl";
+const char *xml_meteo_attr_cloudcoverage_level_all = "all";
+const char *xml_meteo_attr_interval_start = "start";
+const char *xml_meteo_attr_interval_end = "end";
+
 const char *xmppintf_ns_ping = "urn:xmpp:ping";
+
+static const char *iso_datefmt = "%Y-%m-%dT%H:%M:%SZ";
 
 /* utilities */
 
@@ -117,7 +241,6 @@ void iq_reply_empty_result(
     xmpp_stanza_release(result);
 }
 
-
 void add_text(
     xmpp_ctx_t *const ctx,
     xmpp_stanza_t *to_stanza,
@@ -129,17 +252,50 @@ void add_text(
     xmpp_stanza_release(text_node);
 }
 
+static inline bool parse_isodate(
+    const char *datestr,
+    time_t *dest)
+{
+    struct tm tm;
+    if (strptime(datestr, iso_datefmt, &tm) == NULL) {
+        return false;
+    }
+    *dest = timegm(&tm);
+    return true;
+}
+
+static inline bool parse_float(
+    const char *floatstr,
+    float *dest)
+{
+    char *endptr = NULL;
+    *dest = strtof(floatstr, &endptr);
+    if ((errno == ERANGE) || (endptr == floatstr)) {
+        return false;
+    }
+    return true;
+}
+
+int xmppintf_handle_iq_error(
+    xmpp_conn_t *const conn,
+    xmpp_stanza_t *const stanza,
+    void *const userdata);
+int xmppintf_handle_iq_timeout(
+    xmpp_conn_t *const conn,
+    void *const userdata);
+int xmppintf_handle_iq_result(
+    xmpp_conn_t *const conn,
+    xmpp_stanza_t *const stanza,
+    void *const userdata);
 int xmppintf_handle_last_activity_request(
     xmpp_conn_t *const conn,
     xmpp_stanza_t *const stanza,
     void *const userdata);
-int xmppintf_handle_ping_reply(
-    xmpp_conn_t *const conn,
+void xmppintf_handle_ping_reply(
+    struct xmpp_t *const xmpp,
     xmpp_stanza_t *const stanza,
-    void *const userdata);
-int xmppintf_handle_ping_timeout(
-    xmpp_conn_t *const conn,
-    void *const userdata);
+    void *const userdata,
+    enum xmpp_request_status_t status);
 int xmppintf_handle_public_transport_set(
     xmpp_conn_t *const conn,
     xmpp_stanza_t *const stanza,
@@ -155,11 +311,38 @@ int xmppintf_handle_version_request(
     xmpp_conn_t *const conn,
     xmpp_stanza_t *const stanza,
     void *const userdata);
+void xmppintf_send_iq_with_callback(
+    struct xmpp_t *xmpp,
+    xmpp_stanza_t *const stanza,
+    iq_response_callback_t on_response,
+    int32_t timeout,
+    void *userdata);
 int xmppintf_send_ping(
     xmpp_conn_t *const conn,
     void *const userdata);
 
 /* implementation */
+
+void xmppintf_clear_iq_heap(
+    struct xmpp_t *xmpp)
+{
+    pthread_mutex_lock(&xmpp->iq_heap_mutex);
+    for (intptr_t i = 0;
+         i < array_length(&xmpp->iq_heap.array);
+         ++i)
+    {
+        struct iq_callback_t *cb = array_get(
+            &xmpp->iq_heap.array, i);
+        cb->on_response(
+            xmpp,
+            NULL,
+            cb->userdata,
+            REQUEST_STATUS_DISCONNECTED);
+        iq_callback_free(cb);
+    }
+    array_clear(&xmpp->iq_heap.array);
+    pthread_mutex_unlock(&xmpp->iq_heap_mutex);
+}
 
 void xmppintf_conn_state_change(xmpp_conn_t * const conn,
     const xmpp_conn_event_t status,
@@ -206,6 +389,26 @@ void xmppintf_conn_state_change(xmpp_conn_t * const conn,
             "set",
             userdata);
 
+        xmpp_handler_add(
+            conn,
+            &xmppintf_handle_iq_error,
+            NULL,
+            "iq",
+            "error",
+            userdata);
+        xmpp_handler_add(
+            conn,
+            &xmppintf_handle_iq_result,
+            NULL,
+            "iq",
+            "result",
+            userdata);
+        xmpp_timed_handler_add(
+            conn,
+            &xmppintf_handle_iq_timeout,
+            250,
+            userdata);
+
         xmppintf_set_presence(xmpp, PRESENCE_AVAILABLE, NULL);
         send_char(xmpp->my_recv_fd, XMPPINTF_PIPECHAR_READY);
         xmppintf_send_ping(xmpp->conn, xmpp);
@@ -245,6 +448,13 @@ void xmppintf_free(struct xmpp_t *xmpp)
         free(xmpp->pass);
     }
     free(xmpp->ping.peer);
+    free(xmpp->weather.peer);
+
+    pthread_mutex_destroy(&xmpp->iq_heap_mutex);
+    pthread_mutex_destroy(&xmpp->conn_mutex);
+
+    queue_free(&xmpp->recv_queue);
+    heap_free(&xmpp->iq_heap);
 }
 
 void xmppintf_free_queue_item(struct xmpp_queue_item_t *item)
@@ -257,6 +467,10 @@ void xmppintf_free_queue_item(struct xmpp_queue_item_t *item)
         free(item->data.departure);
         break;
     }
+    case XMPP_WEATHER_DATA:
+    {
+        break;
+    }
     default:
     {
         panicf("xmppintf: error: unknown queue item type in free: %d\n",
@@ -264,6 +478,97 @@ void xmppintf_free_queue_item(struct xmpp_queue_item_t *item)
     }
     }
     free(item);
+}
+
+char *xmppintf_get_next_id(struct xmpp_t *xmpp)
+{
+    static const int len = 32;
+    int serial = ++xmpp->serial;
+    char *result = malloc(len);
+    const int used = snprintf(
+        result, len, "%d", serial);
+    assert(used < len);
+    return result;
+}
+
+static int xmppintf_handle_iq_reply(
+    xmpp_conn_t *const conn,
+    xmpp_stanza_t *const stanza,
+    void *const userdata,
+    enum xmpp_request_status_t status)
+{
+    struct xmpp_t *const xmpp = userdata;
+    const char *id = xmpp_stanza_get_id(stanza);
+
+    pthread_mutex_lock(&xmpp->iq_heap_mutex);
+    for (intptr_t i = 0; i < array_length(&xmpp->iq_heap.array); i++)
+    {
+        struct iq_callback_t *cb = array_get(
+            &xmpp->iq_heap.array, i);
+        if (strcmp(cb->id, id) == 0) {
+            heap_delete(&xmpp->iq_heap, i);
+            cb->on_response(
+                xmpp,
+                stanza,
+                cb->userdata,
+                status);
+            iq_callback_free(cb);
+            break;
+        }
+    }
+    pthread_mutex_unlock(&xmpp->iq_heap_mutex);
+
+    return 1;
+}
+
+int xmppintf_handle_iq_error(
+    xmpp_conn_t *const conn,
+    xmpp_stanza_t *const stanza,
+    void *const userdata)
+{
+    return xmppintf_handle_iq_reply(
+        conn,
+        stanza,
+        userdata,
+        REQUEST_STATUS_ERROR);
+}
+
+int xmppintf_handle_iq_result(
+    xmpp_conn_t *const conn,
+    xmpp_stanza_t *const stanza,
+    void *const userdata)
+{
+    return xmppintf_handle_iq_reply(
+        conn,
+        stanza,
+        userdata,
+        REQUEST_STATUS_SUCCESS);
+}
+
+int xmppintf_handle_iq_timeout(
+    xmpp_conn_t *const conn,
+    void *const userdata)
+{
+    struct xmpp_t *const xmpp = userdata;
+
+    pthread_mutex_lock(&xmpp->iq_heap_mutex);
+    while (heap_length(&xmpp->iq_heap) > 0) {
+        struct iq_callback_t *cb = heap_get_min(&xmpp->iq_heap);
+        struct timespec now;
+        timestamp_gettime(&now);
+        if (!timestamp_less(&cb->timeout_at, &now)) {
+            break;
+        }
+        heap_pop_min(&xmpp->iq_heap);
+        cb->on_response(
+            xmpp,
+            NULL,
+            cb->userdata,
+            REQUEST_STATUS_TIMEOUT);
+        iq_callback_free(cb);
+    }
+    pthread_mutex_unlock(&xmpp->iq_heap_mutex);
+    return 1;
 }
 
 int xmppintf_handle_last_activity_request(
@@ -294,42 +599,290 @@ int xmppintf_handle_last_activity_request(
     return 1;
 }
 
-int xmppintf_handle_ping_reply(
-    xmpp_conn_t *const conn,
+void xmppintf_handle_weather_reply(
+    struct xmpp_t *const xmpp,
     xmpp_stanza_t *const stanza,
-    void *const userdata)
+    void *const userdata,
+    enum xmpp_request_status_t status)
 {
-    struct xmpp_t *xmpp = userdata;
-    if (!xmpp->ping.pending) {
-        return 0;
+    struct weather_callback_t *cb = userdata;
+
+    switch (status)
+    {
+    case REQUEST_STATUS_ERROR:
+    {
+        xmpp_stanza_t *error_stanza = xmpp_stanza_get_children(stanza);
+        if (error_stanza) {
+            error_stanza = xmpp_stanza_get_children(error_stanza);
+        }
+        fprintf(stderr,
+                "xmpp: weather_reply: error: %s\n",
+                (error_stanza
+                 ? xmpp_stanza_get_name(error_stanza) :
+                 "no error stanza supplied"));
+        // fallthrough to error forwarding
+    }
+    case REQUEST_STATUS_TIMEOUT:
+    case REQUEST_STATUS_DISCONNECTED:
+    {
+        cb->callback(
+            xmpp,
+            cb->data,
+            cb->userdata,
+            (stanza ? REQUEST_STATUS_ERROR : REQUEST_STATUS_TIMEOUT));
+        weather_callback_free(cb);
+        return;
+    }
+    case REQUEST_STATUS_SUCCESS:
+    {
+        break;
+    }
     }
 
-    xmpp->ping.pending = 0;
-    xmpp_timed_handler_delete(
-        conn,
-        xmppintf_handle_ping_timeout);
-    xmpp_timed_handler_add(
-        conn,
-        xmppintf_send_ping,
-        xmpp->ping.probe_interval,
-        userdata);
-    return 0;
+    struct array_t *result = cb->data;
+    intptr_t i = 0;
+    for (xmpp_stanza_t *interval_stanza = xmpp_stanza_get_children(
+             xmpp_stanza_get_children(stanza));
+         interval_stanza != NULL;
+         interval_stanza = xmpp_stanza_get_next(interval_stanza))
+    {
+        if (xmpp_stanza_is_text(interval_stanza)) {
+            continue;
+        }
+        if (strcmp(
+                xmpp_stanza_get_name(interval_stanza),
+                xml_meteo_interval) != 0) {
+            continue;
+        }
+
+        struct weather_interval_t *dest = array_get(
+            result, i);
+
+        time_t tmp;
+        if (!parse_isodate(
+                xmpp_stanza_get_attribute(
+                    interval_stanza,
+                    xml_meteo_attr_interval_start),
+                &tmp))
+        {
+            fprintf(stderr,
+                    "xmpp: weather_reply: failed to parse isodate: %s\n",
+                    xmpp_stanza_get_attribute(
+                        interval_stanza,
+                        xml_meteo_attr_interval_start));
+            goto respond_with_error;
+        }
+        if (tmp != dest->start) {
+            fprintf(stderr,
+                    "xmpp: date mismatch: %ld != %ld\n",
+                    tmp,
+                    dest->start);
+            goto respond_with_error;
+        }
+        dest->start = tmp;
+        if (!parse_isodate(
+                xmpp_stanza_get_attribute(
+                    interval_stanza,
+                    xml_meteo_attr_interval_end),
+                &tmp))
+        {
+            fprintf(stderr,
+                    "xmpp: weather_reply: failed to parse isodate: %s\n",
+                    xmpp_stanza_get_attribute(
+                        interval_stanza,
+                        xml_meteo_attr_interval_end));
+            goto respond_with_error;
+        }
+        if (tmp != dest->end) {
+            fprintf(stderr,
+                    "xmpp: date mismatch: %ld != %ld\n",
+                    tmp,
+                    dest->end);
+            goto respond_with_error;
+        }
+        dest->end = tmp;
+
+        dest->temperature_celsius = NAN;
+        dest->precipitation_millimeter = NAN;
+        dest->cloudiness_percent = NAN;
+        dest->humidity_percent = NAN;
+        dest->windspeed_meter_per_second = NAN;
+
+        for (xmpp_stanza_t *attr_stanza =
+                 xmpp_stanza_get_children(interval_stanza);
+             attr_stanza != NULL;
+             attr_stanza = xmpp_stanza_get_next(attr_stanza))
+        {
+            if (xmpp_stanza_is_text(attr_stanza)) {
+                continue;
+            }
+            const char *const attr_name =
+                xmpp_stanza_get_name(attr_stanza);
+
+            if (strcmp(attr_name, xml_meteo_temperature) == 0) {
+                if (strcmp(
+                        xmpp_stanza_get_attribute(
+                            attr_stanza,
+                            xml_meteo_attr_temperature_type),
+                        xml_meteo_attr_temperature_type_air))
+                {
+                    fprintf(stderr,
+                            "xmpp: weather_reply: unhandled temperature type: %s\n",
+                            xmpp_stanza_get_attribute(
+                                attr_stanza,
+                                xml_meteo_attr_temperature_type));
+                    continue;
+                }
+                float tmp;
+                if (!parse_float(
+                        xmpp_stanza_get_attribute(
+                            attr_stanza,
+                            xml_meteo_attr_value),
+                        &tmp))
+                {
+                    fprintf(stderr,
+                            "xmpp: weather_reply: failed to parse temperature\n");
+                    goto respond_with_error;
+                }
+                dest->temperature_celsius = kelvin_to_celsius(tmp);
+
+            } else if (strcmp(attr_name, xml_meteo_cloudcoverage) == 0) {
+                if (strcmp(
+                        xmpp_stanza_get_attribute(
+                            attr_stanza,
+                            xml_meteo_attr_cloudcoverage_level),
+                        xml_meteo_attr_cloudcoverage_level_all))
+                {
+                    fprintf(stderr,
+                            "xmpp: weather_reply: unhandled cloudiness level: %s\n",
+                            xmpp_stanza_get_attribute(
+                                attr_stanza,
+                                xml_meteo_attr_cloudcoverage_level));
+                    continue;
+                }
+
+                if (!parse_float(
+                        xmpp_stanza_get_attribute(
+                            attr_stanza,
+                            xml_meteo_attr_value),
+                        &dest->cloudiness_percent))
+                {
+                    fprintf(stderr,
+                            "xmpp: weather_reply: failed to parse cloudiness\n");
+                    goto respond_with_error;
+                }
+
+            } else if (strcmp(attr_name, xml_meteo_precipitation) == 0) {
+                if (!parse_float(
+                        xmpp_stanza_get_attribute(
+                            attr_stanza,
+                            xml_meteo_attr_value),
+                        &dest->precipitation_millimeter))
+                {
+                    fprintf(stderr,
+                            "xmpp: weather_reply: failed to parse precipitation\n");
+                    goto respond_with_error;
+                }
+
+            } else if (strcmp(attr_name, xml_meteo_wind_speed) == 0) {
+                if (!parse_float(
+                        xmpp_stanza_get_attribute(
+                            attr_stanza,
+                            xml_meteo_attr_value),
+                        &dest->windspeed_meter_per_second))
+                {
+                    fprintf(stderr,
+                            "xmpp: weather_reply: failed to parse wind speed\n");
+                    goto respond_with_error;
+                }
+
+            } else if (strcmp(attr_name, xml_meteo_humidity) == 0) {
+                if (!parse_float(
+                        xmpp_stanza_get_attribute(
+                            attr_stanza,
+                            xml_meteo_attr_value),
+                        &dest->humidity_percent))
+                {
+                    fprintf(stderr,
+                            "xmpp: weather_reply: failed to parse humidity\n");
+                    goto respond_with_error;
+                }
+
+            } else {
+                fprintf(stderr,
+                        "xmpp: weather_reply: unhandled attribute tag: %s\n",
+                        attr_name);
+                continue;
+            }
+        }
+
+        ++i;
+        if (i >= array_length(result)) {
+            break;
+        }
+    }
+
+    cb->callback(
+        xmpp,
+        cb->data,
+        cb->userdata,
+        REQUEST_STATUS_SUCCESS);
+
+    weather_callback_free(cb);
+    return;
+
+respond_with_error:
+    cb->callback(
+        xmpp,
+        cb->data,
+        cb->userdata,
+        REQUEST_STATUS_ERROR);
+    weather_callback_free(cb);
+    return;
 }
 
-int xmppintf_handle_ping_timeout(
-    xmpp_conn_t *const conn,
-    void *const userdata)
+void xmppintf_handle_ping_reply(
+    struct xmpp_t *xmpp,
+    xmpp_stanza_t *const stanza,
+    void *const userdata,
+    enum xmpp_request_status_t status)
 {
-    struct xmpp_t *xmpp = userdata;
     if (!xmpp->ping.pending) {
-        return 0;
+        return;
     }
 
-    fprintf(stderr, "xmpp: ping timeout\n");
-    xmpp_disconnect(xmpp->conn);
     xmpp->ping.pending = false;
 
-    return 0;
+    switch (status)
+    {
+    case REQUEST_STATUS_DISCONNECTED:
+    {
+        // ignore
+        return;
+    }
+    case REQUEST_STATUS_TIMEOUT:
+    {
+        fprintf(stderr, "xmpp: ping timeout\n");
+        xmpp_disconnect(xmpp->conn);
+        return;
+    }
+    case REQUEST_STATUS_ERROR:
+    {
+        fprintf(stderr, "xmpp: ping error\n");
+        // fallthrough to success, we don’t care a lot about errors,
+        // the point is, to receive an error, we must be connected
+    }
+    case REQUEST_STATUS_SUCCESS:
+    {
+        break;
+    }
+    }
+
+    xmpp_timed_handler_add(
+        xmpp->conn,
+        xmppintf_send_ping,
+        xmpp->ping.probe_interval,
+        xmpp);
 }
 
 int xmppintf_handle_public_transport_set(
@@ -512,10 +1065,10 @@ int xmppintf_handle_time_request(
     utc = xmpp_stanza_new(ctx);
     xmpp_stanza_set_name(utc, "utc");
     {
-        static char buffer[21];
+        static isodate_buffer buffer;
         time_t timestamp = time(NULL);
         struct tm *utctime = gmtime(&timestamp);
-        strftime(buffer, 21, "%FT%H:%M:%SZ", utctime);
+        strftime(buffer, ISODATE_LENGTH+1, iso_datefmt, utctime);
         add_text(ctx, utc, buffer);
     }
     xmpp_stanza_add_child(timestanza, utc);
@@ -580,7 +1133,8 @@ void xmppintf_init(
     struct xmpp_t *xmpp,
     const char *jid,
     const char *pass,
-    const char *ping_peer)
+    const char *ping_peer,
+    const char *weather_peer)
 {
     int fds[2];
     if (pipe(fds) != 0) {
@@ -590,13 +1144,16 @@ void xmppintf_init(
 
     xmpp->recv_fd = fds[0];
     xmpp->my_recv_fd = fds[1];
+
     xmpp->jid = strdup(jid);
     xmpp->pass = strdup(pass);
+    xmpp->serial = 0;
     xmpp->ping.peer = strdup(ping_peer);
-    xmpp->ping.serial = 0;
     xmpp->ping.pending = false;
-    xmpp->ping.timeout_interval = 2000;
-    xmpp->ping.probe_interval = 1000;
+    xmpp->ping.timeout_interval = 15000;
+    xmpp->ping.probe_interval = 2000;
+    xmpp->weather.peer = strdup(weather_peer);
+    xmpp->weather.timeout_interval = 4000;
     xmpp->terminated = false;
 
     queue_init(&xmpp->recv_queue);
@@ -607,6 +1164,9 @@ void xmppintf_init(
     xmpp->ctx = NULL;
     xmpp->conn = NULL;
     xmpp->curr_status = PRESENCE_UNAVAILABLE;
+
+    pthread_mutex_init(&xmpp->iq_heap_mutex, NULL);
+    heap_init(&xmpp->iq_heap, 32, (heap_less_t)&iq_callback_less);
 
     pthread_mutex_init(&xmpp->conn_mutex, NULL);
     pthread_create(
@@ -637,6 +1197,16 @@ struct xmpp_queue_item_t *xmppintf_new_queue_item(
         array_init(&result->data.departure->entries, 4);
         break;
     }
+    case XMPP_WEATHER_DATA:
+    {
+        result->data.weather =
+            malloc(sizeof(struct xmpp_weather_data_t));
+        if (!result->data.weather) {
+            free(result);
+            return NULL;
+        }
+        break;
+    }
     default:
     {
         panicf("xmppintf: error: unknown queue item type in new: %d\n",
@@ -646,23 +1216,189 @@ struct xmpp_queue_item_t *xmppintf_new_queue_item(
     return result;
 }
 
+bool xmppintf_is_available(
+    struct xmpp_t *xmpp)
+{
+    bool result;
+    pthread_mutex_lock(&xmpp->conn_mutex);
+    result = xmpp->curr_status != PRESENCE_UNAVAILABLE;
+    pthread_mutex_unlock(&xmpp->conn_mutex);
+    return result;
+}
+
+static inline void add_request_tags(
+    xmpp_ctx_t *const ctx,
+    xmpp_stanza_t *const interval)
+{
+    xmpp_stanza_t *stanza = xmpp_stanza_new(ctx);
+    xmpp_stanza_set_name(stanza, xml_meteo_temperature);
+    xmpp_stanza_set_attribute(
+        stanza,
+        xml_meteo_attr_temperature_type,
+        xml_meteo_attr_temperature_type_air);
+    xmpp_stanza_add_child(interval, stanza);
+    xmpp_stanza_release(stanza);
+
+    stanza = xmpp_stanza_new(ctx);
+    xmpp_stanza_set_name(stanza, xml_meteo_cloudcoverage);
+    xmpp_stanza_set_attribute(
+        stanza,
+        xml_meteo_attr_cloudcoverage_level,
+        xml_meteo_attr_cloudcoverage_level_all);
+    xmpp_stanza_add_child(interval, stanza);
+    xmpp_stanza_release(stanza);
+
+    stanza = xmpp_stanza_new(ctx);
+    xmpp_stanza_set_name(stanza, xml_meteo_precipitation);
+    xmpp_stanza_add_child(interval, stanza);
+    xmpp_stanza_release(stanza);
+
+    stanza = xmpp_stanza_new(ctx);
+    xmpp_stanza_set_name(stanza, xml_meteo_wind_speed);
+    xmpp_stanza_add_child(interval, stanza);
+    xmpp_stanza_release(stanza);
+
+    stanza = xmpp_stanza_new(ctx);
+    xmpp_stanza_set_name(stanza, xml_meteo_humidity);
+    xmpp_stanza_add_child(interval, stanza);
+    xmpp_stanza_release(stanza);
+
+}
+
+bool xmppintf_request_weather_data(
+    struct xmpp_t *xmpp,
+    const float lat,
+    const float lon,
+    weather_callback_t callback,
+    struct array_t *request_intervals,
+    void *const userdata)
+{
+    if (array_length(request_intervals) == 0) {
+        return false;
+    }
+
+    pthread_mutex_lock(&xmpp->conn_mutex);
+    if (!xmpp->conn) {
+        goto leave_with_error;
+    }
+
+    static char geocoord_buffer[32];
+    static isodate_buffer date_buffer;
+
+    xmpp_ctx_t *ctx = xmpp->ctx;
+
+    char *id_str = xmppintf_get_next_id(xmpp);
+    xmpp_stanza_t *root = iq(
+        xmpp->ctx,
+        "get",
+        xmpp->weather.peer,
+        id_str);
+    free(id_str);
+
+    xmpp_stanza_t *data = xmpp_stanza_new(ctx);
+    xmpp_stanza_set_name(data, "data");
+    xmpp_stanza_set_ns(data, xmppintf_ns_meteo_service);
+    xmpp_stanza_set_attribute(data, "from", "http://api.met.no");
+
+    xmpp_stanza_t *loc = xmpp_stanza_new(ctx);
+    xmpp_stanza_set_name(loc, "l");
+    snprintf(&geocoord_buffer[0], 32, "%.4f", lat);
+    xmpp_stanza_set_attribute(loc, "lat", geocoord_buffer);
+    snprintf(&geocoord_buffer[0], 32, "%.4f", lon);
+    xmpp_stanza_set_attribute(loc, "lon", geocoord_buffer);
+    xmpp_stanza_add_child(data, loc);
+    xmpp_stanza_release(loc);
+
+    for (intptr_t i = 0; i < array_length(request_intervals); i++)
+    {
+        struct weather_interval_t *interval_data =
+            (struct weather_interval_t*)array_get(request_intervals, i);
+
+        xmpp_stanza_t *interval = xmpp_stanza_new(ctx);
+        xmpp_stanza_set_name(interval, xml_meteo_interval);
+
+        strftime(
+            date_buffer,
+            ISODATE_LENGTH+1,
+            iso_datefmt,
+            gmtime(&interval_data->start));
+        xmpp_stanza_set_attribute(
+            interval,
+            xml_meteo_attr_interval_start,
+            date_buffer);
+
+        strftime(
+            date_buffer,
+            ISODATE_LENGTH+1,
+            iso_datefmt,
+            gmtime(&interval_data->end));
+        xmpp_stanza_set_attribute(
+            interval,
+            xml_meteo_attr_interval_end,
+            date_buffer);
+
+        add_request_tags(ctx, interval);
+
+        xmpp_stanza_add_child(data, interval);
+        xmpp_stanza_release(interval);
+    }
+
+    xmpp_stanza_add_child(root, data);
+    xmpp_stanza_release(data);
+
+    xmppintf_send_iq_with_callback(
+        xmpp,
+        root,
+        &xmppintf_handle_weather_reply,
+        xmpp->weather.timeout_interval,
+        weather_callback_new(
+            callback,
+            request_intervals,
+            userdata));
+
+    pthread_mutex_unlock(&xmpp->conn_mutex);
+    return true;
+
+leave_with_error:
+    pthread_mutex_unlock(&xmpp->conn_mutex);
+    return false;
+}
+
+void xmppintf_send_iq_with_callback(
+    struct xmpp_t *xmpp,
+    xmpp_stanza_t *const stanza,
+    iq_response_callback_t on_response,
+    int32_t timeout,
+    void *userdata)
+{
+    struct iq_callback_t *cb = iq_callback_new(
+        xmpp_stanza_get_id(stanza),
+        on_response,
+        timeout,
+        userdata);
+
+    pthread_mutex_lock(&xmpp->iq_heap_mutex);
+    heap_insert(&xmpp->iq_heap, cb);
+    pthread_mutex_unlock(&xmpp->iq_heap_mutex);
+
+    xmpp_send(xmpp->conn, stanza);
+    xmpp_stanza_release(stanza);
+}
+
 int xmppintf_send_ping(xmpp_conn_t *const conn, void *const userdata)
 {
     struct xmpp_t *const xmpp = userdata;
     assert(!xmpp->ping.pending);
 
-    static char pingidbuf[127];
-
     xmpp_ctx_t *ctx = xmpp->ctx;
 
-    memset(pingidbuf, 0, 127);
-    sprintf(pingidbuf, "ping%d", xmpp->ping.serial++);
-
+    char *id = xmppintf_get_next_id(xmpp);
     xmpp_stanza_t *iq_stanza = iq(ctx,
         "get",
         xmpp->ping.peer,
-        pingidbuf
-    );
+        id);
+    free(id);
+
     xmpp_stanza_t *ping = xmpp_stanza_new(ctx);
     xmpp_stanza_set_name(ping, "ping");
     xmpp_stanza_set_ns(ping, xmppintf_ns_ping);
@@ -670,19 +1406,13 @@ int xmppintf_send_ping(xmpp_conn_t *const conn, void *const userdata)
     xmpp_stanza_release(ping);
 
     xmpp->ping.pending = true;
-    xmpp_id_handler_add(
-        conn,
-        xmppintf_handle_ping_reply,
-        pingidbuf,
-        userdata);
-    xmpp_timed_handler_add(
-        conn,
-        xmppintf_handle_ping_timeout,
-        xmpp->ping.timeout_interval,
-        userdata);
 
-    xmpp_send(conn, iq_stanza);
-    xmpp_stanza_release(iq_stanza);
+    xmppintf_send_iq_with_callback(
+        xmpp,
+        iq_stanza,
+        &xmppintf_handle_ping_reply,
+        xmpp->ping.timeout_interval,
+        NULL);
 
     return 0;
 }
@@ -696,7 +1426,11 @@ void *xmppintf_thread(struct xmpp_t *xmpp)
         xmpp_conn_set_jid(xmpp->conn, xmpp->jid);
         xmpp_conn_set_pass(xmpp->conn, xmpp->pass);
         fprintf(stderr, "xmpp: not terminated, trying to connect...\n");
-        if (xmpp_connect_client(xmpp->conn, NULL, 0, &xmppintf_conn_state_change, xmpp) != 0)
+        if (xmpp_connect_client(
+                xmpp->conn,
+                NULL,
+                0,
+                &xmppintf_conn_state_change, xmpp) != 0)
         {
             fprintf(stderr, "xmpp: xmpp_connect_client failed, retrying later\n");
             pthread_mutex_unlock(&xmpp->conn_mutex);
@@ -707,8 +1441,10 @@ void *xmppintf_thread(struct xmpp_t *xmpp)
         pthread_mutex_unlock(&xmpp->conn_mutex);
         xmpp_resume(xmpp->ctx);
         pthread_mutex_lock(&xmpp->conn_mutex);
+        xmppintf_clear_iq_heap(xmpp);
         xmpp_conn_release(xmpp->conn);
         xmpp->conn = NULL;
+        xmpp->curr_status = PRESENCE_UNAVAILABLE;
     }
 
     xmpp_ctx_free(xmpp->ctx);
