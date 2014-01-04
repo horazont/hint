@@ -60,4 +60,6 @@ void lpcd_set_brightness(
     struct comm_t *comm,
     const uint16_t brightness);
 
+void lpcd_state_reset(struct comm_t *comm);
+
 #endif

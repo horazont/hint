@@ -488,6 +488,7 @@ void _broker_thread_handle_comm(
     case COMM_PIPECHAR_READY:
     {
         fprintf(stderr, "broker: debug: comm ready.\n");
+        lpcd_state_reset(broker->comm);
         broker_repaint_screen(broker);
         broker_repaint_tabbar(broker);
         break;
