@@ -28,7 +28,15 @@ bool task_less(
         &task_a->run_at, &task_b->run_at);
 }
 
-
+bool broker_departure_request(
+    struct broker_t *broker,
+    struct timespec *next_run,
+    void *userdata);
+void broker_departure_response(
+    struct xmpp_t *xmpp,
+    struct array_t *result,
+    void *const userdata,
+    enum xmpp_request_status_t status);
 void broker_enqueue_new_task_at(
     struct broker_t *broker,
     task_func_t func,
@@ -82,13 +90,63 @@ bool broker_weather_request(
     struct broker_t *broker,
     struct timespec *next_run,
     void *userdata);
-
 void broker_weather_response(
     struct xmpp_t *xmpp,
     struct array_t *result,
     void *const userdata,
     enum xmpp_request_status_t status);
 
+
+bool broker_departure_request(
+    struct broker_t *broker,
+    struct timespec *next_run,
+    void *userdata)
+{
+    timestamp_gettime_in_future(next_run, 30000);
+    if (!xmppintf_is_available(broker->xmpp)) {
+        return false;
+    }
+    xmppintf_request_departure_data(
+        broker->xmpp,
+        &broker_departure_response,
+        broker);
+    return true;
+}
+
+void broker_departure_response(
+    struct xmpp_t *const xmpp,
+    struct array_t *result,
+    void *const userdata,
+    enum xmpp_request_status_t status)
+{
+    struct broker_t *broker = userdata;
+    switch (status)
+    {
+    case REQUEST_STATUS_TIMEOUT:
+    case REQUEST_STATUS_ERROR:
+    case REQUEST_STATUS_DISCONNECTED:
+    {
+        fprintf(stderr,
+                "broker: departure response is negative: %d\n",
+                status);
+        break;
+    }
+    case REQUEST_STATUS_SUCCESS:
+    {
+        screen_dept_update_data(
+            &broker->screens[SCREEN_BUS_MONITOR],
+            result);
+        if ((broker->active_screen == SCREEN_BUS_MONITOR) &&
+            comm_is_available(broker->comm))
+        {
+            screen_repaint(
+                &broker->screens[SCREEN_BUS_MONITOR]);
+        }
+        break;
+    }
+    }
+
+}
 
 void broker_enqueue_new_task_at(
     struct broker_t *broker,
@@ -376,6 +434,23 @@ int broker_tab_hit_test(
     return index;
 }
 
+void broker_remove_task_func(
+    struct broker_t *broker,
+    task_func_t func)
+{
+    for (intptr_t i = 0;
+         i < array_length(&broker->tasks.array);
+         i++)
+    {
+        struct task_t *task = array_get(&broker->tasks.array, i);
+        if (task->func == func) {
+            heap_delete(&broker->tasks, i);
+            break;
+        }
+    }
+
+}
+
 void _broker_thread_handle_comm(
     struct broker_t *broker, int fd)
 {
@@ -432,6 +507,12 @@ void _broker_thread_handle_xmpp(
     }
     case XMPPINTF_PIPECHAR_FAILED:
     {
+        broker_remove_task_func(
+            broker,
+            &broker_weather_request);
+        broker_remove_task_func(
+            broker,
+            &broker_departure_request);
         fprintf(stderr, "broker: debug: xmpp failed.\n");
         break;
     }
@@ -441,6 +522,11 @@ void _broker_thread_handle_xmpp(
         broker_enqueue_new_task_in(
             broker,
             &broker_weather_request,
+            0,
+            NULL);
+        broker_enqueue_new_task_in(
+            broker,
+            &broker_departure_request,
             0,
             NULL);
         break;

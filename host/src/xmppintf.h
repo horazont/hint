@@ -82,9 +82,18 @@ struct xmpp_t {
         char *peer;
         int timeout_interval;
     } weather;
+    struct {
+        char *peer;
+        int timeout_interval;
+    } departure;
 };
 
 typedef void (*weather_callback_t)(
+    struct xmpp_t *xmpp,
+    struct array_t *arr,
+    void *const userdata,
+    enum xmpp_request_status_t status);
+typedef void (*departure_callback_t)(
     struct xmpp_t *xmpp,
     struct array_t *arr,
     void *const userdata,
@@ -97,7 +106,8 @@ void xmppintf_init(
     const char *jid,
     const char *pass,
     const char *ping_peer,
-    const char *weather_peer);
+    const char *weather_peer,
+    const char *departure_peer);
 bool xmppintf_is_available(
     struct xmpp_t *xmpp);
 struct xmpp_queue_item_t *xmppintf_new_queue_item(
@@ -107,6 +117,10 @@ void xmppintf_set_presence(
     struct xmpp_t *xmpp,
     enum xmpp_presence_status_t new_status,
     const char *message);
+bool xmppintf_request_departure_data(
+    struct xmpp_t *xmpp,
+    departure_callback_t callback,
+    void *const userdata);
 bool xmppintf_request_weather_data(
     struct xmpp_t *xmpp,
     const float lat,

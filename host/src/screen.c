@@ -308,6 +308,25 @@ static inline void align_time(struct tm *time)
     time->tm_sec = 0;
 }
 
+void setup_interval(
+    struct weather_interval_t *interval,
+    time_t *start_time,
+    int hours_per_interval)
+{
+    const time_t end_time = *start_time + 3600*WEATHER_HOURS_PER_INTERVAL1;
+    struct tm interval_start, interval_end;
+    memcpy(&interval_start, gmtime(start_time), sizeof(struct tm));
+    memcpy(&interval_end, gmtime(&end_time), sizeof(struct tm));
+
+    align_time(&interval_start);
+    align_time(&interval_end);
+
+    interval->start = timegm(&interval_start);
+    interval->end = timegm(&interval_end);
+
+    *start_time += 3600*WEATHER_HOURS_PER_INTERVAL1;
+}
+
 struct array_t *screen_weather_get_request_array(struct screen_t *screen)
 {
     struct array_t *data =
@@ -315,36 +334,14 @@ struct array_t *screen_weather_get_request_array(struct screen_t *screen)
 
     time_t start_time = time(NULL);
     for (int i = 0; i < 2; i++) {
-        const time_t end_time = start_time + 3600*WEATHER_HOURS_PER_INTERVAL1;
-        struct tm interval_start, interval_end;
-        memcpy(&interval_start, gmtime(&start_time), sizeof(struct tm));
-        memcpy(&interval_end, gmtime(&end_time), sizeof(struct tm));
-
-        align_time(&interval_start);
-        align_time(&interval_end);
-
         struct weather_interval_t *interval =
             array_get(data, i);
-        interval->start = timegm(&interval_start);
-        interval->end = timegm(&interval_end);
-
-        start_time += 3600*WEATHER_HOURS_PER_INTERVAL1;
+        setup_interval(interval, &start_time, WEATHER_HOURS_PER_INTERVAL1);
     }
     for (int i = 2; i < WEATHER_TIMESLOTS; i++) {
-        const time_t end_time = start_time + 3600*WEATHER_HOURS_PER_INTERVAL2;
-        struct tm interval_start, interval_end;
-        memcpy(&interval_start, gmtime(&start_time), sizeof(struct tm));
-        memcpy(&interval_end, gmtime(&end_time), sizeof(struct tm));
-
-        align_time(&interval_start);
-        align_time(&interval_end);
-
         struct weather_interval_t *interval =
             array_get(data, i);
-        interval->start = timegm(&interval_start);
-        interval->end = timegm(&interval_end);
-
-        start_time += 3600*WEATHER_HOURS_PER_INTERVAL2;
+        setup_interval(interval, &start_time, WEATHER_HOURS_PER_INTERVAL2);
     }
 
     return data;
@@ -614,7 +611,7 @@ void screen_weather_repaint(struct screen_t *screen)
 
     draw_weather_interval(
         screen,
-        &weather->timeslots[4],
+        &weather->timeslots[5],
         x0+interval_width_with_space,
         y0+interval_height_with_space*2);
 
@@ -640,7 +637,7 @@ static inline void calculate_weather_type(struct weather_info_t *info)
     /* cloud */
     if (info->interval.cloudiness_percent < 0.25) {
         type |= WEATHER_NO_CLOUD;
-    } else if (info->interval.cloudiness_percent < 0.5) {
+    } else if (info->interval.cloudiness_percent < 0.75) {
         type |= WEATHER_LIGHT_CLOUD;
     } else {
         type |= WEATHER_DENSE_CLOUD;

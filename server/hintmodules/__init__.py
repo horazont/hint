@@ -1,6 +1,7 @@
 import urllib.error
 import runpy
 import logging
+import copy
 from sleekxmpp.exceptions import IqError, IqTimeout
 from sleekxmpp.xmlstream import ET, JID
 from sleekxmpp import Iq, Message, ClientXMPP
@@ -8,6 +9,7 @@ from sleekxmpp.xmlstream.handler import Callback
 from sleekxmpp.xmlstream.matcher import StanzaPath
 
 import hintmodules.weather.stanza as weather_stanza
+import hintmodules.departure.stanza as departure_stanza
 import hintmodules.errors
 
 class ConfigError(Exception):
@@ -109,6 +111,11 @@ class HintBot:
                 "",
                 StanzaPath("iq@type=get/weather_data"),
                 lambda iq: self._xmpp.event("weather_data.get", iq)))
+        self._xmpp.register_handler(
+            Callback(
+                "",
+                StanzaPath("iq@type=get/departure"),
+                lambda iq: self._xmpp.event("departure.get", iq)))
 
         self._xmpp.add_event_handler(
             "session_start",
@@ -122,8 +129,27 @@ class HintBot:
         self._xmpp.add_event_handler(
             "weather_data.get",
             self.get_weather_data)
+        self._xmpp.add_event_handler(
+            "departure.get",
+            self.get_departure_data)
 
         self._weather_geocache = {}
+
+    def get_departure_data(self, stanza):
+        departures = self._config.departure()
+
+        response = self._xmpp.Iq()
+        for lane, dest, remaining_time in departures:
+            dt = departure_stanza.DepartureTime()
+            dt["eta"] = int(remaining_time)
+            dt["destination"] = dest
+            dt["lane"] = lane
+            response["departure"]["data"].append(dt)
+
+        response["to"] = stanza["from"]
+        response["type"] = "result"
+        response["id"] = stanza["id"]
+        response.send()
 
     @staticmethod
     def _weather_service_key(uri, lat, lon):
@@ -220,10 +246,11 @@ class HintBot:
         iq.send()
 
     def session_start(self, event):
+        self._departure_push_destinations = set()
         self._xmpp.send_presence()
 
     def session_end(self, event):
-        pass
+        self._departure_push_destinations = set()
 
     def run(self):
         self._xmpp.connect()

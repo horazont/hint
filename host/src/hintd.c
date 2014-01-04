@@ -21,7 +21,8 @@ int main(int argc, char *argv[])
         CONFIG_XMPP_JID,
         CONFIG_XMPP_PASSWORD,
         CONFIG_XMPP_PING_PEER,
-        CONFIG_XMPP_WEATHER_PEER);
+        CONFIG_XMPP_WEATHER_PEER,
+        CONFIG_XMPP_DEPARTURE_PEER);
 
     struct comm_t comm;
     comm_init(

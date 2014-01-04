@@ -58,6 +58,10 @@ void broker_init(
     struct comm_t *comm,
     struct xmpp_t *xmpp);
 
+void broker_remove_task_func(
+    struct broker_t *broker,
+    task_func_t func);
+
 void *broker_thread(struct broker_t *state);
 
 #endif
