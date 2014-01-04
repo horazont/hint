@@ -553,12 +553,12 @@ void *broker_thread(struct broker_t *state)
 #define FD_RECV_COMM 0
 #define FD_RECV_XMPP 1
     struct pollfd pollfds[FD_COUNT];
-    pollfds[0].fd = state->comm->recv_fd;
-    pollfds[0].events = POLLIN;
-    pollfds[0].revents = 0;
-    pollfds[1].fd = state->xmpp->recv_fd;
-    pollfds[1].events = POLLIN;
-    pollfds[1].revents = 0;
+    pollfds[FD_RECV_COMM].fd = state->comm->recv_fd;
+    pollfds[FD_RECV_COMM].events = POLLIN;
+    pollfds[FD_RECV_COMM].revents = 0;
+    pollfds[FD_RECV_XMPP].fd = state->xmpp->recv_fd;
+    pollfds[FD_RECV_XMPP].events = POLLIN;
+    pollfds[FD_RECV_XMPP].revents = 0;
 
     broker_enqueue_new_task_in(
         state, &broker_update_time, 0, NULL);
