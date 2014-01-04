@@ -156,14 +156,15 @@ void screen_dept_init(struct screen_t *screen)
 
     struct screen_dept_t *dept = malloc(sizeof(struct screen_dept_t));
     array_init(&dept->rows, 12);
+    dept->status = REQUEST_STATUS_SUCCESS;
 
     screen->private = dept;
 }
 
-void screen_dept_repaint(struct screen_t *screen)
+static inline void deptarture_paint(
+    struct screen_t *screen,
+    struct screen_dept_t *dept)
 {
-    struct screen_dept_t *dept = screen->private;
-
     static struct table_column_t columns[3];
     columns[0].width = 28;
     columns[0].alignment = TABLE_ALIGN_LEFT;
@@ -270,6 +271,63 @@ void screen_dept_repaint(struct screen_t *screen)
     }
 
     lpcd_table_end(screen->comm);
+}
+
+void screen_dept_repaint(struct screen_t *screen)
+{
+    struct screen_dept_t *dept = screen->private;
+
+    switch (dept->status) {
+    case REQUEST_STATUS_TIMEOUT:
+    {
+        screen_draw_background(screen);
+        lpcd_draw_text(
+            screen->comm,
+            LPC_FONT_DEJAVU_SANS_12PX_BF,
+            SCREEN_CLIENT_AREA_LEFT,
+            SCREEN_CLIENT_AREA_TOP+14,
+            0x0000,
+            "Data request timeouted");
+        break;
+    }
+    case REQUEST_STATUS_ERROR:
+    {
+        screen_draw_background(screen);
+        lpcd_draw_text(
+            screen->comm,
+            SCREEN_CLIENT_AREA_LEFT,
+            SCREEN_CLIENT_AREA_TOP+14,
+            LPC_FONT_DEJAVU_SANS_12PX_BF,
+            0x0000,
+            "Request error");
+        break;
+    }
+    case REQUEST_STATUS_DISCONNECTED:
+    {
+        screen_draw_background(screen);
+        lpcd_draw_text(
+            screen->comm,
+            LPC_FONT_DEJAVU_SANS_12PX_BF,
+            SCREEN_CLIENT_AREA_LEFT,
+            SCREEN_CLIENT_AREA_TOP+14,
+            0x0000,
+            "Disconnect during request");
+        break;
+    }
+    case REQUEST_STATUS_SUCCESS:
+    {
+        deptarture_paint(screen, dept);
+        break;
+    }
+    }
+}
+
+void screen_dept_set_error(
+    struct screen_t *screen,
+    enum xmpp_request_status_t status)
+{
+    struct screen_dept_t *dept = screen->private;
+    dept->status = status;
 }
 
 void screen_dept_show(struct screen_t *screen)

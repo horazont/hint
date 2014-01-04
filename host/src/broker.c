@@ -129,6 +129,9 @@ void broker_departure_response(
         fprintf(stderr,
                 "broker: departure response is negative: %d\n",
                 status);
+        screen_dept_set_error(
+            &broker->screens[SCREEN_BUS_MONITOR],
+            status);
         break;
     }
     case REQUEST_STATUS_SUCCESS:
@@ -136,14 +139,15 @@ void broker_departure_response(
         screen_dept_update_data(
             &broker->screens[SCREEN_BUS_MONITOR],
             result);
-        if ((broker->active_screen == SCREEN_BUS_MONITOR) &&
-            comm_is_available(broker->comm))
-        {
-            screen_repaint(
-                &broker->screens[SCREEN_BUS_MONITOR]);
-        }
         break;
     }
+    }
+
+    if ((broker->active_screen == SCREEN_BUS_MONITOR) &&
+        comm_is_available(broker->comm))
+    {
+        screen_repaint(
+            &broker->screens[SCREEN_BUS_MONITOR]);
     }
 
 }
@@ -312,16 +316,8 @@ void broker_process_xmpp_message(
     {
     case XMPP_DEPARTURE_DATA:
     {
-        screen_dept_update_data(
-            &broker->screens[SCREEN_BUS_MONITOR],
-            &item->data.departure->entries);
-        xmppintf_free_queue_item(item);
-        item = NULL;
-        if ((broker->active_screen == SCREEN_BUS_MONITOR) &&
-            comm_is_available(broker->comm))
-        {
-            screen_repaint(&broker->screens[broker->active_screen]);
-        }
+        fprintf(stderr,
+                "xmpp: ignored legacy public transport message\n");
         break;
     }
     default:
