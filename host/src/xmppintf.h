@@ -65,8 +65,11 @@ struct xmpp_t {
     struct queue_t recv_queue;
 
     int my_recv_fd;
+
+    pthread_mutex_t status_mutex;
     enum xmpp_presence_status_t curr_status;
 
+    pthread_mutex_t serial_mutex;
     int serial;
 
     pthread_mutex_t iq_heap_mutex;

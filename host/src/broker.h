@@ -35,6 +35,7 @@ struct broker_t {
     struct xmpp_t *xmpp;
 
     bool touch_is_up;
+    pthread_mutex_t screen_mutex;
     struct screen_t screens[SCREEN_COUNT];
     int active_screen;
 

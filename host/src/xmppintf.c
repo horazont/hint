@@ -471,6 +471,8 @@ void xmppintf_free(struct xmpp_t *xmpp)
 
     pthread_mutex_destroy(&xmpp->iq_heap_mutex);
     pthread_mutex_destroy(&xmpp->conn_mutex);
+    pthread_mutex_destroy(&xmpp->serial_mutex);
+    pthread_mutex_destroy(&xmpp->status_mutex);
 
     queue_free(&xmpp->recv_queue);
     heap_free(&xmpp->iq_heap);
@@ -502,7 +504,9 @@ void xmppintf_free_queue_item(struct xmpp_queue_item_t *item)
 char *xmppintf_get_next_id(struct xmpp_t *xmpp)
 {
     static const int len = 32;
+    pthread_mutex_lock(&xmpp->serial_mutex);
     int serial = ++xmpp->serial;
+    pthread_mutex_unlock(&xmpp->serial_mutex);
     char *result = malloc(len);
     const int used = snprintf(
         result, len, "%d", serial);
@@ -1186,6 +1190,7 @@ void xmppintf_init(
 
     xmpp->jid = strdup(jid);
     xmpp->pass = strdup(pass);
+    pthread_mutex_init(&xmpp->serial_mutex, NULL);
     xmpp->serial = 0;
     xmpp->ping.peer = strdup(ping_peer);
     xmpp->ping.pending = false;
@@ -1204,6 +1209,8 @@ void xmppintf_init(
     xmpp->log = xmpp_get_default_logger(XMPP_LEVEL_INFO);
     xmpp->ctx = NULL;
     xmpp->conn = NULL;
+
+    pthread_mutex_init(&xmpp->status_mutex, NULL);
     xmpp->curr_status = PRESENCE_UNAVAILABLE;
 
     pthread_mutex_init(&xmpp->iq_heap_mutex, NULL);
@@ -1261,9 +1268,9 @@ bool xmppintf_is_available(
     struct xmpp_t *xmpp)
 {
     bool result;
-    pthread_mutex_lock(&xmpp->conn_mutex);
+    pthread_mutex_lock(&xmpp->status_mutex);
     result = xmpp->curr_status != PRESENCE_UNAVAILABLE;
-    pthread_mutex_unlock(&xmpp->conn_mutex);
+    pthread_mutex_unlock(&xmpp->status_mutex);
     return result;
 }
 
@@ -1536,16 +1543,22 @@ void xmppintf_set_presence(
     const char *message)
 {
     xmpp_ctx_t *const ctx = xmpp->ctx;
+    pthread_mutex_lock(&xmpp->conn_mutex);
     xmpp_conn_t *const conn = xmpp->conn;
     assert(conn);
 
+    pthread_mutex_lock(&xmpp->status_mutex);
     if ((new_status == xmpp->curr_status) && (!message)) {
+        pthread_mutex_unlock(&xmpp->status_mutex);
+        pthread_mutex_unlock(&xmpp->conn_mutex);
         return;
     }
 
     if ((new_status == PRESENCE_UNAVAILABLE) &&
         (new_status == xmpp->curr_status))
     {
+        pthread_mutex_unlock(&xmpp->status_mutex);
+        pthread_mutex_unlock(&xmpp->conn_mutex);
         return;
     }
 
@@ -1599,4 +1612,6 @@ void xmppintf_set_presence(
 
     xmpp_send(conn, presence);
     xmpp_stanza_release(presence);
+    pthread_mutex_unlock(&xmpp->status_mutex);
+    pthread_mutex_unlock(&xmpp->conn_mutex);
 }

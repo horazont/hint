@@ -120,6 +120,8 @@ void broker_departure_response(
     enum xmpp_request_status_t status)
 {
     struct broker_t *broker = userdata;
+
+    pthread_mutex_lock(&broker->screen_mutex);
     switch (status)
     {
     case REQUEST_STATUS_TIMEOUT:
@@ -149,6 +151,7 @@ void broker_departure_response(
         screen_repaint(
             &broker->screens[SCREEN_BUS_MONITOR]);
     }
+    pthread_mutex_unlock(&broker->screen_mutex);
 
 }
 
@@ -241,6 +244,7 @@ void broker_init(
         "Enviro");
     screen_weather_init(&broker->screens[SCREEN_WEATHER_INFO]);
 
+    pthread_mutex_init(&broker->screen_mutex, NULL);
     pthread_create(
         &broker->thread, NULL,
         (void*(*)(void*))&broker_thread,
@@ -328,7 +332,7 @@ void broker_process_xmpp_message(
     }
 }
 
-void broker_repaint_screen(
+static inline void broker_repaint_screen_nolock(
     struct broker_t *broker)
 {
     if (broker->active_screen >= 0) {
@@ -337,6 +341,14 @@ void broker_repaint_screen(
         screen_draw_background(screen);
         screen_repaint(screen);
     }
+}
+
+void broker_repaint_screen(
+    struct broker_t *broker)
+{
+    pthread_mutex_lock(&broker->screen_mutex);
+    broker_repaint_screen_nolock(broker);
+    pthread_mutex_unlock(&broker->screen_mutex);
 }
 
 void broker_repaint_tabbar(
@@ -394,15 +406,17 @@ void broker_switch_screen(
     struct broker_t *broker,
     int new_screen)
 {
+    pthread_mutex_lock(&broker->screen_mutex);
     if (broker->active_screen != -1) {
         struct screen_t *screen = &broker->screens[broker->active_screen];
         screen_hide(screen);
     }
     broker->active_screen = new_screen;
     if (broker->active_screen != -1) {
-        broker_repaint_screen(broker);
+        broker_repaint_screen_nolock(broker);
     }
     broker_repaint_tabbar(broker);
+    pthread_mutex_unlock(&broker->screen_mutex);
 }
 
 int broker_tab_hit_test(
@@ -620,6 +634,8 @@ void broker_weather_response(
     enum xmpp_request_status_t status)
 {
     struct broker_t *broker = userdata;
+
+    pthread_mutex_lock(&broker->screen_mutex);
     switch (status)
     {
     case REQUEST_STATUS_TIMEOUT:
@@ -644,5 +660,6 @@ void broker_weather_response(
         break;
     }
     }
+    pthread_mutex_unlock(&broker->screen_mutex);
 
 }
