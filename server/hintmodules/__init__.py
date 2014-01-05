@@ -136,9 +136,28 @@ class HintBot:
         self._weather_geocache = {}
 
     def get_departure_data(self, stanza):
-        departures = self._config.departure()
-
         response = self._xmpp.Iq()
+        response["to"] = stanza["from"]
+        response["id"] = stanza["id"]
+
+        try:
+            departures = self._config.departure()
+        except hintmodules.errors.ServiceNotAvailable as err:
+            response["type"] = "error"
+            response["error"]["condition"] = "serviice-unavailable"
+            response["error"]["type"] = "cancel"
+            if err.__cause__:
+                cause = err.__cause__
+                if cause.__context__ and \
+                   isinstance(cause, urllib.error.URLError):
+                    cause = cause.__context__
+                response["error"]["text"] = "{}: {!s}".format(
+                    err, cause)
+            else:
+                response["error"]["text"] = "{}".format(err)
+            response.send()
+            return
+
         for lane, dest, remaining_time in departures:
             dt = departure_stanza.DepartureTime()
             dt["eta"] = int(remaining_time)
@@ -146,9 +165,7 @@ class HintBot:
             dt["lane"] = lane
             response["departure"]["data"].append(dt)
 
-        response["to"] = stanza["from"]
         response["type"] = "result"
-        response["id"] = stanza["id"]
         response.send()
 
     @staticmethod

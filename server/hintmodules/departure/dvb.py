@@ -6,6 +6,7 @@ import warnings
 import urllib.error
 
 import hintmodules.utils
+import hintmodules.errors
 
 def get_timestamp():
     import calendar
@@ -30,6 +31,8 @@ class Departure(object):
     URL = "http://widgets.vvo-online.de/abfahrtsmonitor/Abfahrten.do?ort=Dresden&hst={}"
     MAX_AGE = timedelta(seconds=30)
 
+    NAME = "Dresdner Verkehrsbetriebe"
+
     def __init__(self, stops, user_agent="Departure/1.1"):
         self.user_agent = user_agent
         self.cached_data = {}
@@ -41,6 +44,9 @@ class Departure(object):
 
     def _get_cached_timestamp(self, stop_name):
         return self.cached_timestamp.get(stop_name, None)
+
+    def _not_available(self):
+        return hintmodules.errors.ServiceNotAvailable(self.NAME)
 
     def parse_data(self, s):
         struct = ast.literal_eval(s)
@@ -66,11 +72,13 @@ class Departure(object):
             finally:
                 response.close()
         except socket.timeout as err:
-            raise
+            raise self._not_available() from err
         except urllib.error.HTTPError as err:
             if err.code == 304:
                 return self._get_cached_data(stop_name)
-            raise
+            raise self._not_available() from err
+        except urllib.error.URLError as err:
+            raise self._not_available() from err
 
         self.cached_data[stop_name] = stop_filter.filter_departures(
             self.parse_data(contents))
@@ -89,10 +97,6 @@ class Departure(object):
         return merged
 
     def __call__(self):
-        try:
-            data = self.get_departure_data()
-        except (socket.timeout, urllib.error.URLError, urllib.error.HTTPError) as err:
-            warnings.warn(str(err))
-            return None
+        data = self.get_departure_data()
         data.sort(key=lambda x: x[2])
         return data
