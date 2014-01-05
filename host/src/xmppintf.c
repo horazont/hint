@@ -468,6 +468,7 @@ void xmppintf_free(struct xmpp_t *xmpp)
     }
     free(xmpp->ping.peer);
     free(xmpp->weather.peer);
+    free(xmpp->departure.peer);
 
     pthread_mutex_destroy(&xmpp->iq_heap_mutex);
     pthread_mutex_destroy(&xmpp->conn_mutex);
@@ -476,6 +477,12 @@ void xmppintf_free(struct xmpp_t *xmpp)
 
     queue_free(&xmpp->recv_queue);
     heap_free(&xmpp->iq_heap);
+
+    if (xmpp->ctx) {
+        xmpp_ctx_free(xmpp->ctx);
+    }
+
+    xmpp_shutdown();
 }
 
 void xmppintf_free_queue_item(struct xmpp_queue_item_t *item)

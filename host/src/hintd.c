@@ -1,3 +1,4 @@
+#include <signal.h>
 #include <pthread.h>
 #include <unistd.h>
 
@@ -12,6 +13,13 @@
 
 #include "weather.h"
 #include "array.h"
+
+#define PERIODIC_SLEEP (100)
+
+void sigterm(int signum)
+{
+    fprintf(stderr, "SIGTERM / SIGINT\n");
+}
 
 int main(int argc, char *argv[])
 {
@@ -35,9 +43,18 @@ int main(int argc, char *argv[])
 
     lpcd_set_brightness(&comm, 0x0FFF);
 
+    signal(SIGTERM, &sigterm);
+    signal(SIGINT, &sigterm);
+
     while (1) {
-        sleep(1);
+        if (sleep(PERIODIC_SLEEP) < PERIODIC_SLEEP) {
+            break;
+        }
     }
+
+    broker_free(&broker);
+    comm_free(&comm);
+    xmppintf_free(&xmpp);
 
     return 0;
 }

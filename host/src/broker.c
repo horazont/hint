@@ -153,6 +153,10 @@ void broker_departure_response(
     }
     pthread_mutex_unlock(&broker->screen_mutex);
 
+    if (result) {
+        array_free(result);
+        free(result);
+    }
 }
 
 void broker_enqueue_new_task_at(
@@ -183,6 +187,28 @@ void broker_enqueue_new_task_in(
 void broker_enqueue_task(struct broker_t *broker, struct task_t *task)
 {
     heap_insert(&broker->tasks, task);
+}
+
+void broker_free(struct broker_t *broker)
+{
+    broker->terminated = true;
+    pthread_join(broker->thread, NULL);
+
+    pthread_mutex_destroy(&broker->screen_mutex);
+
+    for (int i = 0;
+         i < array_length(&broker->tasks.array);
+         ++i)
+    {
+        struct task_t *task = array_get(&broker->tasks.array, i);
+        free(task);
+    }
+    heap_free(&broker->tasks);
+
+    for (int i = 0; i < SCREEN_COUNT; i++)
+    {
+        screen_free(&broker->screens[i]);
+    }
 }
 
 struct task_t *broker_get_next_task(struct broker_t *broker)
@@ -224,6 +250,7 @@ void broker_init(
     struct comm_t *comm,
     struct xmpp_t *xmpp)
 {
+    broker->terminated = false;
     broker->comm = comm;
     broker->xmpp = xmpp;
     broker->touch_is_up = true;
@@ -563,7 +590,7 @@ void *broker_thread(struct broker_t *state)
     broker_enqueue_new_task_in(
         state, &broker_update_time, 0, NULL);
 
-    while (true)
+    while (!state->terminated)
     {
         int32_t timeout = -1;
         struct task_t *task = broker_get_next_task(state);

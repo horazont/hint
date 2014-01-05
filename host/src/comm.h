@@ -112,6 +112,7 @@ void *comm_alloc_message(
     const msg_length_t payload_length);
 void comm_dump_message(const struct msg_header_t *item);
 void comm_enqueue_msg(struct comm_t *comm, void *msg);
+void comm_free(struct comm_t *comm);
 void comm_init(
     struct comm_t *comm,
     const char *devfile,

@@ -272,6 +272,37 @@ void comm_enqueue_msg(struct comm_t *comm, void *msg)
     write(comm->signal_fd, "m", 1);
 }
 
+void comm_free(struct comm_t *comm)
+{
+    comm->terminated = true;
+    write(comm->signal_fd, "w", 1);
+    pthread_join(comm->thread, NULL);
+
+    while (!queue_empty(&comm->send_queue))
+    {
+        free(queue_pop(&comm->send_queue));
+    }
+    queue_free(&comm->send_queue);
+
+    while (!queue_empty(&comm->recv_queue))
+    {
+        free(queue_pop(&comm->recv_queue));
+    }
+    queue_free(&comm->recv_queue);
+
+    close(comm->signal_fd);
+    close(comm->_signal_fd);
+    close(comm->recv_fd);
+    close(comm->_recv_fd);
+
+    if (comm->_pending_ack) {
+        free(comm->_pending_ack);
+    }
+
+    pthread_mutex_destroy(&comm->data_mutex);
+    free(comm->_devfile);
+}
+
 void comm_init(
     struct comm_t *comm,
     const char *devfile,

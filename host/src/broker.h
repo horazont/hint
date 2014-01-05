@@ -35,6 +35,7 @@ struct broker_t {
     struct xmpp_t *xmpp;
 
     bool touch_is_up;
+    bool terminated;
     pthread_mutex_t screen_mutex;
     struct screen_t screens[SCREEN_COUNT];
     int active_screen;
@@ -53,6 +54,9 @@ void broker_enqueue_new_task_in(
     uint32_t in_msec,
     void *userdata);
 void broker_enqueue_task(struct broker_t *broker, struct task_t *task);
+
+void broker_free(
+    struct broker_t *broker);
 
 void broker_init(
     struct broker_t *broker,

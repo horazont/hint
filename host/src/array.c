@@ -5,6 +5,8 @@
 #include <assert.h>
 #include <string.h>
 
+#include "utils.h"
+
 void array_clear(struct array_t *array)
 {
     array->length = 0;
@@ -37,8 +39,8 @@ void array_grow(struct array_t *array)
     intptr_t new_bytes = new_size * sizeof(void*);
     void **new_buffer = realloc(array->ptrs, new_bytes);
     if (!new_buffer) {
-        fprintf(stderr, "array_grow: out of memory!\n");
-        assert(new_buffer);
+        free(array->ptrs);
+        panicf("array_grow: out of memory!\n");
     }
     array->ptrs = new_buffer;
     array->size = new_size;
