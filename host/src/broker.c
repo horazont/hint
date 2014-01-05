@@ -262,14 +262,14 @@ void broker_init(
 
     screen_create(
         &broker->screens[SCREEN_BUS_MONITOR],
-        comm,
+        broker,
         "DVB Abfahrtsmonitor",
         "DVB");
     screen_dept_init(&broker->screens[SCREEN_BUS_MONITOR]);
 
     screen_create(
         &broker->screens[SCREEN_WEATHER_INFO],
-        comm,
+        broker,
         "Wetterdaten",
         "Enviro");
     screen_weather_init(&broker->screens[SCREEN_WEATHER_INFO]);

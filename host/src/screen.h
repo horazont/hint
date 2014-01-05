@@ -33,12 +33,14 @@
 #define MAX_DEPT_ROWS                       (14)
 
 struct screen_t;
+struct broker_t;
 
 typedef void (*screen_func)(struct screen_t *screen);
 
 struct screen_t {
     screen_func show, hide, free, repaint;
 
+    struct broker_t *broker;
     struct comm_t *comm;
     char *title;
     char *tab_caption;
@@ -59,7 +61,7 @@ void screen_draw_tab(
 
 void screen_create(
     struct screen_t *screen,
-    struct comm_t *comm,
+    struct broker_t *broker,
     const char *title,
     const char *tab_caption);
 void screen_draw_background(struct screen_t *screen);

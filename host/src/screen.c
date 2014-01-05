@@ -11,6 +11,7 @@
 
 #include "lpcdisplay.h"
 #include "utils.h"
+#include "broker.h"
 
 /* screen: utilities */
 
@@ -66,7 +67,7 @@ void screen_draw_tab(
 
 void screen_create(
     struct screen_t *screen,
-    struct comm_t *comm,
+    struct broker_t *broker,
     const char *title,
     const char *tab_caption)
 {
@@ -74,7 +75,8 @@ void screen_create(
     screen->hide = NULL;
     screen->free = NULL;
     screen->repaint = NULL;
-    screen->comm = comm;
+    screen->broker = broker;
+    screen->comm = broker->comm;
     screen->private = NULL;
     screen->title = strdup(title);
     screen->tab_caption = strdup(tab_caption);
