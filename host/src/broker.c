@@ -15,6 +15,9 @@
 #include "utils.h"
 #include "private_config.h"
 
+#include "screen_dept.h"
+#include "screen_weather.h"
+
 #define TABBAR_LEFT ((LCD_WIDTH-1)-SCREEN_MARGIN_RIGHT)
 #define TABBAR_TOP (SCREEN_CLIENT_AREA_TOP+4)
 

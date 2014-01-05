@@ -53,6 +53,8 @@ set(SOURCES
     "src/comm.c"
     "src/broker.c"
     "src/screen.c"
+    "src/screen_dept.c"
+    "src/screen_weather.c"
     "src/timestamp.c"
     "src/array.c"
     "src/heap.c"
