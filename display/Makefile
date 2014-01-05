@@ -83,9 +83,7 @@ src/generated_font_data.inc: $(GENFONT)
 		-r 0xa1 0xff \
 		-x 0xad \
 		-c 0xfffd \
-		-c 0x2026 \
-		-c 0x221e \
-		-c 0x202f \
+		-c 0x221e 0x2026 0x202f 0x2714 0x2718 \
 		--section ".text#" \
 		-- \
 		"DejaVu Sans" 12 dejavu_sans_12px > $@

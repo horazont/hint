@@ -8,7 +8,7 @@
 #include "xmppintf.h"
 #include "heap.h"
 
-#define SCREEN_COUNT                    (2)
+#define SCREEN_COUNT                    (3)
 #define SCREEN_BUS_MONITOR              (0)
 #define SCREEN_WEATHER_INFO             (1)
 #define SCREEN_MISC                     (2)

@@ -17,6 +17,7 @@
 
 #include "screen_dept.h"
 #include "screen_weather.h"
+#include "screen_misc.h"
 
 #define TABBAR_LEFT ((LCD_WIDTH-1)-SCREEN_MARGIN_RIGHT)
 #define TABBAR_TOP (SCREEN_CLIENT_AREA_TOP+4)
@@ -273,6 +274,13 @@ void broker_init(
         "Wetterdaten",
         "Enviro");
     screen_weather_init(&broker->screens[SCREEN_WEATHER_INFO]);
+
+    screen_create(
+        &broker->screens[SCREEN_MISC],
+        broker,
+        "Systeminformationen",
+        "Misc");
+    screen_misc_init(&broker->screens[SCREEN_MISC]);
 
     pthread_mutex_init(&broker->screen_mutex, NULL);
     pthread_create(
