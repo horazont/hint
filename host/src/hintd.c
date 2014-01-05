@@ -16,8 +16,11 @@
 
 #define PERIODIC_SLEEP (100)
 
+static volatile bool terminated = false;
+
 void sigterm(int signum)
 {
+    terminated = true;
     fprintf(stderr, "SIGTERM / SIGINT\n");
 }
 
@@ -48,7 +51,9 @@ int main(int argc, char *argv[])
 
     while (1) {
         if (sleep(PERIODIC_SLEEP) < PERIODIC_SLEEP) {
-            break;
+            if (terminated) {
+                break;
+            }
         }
     }
 
