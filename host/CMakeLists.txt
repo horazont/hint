@@ -57,6 +57,7 @@ set(SOURCES
     "src/screen_dept.c"
     "src/screen_weather.c"
     "src/screen_misc.c"
+    "src/screen_net.c"
     "src/timestamp.c"
     "src/array.c"
     "src/heap.c"

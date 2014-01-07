@@ -17,6 +17,7 @@
 
 #include "screen_dept.h"
 #include "screen_weather.h"
+#include "screen_net.h"
 #include "screen_misc.h"
 
 #define TABBAR_LEFT ((LCD_WIDTH-1)-SCREEN_MARGIN_RIGHT)
@@ -274,6 +275,13 @@ void broker_init(
         "Wetterdaten",
         "Enviro");
     screen_weather_init(&broker->screens[SCREEN_WEATHER_INFO]);
+
+    screen_create(
+        &broker->screens[SCREEN_NET],
+        broker,
+        "Netzwerk",
+        "Net");
+    screen_net_init(&broker->screens[SCREEN_NET]);
 
     screen_create(
         &broker->screens[SCREEN_MISC],
