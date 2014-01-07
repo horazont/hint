@@ -227,7 +227,6 @@ void screen_dept_set_error(
 void screen_dept_show(struct screen_t *screen)
 {
     screen_draw_background(screen);
-    screen->repaint(screen);
 }
 
 void screen_dept_update_data(

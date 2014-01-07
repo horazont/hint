@@ -285,6 +285,6 @@ void screen_misc_show(struct screen_t *screen)
     broker_enqueue_new_task_in(
         screen->broker,
         &regular_update,
-        0,
+        UPDATE_INTERVAL,
         screen);
 }

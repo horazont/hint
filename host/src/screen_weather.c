@@ -334,7 +334,7 @@ void screen_weather_init(struct screen_t *screen)
 
 void screen_weather_show(struct screen_t *screen)
 {
-    screen->repaint(screen);
+
 }
 
 void screen_weather_repaint(struct screen_t *screen)
