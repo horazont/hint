@@ -451,6 +451,7 @@ void broker_switch_screen(
     }
     broker->active_screen = new_screen;
     if (broker->active_screen != -1) {
+        screen_show(&broker->screens[broker->active_screen]);
         broker_repaint_screen_nolock(broker);
     }
     broker_repaint_tabbar(broker);
