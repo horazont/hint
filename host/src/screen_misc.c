@@ -58,7 +58,6 @@ static void status_table(
         x0, y0+14,
         14, columns, 2);
 
-
     char *buffer;
     size_t len;
 

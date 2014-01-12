@@ -6,6 +6,7 @@
 
 #include "common/comm_lpc1114.h"
 
+#include "theme.h"
 #include "departure.h"
 #include "lpcdisplay.h"
 #include "utils.h"
@@ -34,17 +35,20 @@ static inline void deptarture_paint(
 
     lpcd_table_start(
         screen->comm,
-        SCREEN_CLIENT_AREA_LEFT, SCREEN_CLIENT_AREA_TOP+14,
+        SCREEN_CLIENT_AREA_LEFT, SCREEN_CLIENT_AREA_TOP+11,
         14, columns, 3);
 
     lpcd_table_row(
         screen->comm,
         LPC_FONT_DEJAVU_SANS_12PX_BF,
-        0x0000, 0xffff,
+        THEME_TH_COLOUR,
+        THEME_TH_BACKGROUND_COLOUR,
         header, 17);
 
     char *buffer = NULL;
     intptr_t buflen = 0;
+
+
 
     int len = array_length(&dept->rows);
     if (len > MAX_DEPT_ROWS) {
@@ -105,10 +109,17 @@ static inline void deptarture_paint(
         assert(written < remlength);
         total_length += written;
 
+        const bool even = (i % 2 == 0);
+
         lpcd_table_row(
             screen->comm,
             LPC_FONT_DEJAVU_SANS_12PX,
-            0x0000, 0xffff,
+            (even
+             ? THEME_TR_EVEN_COLOUR
+             : THEME_TR_ODD_COLOUR),
+            (even
+             ? THEME_TR_EVEN_BACKGROUND_COLOUR
+             : THEME_TR_ODD_BACKGROUND_COLOUR),
             buffer, total_length);
     }
 
@@ -120,7 +131,8 @@ static inline void deptarture_paint(
         lpcd_table_row(
             screen->comm,
             LPC_FONT_DEJAVU_SANS_12PX,
-            0x0000, 0xffff,
+            THEME_CLIENT_AREA_COLOUR,
+            THEME_CLIENT_AREA_BACKGROUND_COLOUR,
             empty, 3);
     }
 
@@ -180,7 +192,7 @@ void screen_dept_repaint(struct screen_t *screen)
             LPC_FONT_DEJAVU_SANS_12PX_BF,
             SCREEN_CLIENT_AREA_LEFT,
             SCREEN_CLIENT_AREA_TOP+14,
-            0x0000,
+            THEME_CLIENT_AREA_COLOUR,
             "Data request timeouted");
         break;
     }
@@ -192,7 +204,7 @@ void screen_dept_repaint(struct screen_t *screen)
             SCREEN_CLIENT_AREA_LEFT,
             SCREEN_CLIENT_AREA_TOP+14,
             LPC_FONT_DEJAVU_SANS_12PX_BF,
-            0x0000,
+            THEME_CLIENT_AREA_COLOUR,
             "Request error");
         break;
     }
@@ -204,7 +216,7 @@ void screen_dept_repaint(struct screen_t *screen)
             LPC_FONT_DEJAVU_SANS_12PX_BF,
             SCREEN_CLIENT_AREA_LEFT,
             SCREEN_CLIENT_AREA_TOP+14,
-            0x0000,
+            THEME_CLIENT_AREA_COLOUR,
             "Disconnect during request");
         break;
     }

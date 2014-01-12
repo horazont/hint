@@ -9,6 +9,7 @@
 #include "common/types.h"
 #include "common/comm_lpc1114.h"
 
+#include "theme.h"
 #include "lpcdisplay.h"
 #include "utils.h"
 #include "broker.h"
@@ -22,9 +23,15 @@ void screen_draw_tab(
     coord_int_t y0,
     bool depressed)
 {
-    colour_t bgcolour = (depressed ? 0xffff : 0x0000);
-    colour_t textcolour = (depressed ? 0x0000 : 0xffff);
-    colour_t linecolour = (depressed ? 0x0000 : 0x7bef);
+    colour_t bgcolour = (depressed
+                         ? THEME_TAB_ACTIVE_BACKGROUND_COLOUR
+                         : THEME_TAB_BACKGROUND_COLOUR);
+    colour_t textcolour = (depressed
+                           ? THEME_TAB_ACTIVE_COLOUR
+                           : THEME_TAB_COLOUR);
+    colour_t linecolour = (depressed
+                           ? THEME_TAB_ACTIVE_BORDER_COLOUR
+                           : THEME_TAB_BORDER_COLOUR);
 
     x0 += (depressed ? -1 : 1);
 
@@ -88,12 +95,12 @@ void screen_draw_background(struct screen_t *screen)
         screen->comm,
         SCREEN_MARGIN_LEFT, SCREEN_MARGIN_TOP,
         (LCD_WIDTH-1)-SCREEN_MARGIN_RIGHT, (LCD_HEIGHT-1)-SCREEN_MARGIN_BOTTOM,
-        0xffff);
+        THEME_CLIENT_AREA_BACKGROUND_COLOUR);
     lpcd_draw_rectangle(
         screen->comm,
         SCREEN_MARGIN_LEFT+1, SCREEN_MARGIN_TOP+1,
         (LCD_WIDTH-1)-SCREEN_MARGIN_RIGHT-1, (LCD_HEIGHT-1)-SCREEN_MARGIN_BOTTOM-1,
-        0x0000);
+        THEME_CLIENT_AREA_BORDER_COLOUR);
 }
 
 void screen_draw_header(struct screen_t *screen)
@@ -102,18 +109,20 @@ void screen_draw_header(struct screen_t *screen)
         screen->comm,
         SCREEN_HEADER_MARGIN_LEFT, SCREEN_HEADER_MARGIN_TOP,
         (LCD_WIDTH-1)-SCREEN_HEADER_MARGIN_RIGHT, SCREEN_HEADER_HEIGHT,
-        0xffff);
+        THEME_H1_BACKGROUND_COLOUR);
 
     lpcd_draw_rectangle(
         screen->comm,
         SCREEN_HEADER_MARGIN_LEFT+1, SCREEN_HEADER_MARGIN_TOP+1,
         (LCD_WIDTH-1)-SCREEN_HEADER_MARGIN_RIGHT-1, SCREEN_HEADER_HEIGHT,
-        0x0000);
+        THEME_H1_BORDER_COLOUR);
 
     lpcd_draw_text(
         screen->comm,
         SCREEN_HEADER_MARGIN_LEFT+4, SCREEN_HEADER_MARGIN_TOP+16,
-        LPC_FONT_DEJAVU_SANS_12PX_BF, 0x0000, screen->title);
+        LPC_FONT_DEJAVU_SANS_12PX_BF,
+        THEME_H1_COLOUR,
+        screen->title);
 }
 
 void screen_free(struct screen_t *screen)
