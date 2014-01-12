@@ -13,6 +13,14 @@ def rgbf24_to_rgb16(r, g, b):
 
     return (r << 11) | (g << 5) | b
 
+def variint(s):
+    if s.startswith("0x"):
+        return int(s[2:], 16)
+    elif s.startswith("0b"):
+        return int(s[2:], 2)
+    else:
+        return int(s)
+
 if __name__ == "__main__":
     import argparse
 
@@ -25,21 +33,21 @@ if __name__ == "__main__":
         help="Use floating point numbers as input"
     )
     parser.add_argument(
-        "red",
-        type=float
+        "red"
     )
     parser.add_argument(
-        "green",
-        type=float
+        "green"
     )
     parser.add_argument(
-        "blue",
-        type=float
+        "blue"
     )
 
     args = parser.parse_args()
 
     colourtuple = args.red, args.green, args.blue
+
+    t = float if args.float else variint
+    colourtuple = tuple(map(t, colourtuple))
 
     if not args.float:
         colourtuple = rgbi24_to_rgbf24(*colourtuple)
