@@ -191,6 +191,7 @@ void broker_enqueue_new_task_in(
 
 void broker_enqueue_task(struct broker_t *broker, struct task_t *task)
 {
+    /* fprintf(stderr, "debug: broker: new task %p\n", task); */
     heap_insert(&broker->tasks, task);
 }
 
@@ -440,6 +441,7 @@ void broker_repaint_time(
 void broker_run_next_task(struct broker_t *broker)
 {
     struct task_t *task = heap_pop_min(&broker->tasks);
+    /* fprintf(stderr, "debug: broker: running task %p\n", task); */
     bool run_again = task->func(broker, &task->run_at, task->userdata);
     if (!run_again) {
         free(task);
