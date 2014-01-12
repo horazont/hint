@@ -172,7 +172,7 @@ static void draw_weather_interval(
     char buffer[127];
 
     static struct table_column_t columns[2];
-    columns[0].width = 25;
+    columns[0].width = 30;
     columns[0].alignment = TABLE_ALIGN_RIGHT;
     columns[1].width = 30;
     columns[1].alignment = TABLE_ALIGN_LEFT;
