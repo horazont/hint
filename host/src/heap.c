@@ -69,7 +69,8 @@ static void min_heapify(struct heap_t *heap, intptr_t from_index)
     if (smallest_index != from_index)
     {
         swap(&heap->array, smallest_index, from_index);
-        return min_heapify(heap, smallest_index);
+        // tail recursion with void result
+        min_heapify(heap, smallest_index);
     }
 }
 
