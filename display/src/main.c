@@ -392,12 +392,13 @@ static inline void handle_command()
 
 }
 
-void TIMER16_1_IRQHandler()
+void TIMER16_0_IRQHandler()
 {
     uint32_t intermediate = TMR_TMR16B1MR0;
-    intermediate += lcd_brightness_goal;
-    TMR_TMR16B1MR0 = intermediate/2;
-    TMR_TMR16B1IR = TMR_TMR16B1IR_MR3;
+    // moving average for smoooooooooooth fading :)
+    intermediate = intermediate * 15 + lcd_brightness_goal;
+    TMR_TMR16B1MR0 = intermediate / 16;
+    TMR_TMR16B0IR = TMR_TMR16B0IR_MR0;
 }
 
 int main(void)
@@ -427,10 +428,20 @@ int main(void)
                       |  SCB_SYSAHBCLKCTRL_SYS
                       |  SCB_SYSAHBCLKCTRL_CT32B0
                       |  SCB_SYSAHBCLKCTRL_CT16B1
+                      |  SCB_SYSAHBCLKCTRL_CT16B0
                       |  SCB_SYSAHBCLKCTRL_ADC;
 
     GPIO_GPIO1DIR |= (1<<9);
     GPIO_GPIO1DATA &= ~(1<<9);
+
+    // display backlight fading timer
+    TMR_TMR16B0TC = 0;
+    TMR_TMR16B0PR = 24000-1; // prescale to two ticks per ms
+    TMR_TMR16B0PC = 0;
+    TMR_TMR16B0MCR = TMR_TMR16B0MCR_MR0_INT_ENABLED
+                   | TMR_TMR16B0MCR_MR0_RESET_ENABLED;
+    TMR_TMR16B0MR0 = 20; // fade update interval
+    TMR_TMR16B0TCR = (1<<0); // enable timer
 
     // display backlight pwm
     IOCON_PIO1_9 = (0x1<<0); //PIO1_9/CT16B1MAT0 -> PWM
@@ -438,10 +449,11 @@ int main(void)
     TMR_TMR16B1PR   = 0; //no prescale
     TMR_TMR16B1PC   = 0;
     TMR_TMR16B1CTCR = 0;
-    TMR_TMR16B1MR0  = 0xC000;
+    TMR_TMR16B1MR0  = 0xFFFF;
     TMR_TMR16B1MR3  = 0xFFFF;
-    TMR_TMR16B1MCR  = TMR_TMR16B1MCR_MR3_RESET_ENABLED | TMR_TMR16B1MCR_MR3_INT_ENABLED;
-    TMR_TMR16B1PWMC = TMR_TMR16B1PWMC_PWM0_ENABLED | TMR_TMR16B1PWMC_PWM3_ENABLED; //PWM chn 0 on
+    TMR_TMR16B1MCR  = TMR_TMR16B1MCR_MR3_RESET_ENABLED;
+    TMR_TMR16B1PWMC = TMR_TMR16B1PWMC_PWM0_ENABLED
+                    | TMR_TMR16B1PWMC_PWM3_ENABLED; //PWM chn 0 on
     TMR_TMR16B1TCR  = (1<<0); //enable timer
 
     ADC_AD0CR = (((CFG_CPU_CCLK/4000000UL)-1)<< 8) | //4MHz
@@ -454,12 +466,9 @@ int main(void)
     TMR_TMR32B0PC = 0;
     TMR_TMR32B0MCR = TMR_TMR32B0MCR_MR0_INT_ENABLED | TMR_TMR32B0MCR_MR0_STOP_ENABLED | TMR_TMR32B0MCR_MR0_RESET_ENABLED;
     TMR_TMR32B0MR0 = 100; // read timeout
-    TMR_TMR32B0CTCR = 0;
+    TMR_TMR32B0TCR = 0;
 
     ENABLE_IRQ();
-
-    NVIC_EnableIRQ(TIMER_16_1_IRQn);
-    NVIC_EnableIRQ(TIMER_32_0_IRQn);
 
     lcd_init();
     touch_init();
@@ -467,12 +476,14 @@ int main(void)
 
     fill_rectangle(0, 0, LCD_WIDTH-1, LCD_HEIGHT-1, 0x0000);
 
+    // after initializing everything, enable interrupts
+
+    NVIC_EnableIRQ(TIMER_16_0_IRQn);
+    NVIC_EnableIRQ(TIMER_32_0_IRQn);
     NVIC_EnableIRQ(EINT0_IRQn);
     // use a lower priority for EINT0 so that one can TX and RX inside
     // that interrupt
     NVIC_SetPriority(EINT0_IRQn, 1);
-
-    lcd_brightness_goal = 0xFF00;
 
     _Static_assert(sizeof(unsigned int) == 4, "foo");
     {
