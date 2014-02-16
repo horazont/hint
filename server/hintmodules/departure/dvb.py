@@ -1,6 +1,7 @@
 import ast
 import abc
 from datetime import datetime, timedelta
+import http.client
 import socket
 import warnings
 import urllib.error
@@ -72,12 +73,17 @@ class Departure(object):
             finally:
                 response.close()
         except socket.timeout as err:
+            logging.warn("temporarily not available: %s: %s", type(err), err)
+            raise self._not_available() from err
+        except http.client.BadStatusLine as err:
+            logging.warn("temporarily not available: %s: %s", type(err), err)
             raise self._not_available() from err
         except urllib.error.HTTPError as err:
             if err.code == 304:
                 return self._get_cached_data(stop_name)
             raise self._not_available() from err
         except urllib.error.URLError as err:
+            logging.warn("temporarily not available: %s: %s", type(err), err)
             raise self._not_available() from err
 
         self.cached_data[stop_name] = stop_filter.filter_departures(
