@@ -17,19 +17,22 @@ if (PLATFORM STREQUAL "mips-linux-uclibc")
 
 set(LIBS ${LIBS}
     ${CMAKE_SOURCE_DIR}/fritzbox-static/libs/libexpat.so
-    ${CMAKE_SOURCE_DIR}/fritzbox-static/libs/libc.so
-    ${CMAKE_SOURCE_DIR}/fritzbox-static/libs/libresolv.so
+    ${CMAKE_SOURCE_DIR}/fritzbox-static/libs/libc.so.0
+    ${CMAKE_SOURCE_DIR}/fritzbox-static/libs/libresolv.so.0
     ${CMAKE_SOURCE_DIR}/fritzbox-static/libs/libssl.so
-    ${CMAKE_SOURCE_DIR}/fritzbox-static/libs/libpthread.so
+    ${CMAKE_SOURCE_DIR}/fritzbox-static/libs/libpthread.so.0
     ${CMAKE_SOURCE_DIR}/fritzbox-static/libs/libcrypto.so.1)
 
 set(COUPLET_CONFIGURE
+    CC=/home/horazont/Builds/freetz-trunk/toolchain/build/mips_gcc-4.6.3_uClibc-0.9.32.1/mips-linux-uclibc/bin/mips-linux-uclibc-gcc
     expat_CFLAGS=-I${CMAKE_SOURCE_DIR}/fritzbox-static/includes/
     expat_LIBS=${CMAKE_SOURCE_DIR}/fritzbox-static/libs/libexpat.so
     ${COUPLET_CONFIGURE}
-    --host ${PLATFORM})
+    --host ${PLATFORM}
+    --enable-static=yes
+    --enable-shared=no)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}  --sysroot=/home/horazont/Builds/freetz-trunk/toolchain/build/mips_gcc-4.6.3_uClibc-0.9.32.1/mips-linux-uclibc/")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --sysroot=/home/horazont/Builds/freetz-trunk/toolchain/build/mips_gcc-4.6.3_uClibc-0.9.32.1/mips-linux-uclibc/")
 
 else (PLATFORM STREQUAL "mips-linux-uclibc")
 message(FATAL_ERROR "unknown platform ${PLATFORM}")
@@ -39,13 +42,13 @@ else (DEFINED PLATFORM)
 set(LIBS pthread ${LIBS} ssl resolv expat)
 endif (DEFINED PLATFORM)
 
-# ExternalProject_Add(libcouplet
-#     PREFIX libcouplet
-#     GIT_REPOSITORY https://github.com/pasis/libcouplet
-#     BUILD_IN_SOURCE 1
-#     CONFIGURE_COMMAND ./bootstrap.sh && ${COUPLET_CONFIGURE}
-#     BUILD_COMMAND make
-#     INSTALL_COMMAND echo)
+ExternalProject_Add(libcouplet
+    PREFIX libcouplet
+    GIT_REPOSITORY https://github.com/pasis/libcouplet
+    BUILD_IN_SOURCE 1
+    CONFIGURE_COMMAND ./bootstrap.sh && ${COUPLET_CONFIGURE}
+    BUILD_COMMAND make
+    INSTALL_COMMAND echo)
 
 set(SOURCES
     "src/hintd.c"
