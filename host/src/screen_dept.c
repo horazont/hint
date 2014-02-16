@@ -18,9 +18,9 @@ static inline void deptarture_paint(
     struct screen_dept_t *dept)
 {
     static struct table_column_t columns[3];
-    columns[0].width = 28;
+    columns[0].width = 40;
     columns[0].alignment = TABLE_ALIGN_LEFT;
-    columns[1].width = 120;
+    columns[1].width = 186;
     columns[1].alignment = TABLE_ALIGN_LEFT;
     columns[2].width = 28;
     columns[2].alignment = TABLE_ALIGN_RIGHT;
