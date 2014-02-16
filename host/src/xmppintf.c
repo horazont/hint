@@ -655,7 +655,7 @@ void xmppintf_handle_departure_reply(
                 "empty string\n");
             goto error;
         }
-        if (strlen(lane) > 2) {
+        if (strlen(lane) > DEPARTURE_LANE_LENGTH) {
             fprintf(stderr,
                 "xmpp: departure_reply: @lane is "
                 "too long: %s\n", lane);
@@ -666,8 +666,7 @@ void xmppintf_handle_departure_reply(
             goto out_of_memory;
         }
 
-        // strcpy is safe here, we checked the length before
-        strncpy(row->lane, lane, 3);
+        strncpy(row->lane, lane, DEPARTURE_LANE_LENGTH+1);
         row->lane[2] = '\0';
         char *endptr = NULL;
         row->eta = strtol(eta, &endptr, 10);
