@@ -37,6 +37,9 @@ void lpcd_fill_rectangle(
     const coord_int_t y1,
     const colour_t colour);
 
+void lpcd_lullaby(
+    struct comm_t *comm);
+
 void lpcd_table_end(
     struct comm_t *comm);
 
@@ -61,5 +64,8 @@ void lpcd_set_brightness(
     const uint16_t brightness);
 
 void lpcd_state_reset(struct comm_t *comm);
+
+void lpcd_wake_up(
+    struct comm_t *comm);
 
 #endif

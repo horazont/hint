@@ -74,6 +74,8 @@ struct __attribute__((packed)) lpc_cmd_set_brightness_t {
 #define LPC_CMD_TABLE_END               (0x0A)
 #define LPC_CMD_DRAW_LINE               (0x0B)
 #define LPC_CMD_SET_BRIGHTNESS          (0x0C)
+#define LPC_CMD_LULLABY                 (0x0D)
+#define LPC_CMD_WAKE_UP                 (0x0E)
 
 #define LPC_FONT_DEJAVU_SANS_8PX        (0x10)
 #define LPC_FONT_DEJAVU_SANS_12PX       (0x20)

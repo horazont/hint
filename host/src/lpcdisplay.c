@@ -95,6 +95,17 @@ void lpcd_fill_rectangle(
     comm_enqueue_msg(comm, msg);
 }
 
+void lpcd_lullaby(
+    struct comm_t *comm)
+{
+    const int payload_length = sizeof(lpc_cmd_id_t);
+    struct lpc_cmd_msg_t *msg = comm_alloc_message(
+        MSG_ADDRESS_LPC1114, payload_length);
+    msg->payload.cmd = htole16(LPC_CMD_LULLABY);
+
+    comm_enqueue_msg(comm, msg);
+}
+
 void lpcd_table_end(
     struct comm_t *comm)
 {
@@ -190,6 +201,17 @@ void lpcd_state_reset(struct comm_t *comm)
     struct lpc_cmd_msg_t *msg = comm_alloc_message(
         MSG_ADDRESS_LPC1114, payload_length);
     msg->payload.cmd = htole16(LPC_CMD_RESET_STATE);
+
+    comm_enqueue_msg(comm, msg);
+}
+
+void lpcd_wake_up(
+    struct comm_t *comm)
+{
+    const int payload_length = sizeof(lpc_cmd_id_t);
+    struct lpc_cmd_msg_t *msg = comm_alloc_message(
+        MSG_ADDRESS_LPC1114, payload_length);
+    msg->payload.cmd = htole16(LPC_CMD_WAKE_UP);
 
     comm_enqueue_msg(comm, msg);
 }

@@ -288,6 +288,23 @@ static inline void handle_idle_command()
     case LPC_CMD_SET_BRIGHTNESS:
     {
         lcd_setbrightness(msg_cmd.args.set_brightness.brightness);
+        break;
+    }
+    case LPC_CMD_LULLABY:
+    {
+        // lullaby is slow going to sleep which looks more awesome than just
+        // switching to white and disabling the backlight ;)
+        lcd_enable();
+        lcd_lullaby();
+        lcd_disable();
+        break;
+    }
+    case LPC_CMD_WAKE_UP:
+    {
+        lcd_enable();
+        lcd_wakeup();
+        lcd_disable();
+        break;
     }
     case LPC_CMD_DRAW_IMAGE_DATA:
     case LPC_CMD_DRAW_IMAGE_END:

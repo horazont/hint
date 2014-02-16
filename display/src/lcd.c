@@ -27,8 +27,36 @@
 #define LCD_MASKED_GPIO(mask, value) *(pREG32(GPIO_GPIO2_BASE | (mask << 2))) = value
 
 static uint16_t lcd_brightness_goal VAR_RAM = 0xC000;
+static uint16_t lcd_brightness_awake_backup VAR_RAM = 0xC000;
 
 /* alphabetical order broken so that inlines appear before their use */
+
+inline void _configure_pwm()
+{
+    GPIO_GPIO1DIR |= (1<<9);
+    GPIO_GPIO1DATA &= ~(1<<9);
+    IOCON_PIO1_9 = (0x1<<0);
+}
+
+inline void _disable_pwm()
+{
+    TMR_TMR16B0TCR = 0; // pwm timer
+    TMR_TMR16B1TCR = 0; // fade timer
+    IOCON_PIO1_9 = 0;
+    GPIO_GPIO1DATA &= ~(1<<9);
+}
+
+inline void _enable_pwm()
+{
+    GPIO_GPIO1DATA &= ~(1<<9);
+    TMR_TMR16B0TC = 0;
+    TMR_TMR16B0PC = 0;
+    TMR_TMR16B0TCR = 1; // pwm timer
+    IOCON_PIO1_9 = (0x1<<0);
+    TMR_TMR16B1TC = 0;
+    TMR_TMR16B1PC = 0;
+    TMR_TMR16B1TCR = 1; // fade timer
+}
 
 inline void lcd_wrcmd8(uint8_t cmd)
 {
@@ -234,8 +262,7 @@ void lcd_init()
 
 void lcd_init_backlight(uint16_t initial_brightness)
 {
-    GPIO_GPIO1DIR |= (1<<9);
-    GPIO_GPIO1DATA &= ~(1<<9);
+    _configure_pwm();
 
     // display backlight fading timer
     TMR_TMR16B0TC = 0;
@@ -244,20 +271,56 @@ void lcd_init_backlight(uint16_t initial_brightness)
     TMR_TMR16B0MCR = TMR_TMR16B0MCR_MR0_INT_ENABLED
                    | TMR_TMR16B0MCR_MR0_RESET_ENABLED;
     TMR_TMR16B0MR0 = 20; // fade update interval
-    TMR_TMR16B0TCR = (1<<0); // enable timer
 
     // display backlight pwm
-    IOCON_PIO1_9 = (0x1<<0); //PIO1_9/CT16B1MAT0 -> PWM
     TMR_TMR16B1TC   = 0;
     TMR_TMR16B1PR   = 0; //no prescale
     TMR_TMR16B1PC   = 0;
     TMR_TMR16B1CTCR = 0;
-    TMR_TMR16B1MR0  = ~initial_brightness;
+    TMR_TMR16B1MR0  = 0xFFFF - initial_brightness;
     TMR_TMR16B1MR3  = 0xFFFF;
     TMR_TMR16B1MCR  = TMR_TMR16B1MCR_MR3_RESET_ENABLED;
     TMR_TMR16B1PWMC = TMR_TMR16B1PWMC_PWM0_ENABLED
                     | TMR_TMR16B1PWMC_PWM3_ENABLED; //PWM chn 0 on
-    TMR_TMR16B1TCR  = (1<<0); //enable timer
+
+    _enable_pwm();
+}
+
+void lcd_lullaby()
+{
+    lcd_brightness_awake_backup = lcd_brightness_goal;
+
+    // slower going to sleep with visual effects :-O
+    // fading from full power to black requires 140 steps, we speed up fading
+    // for this purpose, each step is MR0 times 0.5 ms, so 350 ms if MR0 is 5
+    lcd_setbrightness(0);
+
+    NVIC_DisableIRQ(TIMER_16_0_IRQn);
+    TMR_TMR16B0MR0 = 5;
+    NVIC_EnableIRQ(TIMER_16_0_IRQn);
+
+    // half way through, we switch the display into idle mode
+    delay_ms(350);
+    // lcd should be close to black now, we turn it off
+    lcd_wrcmd8(LCD_CMD_SLEEPIN);
+
+    // disable PWM
+    DISABLE_IRQ();
+    _disable_pwm();
+    TMR_TMR16B0MR0 = 20;
+    ENABLE_IRQ();
+
+    // wait until SLEEPIN completes
+    delay_ms(120);
+}
+
+void lcd_put_to_sleep()
+{
+    lcd_wrcmd8(LCD_CMD_SLEEPIN);
+    DISABLE_IRQ();
+    _disable_pwm();
+    ENABLE_IRQ();
+    delay_ms(120);
 }
 
 void lcd_setarea(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1)
@@ -273,13 +336,13 @@ void lcd_setarea(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1)
 
 void lcd_setbrightness(uint16_t new_brightness)
 {
-    lcd_brightness_goal = ~new_brightness;
+    lcd_brightness_goal = 0xffff - new_brightness;
 }
 
 void lcd_setbrightness_nofade(uint16_t new_brightness)
 {
-    lcd_brightness_goal = ~new_brightness;
-    TMR_TMR16B0MR0 = ~new_brightness;
+    lcd_brightness_goal = 0xffff - new_brightness;
+    TMR_TMR16B1MR0 = 0xffff - new_brightness;
 }
 
 inline void lcd_setpixel(const uint16_t x0, const uint16_t y0,
@@ -289,6 +352,18 @@ inline void lcd_setpixel(const uint16_t x0, const uint16_t y0,
     lcd_drawstart();
     lcd_draw(colour);
     lcd_drawstop();
+}
+
+void lcd_wakeup()
+{
+    lcd_wrcmd8(LCD_CMD_SLEEPOUT);
+    delay_ms(120);
+    DISABLE_IRQ();
+    // set pwm to black
+    TMR_TMR16B1MR0 = 0xffff;
+    _enable_pwm();
+    ENABLE_IRQ();
+    lcd_setbrightness(lcd_brightness_awake_backup);
 }
 
 void TIMER16_0_IRQHandler()
