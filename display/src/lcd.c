@@ -26,6 +26,39 @@
 
 #define LCD_MASKED_GPIO(mask, value) *(pREG32(GPIO_GPIO2_BASE | (mask << 2))) = value
 
+static uint16_t lcd_brightness_goal VAR_RAM = 0xC000;
+
+/* alphabetical order broken so that inlines appear before their use */
+
+inline void lcd_wrcmd8(uint8_t cmd)
+{
+    LCD_MASKED_GPIO(LCD_RS_MASK, 0);
+    LCD_MASKED_GPIO(LCD_WR_MASK, 0);
+    LCD_MASKED_GPIO(LCD_DATA_MASK, cmd);
+    NOP();
+    LCD_MASKED_GPIO(LCD_WR_MASK, LCD_WR_MASK);
+    LCD_MASKED_GPIO(LCD_RS_MASK, LCD_RS_MASK);
+}
+
+inline void lcd_wrdata8(uint8_t data)
+{
+    LCD_MASKED_GPIO(LCD_WR_MASK, 0);
+    LCD_MASKED_GPIO(LCD_DATA_MASK, data);
+    NOP();
+    LCD_MASKED_GPIO(LCD_WR_MASK, LCD_WR_MASK);
+}
+
+inline void lcd_wrdata16(uint16_t data)
+{
+    lcd_wrdata8((data >> 8) & 0xff);
+    lcd_wrdata8(data & 0xff);
+}
+
+inline void lcd_draw(uint16_t colour)
+{
+    lcd_wrdata16(colour);
+}
+
 inline void lcd_disable()
 {
     LCD_MASKED_GPIO(LCD_CS_MASK, LCD_CS_MASK);
@@ -44,11 +77,6 @@ inline void lcd_drawstart()
 inline void lcd_drawstop()
 {
 
-}
-
-inline void lcd_draw(uint16_t colour)
-{
-    lcd_wrdata16(colour);
 }
 
 void lcd_init()
@@ -261,30 +289,6 @@ inline void lcd_setpixel(const uint16_t x0, const uint16_t y0,
     lcd_drawstart();
     lcd_draw(colour);
     lcd_drawstop();
-}
-
-inline void lcd_wrcmd8(uint8_t cmd)
-{
-    LCD_MASKED_GPIO(LCD_RS_MASK, 0);
-    LCD_MASKED_GPIO(LCD_WR_MASK, 0);
-    LCD_MASKED_GPIO(LCD_DATA_MASK, cmd);
-    NOP();
-    LCD_MASKED_GPIO(LCD_WR_MASK, LCD_WR_MASK);
-    LCD_MASKED_GPIO(LCD_RS_MASK, LCD_RS_MASK);
-}
-
-inline void lcd_wrdata8(uint8_t data)
-{
-    LCD_MASKED_GPIO(LCD_WR_MASK, 0);
-    LCD_MASKED_GPIO(LCD_DATA_MASK, data);
-    NOP();
-    LCD_MASKED_GPIO(LCD_WR_MASK, LCD_WR_MASK);
-}
-
-inline void lcd_wrdata16(uint16_t data)
-{
-    lcd_wrdata8((data >> 8) & 0xff);
-    lcd_wrdata8(data & 0xff);
 }
 
 void TIMER16_0_IRQHandler()
