@@ -204,6 +204,34 @@ void lcd_init()
     lcd_disable();
 }
 
+void lcd_init_backlight(uint16_t initial_brightness)
+{
+    GPIO_GPIO1DIR |= (1<<9);
+    GPIO_GPIO1DATA &= ~(1<<9);
+
+    // display backlight fading timer
+    TMR_TMR16B0TC = 0;
+    TMR_TMR16B0PR = 24000-1; // prescale to two ticks per ms
+    TMR_TMR16B0PC = 0;
+    TMR_TMR16B0MCR = TMR_TMR16B0MCR_MR0_INT_ENABLED
+                   | TMR_TMR16B0MCR_MR0_RESET_ENABLED;
+    TMR_TMR16B0MR0 = 20; // fade update interval
+    TMR_TMR16B0TCR = (1<<0); // enable timer
+
+    // display backlight pwm
+    IOCON_PIO1_9 = (0x1<<0); //PIO1_9/CT16B1MAT0 -> PWM
+    TMR_TMR16B1TC   = 0;
+    TMR_TMR16B1PR   = 0; //no prescale
+    TMR_TMR16B1PC   = 0;
+    TMR_TMR16B1CTCR = 0;
+    TMR_TMR16B1MR0  = ~initial_brightness;
+    TMR_TMR16B1MR3  = 0xFFFF;
+    TMR_TMR16B1MCR  = TMR_TMR16B1MCR_MR3_RESET_ENABLED;
+    TMR_TMR16B1PWMC = TMR_TMR16B1PWMC_PWM0_ENABLED
+                    | TMR_TMR16B1PWMC_PWM3_ENABLED; //PWM chn 0 on
+    TMR_TMR16B1TCR  = (1<<0); //enable timer
+}
+
 void lcd_setarea(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1)
 {
     lcd_wrcmd8(LCD_CMD_COLUMN);
@@ -213,6 +241,17 @@ void lcd_setarea(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1)
     lcd_wrcmd8(LCD_CMD_PAGE);
     lcd_wrdata16(x0);
     lcd_wrdata16(x1);
+}
+
+void lcd_setbrightness(uint16_t new_brightness)
+{
+    lcd_brightness_goal = ~new_brightness;
+}
+
+void lcd_setbrightness_nofade(uint16_t new_brightness)
+{
+    lcd_brightness_goal = ~new_brightness;
+    TMR_TMR16B0MR0 = ~new_brightness;
 }
 
 inline void lcd_setpixel(const uint16_t x0, const uint16_t y0,
@@ -246,4 +285,13 @@ inline void lcd_wrdata16(uint16_t data)
 {
     lcd_wrdata8((data >> 8) & 0xff);
     lcd_wrdata8(data & 0xff);
+}
+
+void TIMER16_0_IRQHandler()
+{
+    uint32_t intermediate = TMR_TMR16B1MR0;
+    // moving average for smoooooooooooth fading :)
+    intermediate = intermediate * 15 + lcd_brightness_goal;
+    TMR_TMR16B1MR0 = intermediate / 16;
+    TMR_TMR16B0IR = TMR_TMR16B0IR_MR0;
 }

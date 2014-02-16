@@ -68,8 +68,12 @@ void lcd_drawstart();
 void lcd_drawstop();
 void lcd_enable();
 void lcd_init();
+/* This must be called with interrupts disabled! */
+void lcd_init_backlight(uint16_t initial_brightness);
 void lcd_reset();
 void lcd_setarea(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1);
+void lcd_setbrightness(uint16_t new_brightness);
+void lcd_setbrightness_nofade(uint16_t new_brightness);
 void lcd_setpixel(const uint16_t x0, const uint16_t y0, const colour_t colour);
 void lcd_wrcmd8(uint8_t cmd);
 void lcd_wrdata8(uint8_t data);

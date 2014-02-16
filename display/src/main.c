@@ -51,7 +51,6 @@ void uint32_to_hex(const uint32_t c, uint8_t *dest)
 
 static int irq_called VAR_RAM = 0;
 static volatile bool msg_pending = false;
-static uint16_t lcd_brightness_goal VAR_RAM = 0xC000;
 
 
 void ADC_IRQHandler(void)
@@ -288,7 +287,7 @@ static inline void handle_idle_command()
     }
     case LPC_CMD_SET_BRIGHTNESS:
     {
-        lcd_brightness_goal = 0xffff - msg_cmd.args.set_brightness.brightness;
+        lcd_setbrightness(msg_cmd.args.set_brightness.brightness);
     }
     case LPC_CMD_DRAW_IMAGE_DATA:
     case LPC_CMD_DRAW_IMAGE_END:
@@ -392,15 +391,6 @@ static inline void handle_command()
 
 }
 
-void TIMER16_0_IRQHandler()
-{
-    uint32_t intermediate = TMR_TMR16B1MR0;
-    // moving average for smoooooooooooth fading :)
-    intermediate = intermediate * 15 + lcd_brightness_goal;
-    TMR_TMR16B1MR0 = intermediate / 16;
-    TMR_TMR16B0IR = TMR_TMR16B0IR_MR0;
-}
-
 int main(void)
 {
     struct msg_header_t msg_header = {0};
@@ -431,35 +421,12 @@ int main(void)
                       |  SCB_SYSAHBCLKCTRL_CT16B0
                       |  SCB_SYSAHBCLKCTRL_ADC;
 
-    GPIO_GPIO1DIR |= (1<<9);
-    GPIO_GPIO1DATA &= ~(1<<9);
-
-    // display backlight fading timer
-    TMR_TMR16B0TC = 0;
-    TMR_TMR16B0PR = 24000-1; // prescale to two ticks per ms
-    TMR_TMR16B0PC = 0;
-    TMR_TMR16B0MCR = TMR_TMR16B0MCR_MR0_INT_ENABLED
-                   | TMR_TMR16B0MCR_MR0_RESET_ENABLED;
-    TMR_TMR16B0MR0 = 20; // fade update interval
-    TMR_TMR16B0TCR = (1<<0); // enable timer
-
-    // display backlight pwm
-    IOCON_PIO1_9 = (0x1<<0); //PIO1_9/CT16B1MAT0 -> PWM
-    TMR_TMR16B1TC   = 0;
-    TMR_TMR16B1PR   = 0; //no prescale
-    TMR_TMR16B1PC   = 0;
-    TMR_TMR16B1CTCR = 0;
-    TMR_TMR16B1MR0  = 0xFFFF;
-    TMR_TMR16B1MR3  = 0xFFFF;
-    TMR_TMR16B1MCR  = TMR_TMR16B1MCR_MR3_RESET_ENABLED;
-    TMR_TMR16B1PWMC = TMR_TMR16B1PWMC_PWM0_ENABLED
-                    | TMR_TMR16B1PWMC_PWM3_ENABLED; //PWM chn 0 on
-    TMR_TMR16B1TCR  = (1<<0); //enable timer
-
     ADC_AD0CR = (((CFG_CPU_CCLK/4000000UL)-1)<< 8) | //4MHz
                                           (0<<16) | //burst off
                                         (0x0<<17) | //10bit
                                         (0x0<<24);  //stop
+
+    lcd_init_backlight(0x0000);
 
     TMR_TMR32B0TC = 0;
     TMR_TMR32B0PR = 48000-1; // prescale to one tick per ms
@@ -475,6 +442,8 @@ int main(void)
     lcd_enable();
 
     fill_rectangle(0, 0, LCD_WIDTH-1, LCD_HEIGHT-1, 0xffff);
+
+    lcd_setbrightness(0xC000);
 
     // after initializing everything, enable interrupts
 
