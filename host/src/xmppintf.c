@@ -1509,8 +1509,8 @@ int xmppintf_send_ping(xmpp_conn_t *const conn, void *const userdata)
 void *xmppintf_thread(struct xmpp_t *xmpp)
 {
     pthread_mutex_lock(&xmpp->conn_mutex);
+    xmpp->ctx = xmpp_ctx_new(NULL, xmpp->log);
     while (!xmpp->terminated) {
-        xmpp->ctx = xmpp_ctx_new(NULL, xmpp->log);
         xmpp->conn = xmpp_conn_new(xmpp->ctx);
         xmpp_conn_set_jid(xmpp->conn, xmpp->jid);
         xmpp_conn_set_pass(xmpp->conn, xmpp->pass);
@@ -1522,8 +1522,9 @@ void *xmppintf_thread(struct xmpp_t *xmpp)
                 &xmppintf_conn_state_change, xmpp) != 0)
         {
             fprintf(stderr, "xmpp: xmpp_connect_client failed, retrying later\n");
+            xmpp_conn_release(xmpp->conn);
             pthread_mutex_unlock(&xmpp->conn_mutex);
-            sleep(3);
+            sleep(15);
             pthread_mutex_lock(&xmpp->conn_mutex);
             continue;
         }
