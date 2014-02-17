@@ -67,6 +67,7 @@ void broker_init(
     struct broker_t *broker,
     struct comm_t *comm,
     struct xmpp_t *xmpp);
+bool broker_is_asleep(struct broker_t *broker);
 void broker_process_lpc_message(
     struct broker_t *broker, struct lpc_msg_t *msg);
 void broker_process_comm_message(struct broker_t *broker, void *item);
@@ -79,7 +80,13 @@ void broker_repaint_tabbar(
     struct broker_t *broker);
 void broker_repaint_time(
     struct broker_t *broker);
+void broker_reset_sleepout_timer(
+    struct broker_t *broker);
 void broker_run_next_task(struct broker_t *broker);
+bool broker_sleep_timer(
+    struct broker_t *broker,
+    struct timespec *next_run,
+    void *userdata);
 void broker_switch_screen(
     struct broker_t *broker,
     int new_screen);
@@ -91,6 +98,8 @@ bool broker_update_time(
     struct broker_t *broker,
     struct timespec *next_run,
     void *userdata);
+void broker_wake_up(
+    struct broker_t *broker);
 bool broker_weather_request(
     struct broker_t *broker,
     struct timespec *next_run,
@@ -201,6 +210,7 @@ void broker_free(struct broker_t *broker)
     pthread_join(broker->thread, NULL);
 
     pthread_mutex_destroy(&broker->screen_mutex);
+    pthread_mutex_destroy(&broker->activity_mutex);
 
     for (int i = 0;
          i < array_length(&broker->tasks.array);
@@ -231,10 +241,15 @@ void broker_handle_touch_down(
     coord_int_t x, coord_int_t y)
 {
     broker->touch_is_up = false;
+    if (broker_is_asleep(broker)) {
+        broker_wake_up(broker);
+        return;
+    }
     int new_screen = broker_tab_hit_test(broker, x, y);
     if ((new_screen != -1) && (new_screen != broker->active_screen)) {
         broker_switch_screen(broker, new_screen);
     }
+    broker_reset_sleepout_timer(broker);
 }
 
 void broker_handle_touch_move(
@@ -249,6 +264,7 @@ void broker_handle_touch_up(
     coord_int_t x, coord_int_t y)
 {
     broker->touch_is_up = true;
+    broker_reset_sleepout_timer(broker);
 }
 
 void broker_init(
@@ -260,7 +276,9 @@ void broker_init(
     broker->comm = comm;
     broker->xmpp = xmpp;
     broker->touch_is_up = true;
+    broker->asleep = false;
     broker->active_screen = 0;
+    timestamp_gettime(&broker->last_activity);
     heap_init(&broker->tasks, 32, (heap_less_t)&task_less);
 
     screen_create(
@@ -292,10 +310,20 @@ void broker_init(
     screen_misc_init(&broker->screens[SCREEN_MISC]);
 
     pthread_mutex_init(&broker->screen_mutex, NULL);
+    pthread_mutex_init(&broker->activity_mutex, NULL);
     pthread_create(
         &broker->thread, NULL,
         (void*(*)(void*))&broker_thread,
         broker);
+}
+
+bool broker_is_asleep(struct broker_t *broker)
+{
+    bool result;
+    pthread_mutex_lock(&broker->activity_mutex);
+    result = broker->asleep;
+    pthread_mutex_unlock(&broker->activity_mutex);
+    return result;
 }
 
 void broker_process_lpc_message(
@@ -438,6 +466,18 @@ void broker_repaint_time(
         buffer);
 }
 
+void broker_reset_sleepout_timer(struct broker_t *broker)
+{
+    pthread_mutex_lock(&broker->activity_mutex);
+    if (broker->asleep) {
+        pthread_mutex_unlock(&broker->activity_mutex);
+        broker_wake_up(broker);
+        return;
+    }
+    timestamp_gettime(&broker->last_activity);
+    pthread_mutex_unlock(&broker->activity_mutex);
+}
+
 void broker_run_next_task(struct broker_t *broker)
 {
     struct task_t *task = heap_pop_min(&broker->tasks);
@@ -510,6 +550,37 @@ void broker_remove_task_func(
 
 }
 
+bool broker_sleep_timer(
+    struct broker_t *broker,
+    struct timespec *next_run,
+    void *userdata)
+{
+    struct timespec now;
+
+    pthread_mutex_lock(&broker->activity_mutex);
+    if (broker->asleep) {
+        pthread_mutex_unlock(&broker->activity_mutex);
+        return false;
+    }
+    timestamp_gettime(&now);
+    if (timestamp_delta_in_msec(&now, &broker->last_activity) >= SLEEPOUT_TIMER) {
+        lpcd_lullaby(broker->comm);
+        pthread_mutex_lock(&broker->screen_mutex);
+        if (broker->active_screen >= 0) {
+            struct screen_t *curr_screen = &broker->screens[broker->active_screen];
+            screen_hide(curr_screen);
+        }
+        pthread_mutex_unlock(&broker->screen_mutex);
+        broker->asleep = true;
+        pthread_mutex_unlock(&broker->activity_mutex);
+        return false;
+    }
+    pthread_mutex_unlock(&broker->activity_mutex);
+
+    timestamp_add_msec(next_run, SLEEPOUT_TIMER_INTERVAL);
+    return true;
+}
+
 void _broker_thread_handle_comm(
     struct broker_t *broker, int fd)
 {
@@ -538,6 +609,7 @@ void _broker_thread_handle_comm(
     {
         fprintf(stderr, "broker: debug: comm ready.\n");
         lpcd_state_reset(broker->comm);
+        lpcd_wake_up(broker->comm);
         broker_repaint_screen(broker);
         broker_repaint_tabbar(broker);
         break;
@@ -611,6 +683,8 @@ void *broker_thread(struct broker_t *state)
 
     broker_enqueue_new_task_in(
         state, &broker_update_time, 0, NULL);
+    broker_enqueue_new_task_in(
+        state, &broker_sleep_timer, SLEEPOUT_TIMER_INTERVAL, NULL);
 
     while (!state->terminated)
     {
@@ -650,11 +724,37 @@ bool broker_update_time(
     void *userdata)
 {
     timestamp_gettime_in_future(next_run, 1000);
-    if (!comm_is_available(broker->comm)) {
+    if (!comm_is_available(broker->comm) || broker_is_asleep(broker)) {
         return true;
     }
     broker_repaint_time(broker);
     return true;
+}
+
+void broker_wake_up(struct broker_t *broker)
+{
+    pthread_mutex_lock(&broker->activity_mutex);
+    if (!broker->asleep) {
+        pthread_mutex_unlock(&broker->activity_mutex);
+        return;
+    }
+    timestamp_gettime(&broker->last_activity);
+    broker->asleep = false;
+    lpcd_wake_up(broker->comm);
+    lpcd_set_brightness(broker->comm, 0x0fff);
+    broker_enqueue_new_task_in(
+        broker, &broker_sleep_timer, SLEEPOUT_TIMER_INTERVAL, NULL);
+
+    // force full repaint
+    pthread_mutex_lock(&broker->screen_mutex);
+    if (broker->active_screen >= 0) {
+        struct screen_t *curr_screen = &broker->screens[broker->active_screen];
+        screen_hide(curr_screen);
+        broker_repaint_screen_nolock(broker);
+    }
+    pthread_mutex_unlock(&broker->screen_mutex);
+
+    pthread_mutex_unlock(&broker->activity_mutex);
 }
 
 bool broker_weather_request(

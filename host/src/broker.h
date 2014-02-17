@@ -15,6 +15,8 @@
 #define SCREEN_MISC                     (3)
 
 #define CLOCK_UPDATE_INTERVAL           (1000)
+#define SLEEPOUT_TIMER                  (60000)
+#define SLEEPOUT_TIMER_INTERVAL         (5000)
 
 struct broker_t;
 
@@ -37,6 +39,9 @@ struct broker_t {
 
     bool touch_is_up;
     bool terminated;
+    pthread_mutex_t activity_mutex;
+    bool asleep;
+    struct timespec last_activity;
     pthread_mutex_t screen_mutex;
     struct screen_t screens[SCREEN_COUNT];
     int active_screen;
