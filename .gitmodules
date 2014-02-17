@@ -1,3 +1,7 @@
 [submodule "display/microbuilder-codebase"]
 	path = display/microbuilder-codebase
 	url = https://github.com/microbuilder/LPC1114CodeBase
+[submodule "arduino/Arduino-Makefile"]
+	path = arduino/Arduino-Makefile
+	url = https://github.com/sudar/Arduino-Makefile/
+	branch = master
