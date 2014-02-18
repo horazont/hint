@@ -17,9 +17,9 @@ typedef uint8_t msg_checksum_t;
 typedef uint8_t msg_address_t;
 typedef uint16_t msg_length_t;
 
-#define MSG_ADDRESS_HOST                    (0x0)
-#define MSG_ADDRESS_LPC1114                 (0x1)
-#define MSG_ADDRESS_ARDUINO                 (0x2)
+#define MSG_ADDRESS_HOST                    (0x0UL)
+#define MSG_ADDRESS_LPC1114                 (0x1UL)
+#define MSG_ADDRESS_ARDUINO                 (0x2UL)
 
 //! acknowledgement of a previous message
 #define MSG_FLAG_ACK                        (0x10)
@@ -112,8 +112,12 @@ struct msg_buffer_t {
     struct msg_t msg;
 };
 
+#if __STDC_VERSION__ >= 201112L
+
 _Static_assert(sizeof(struct msg_header_t) == sizeof(uint32_t),
                "Header isn't properly packed");
+
+#endif
 
 #define CHECKSUM_PRIME (13)
 

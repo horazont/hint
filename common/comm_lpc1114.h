@@ -111,4 +111,6 @@ _Static_assert(sizeof(struct lpc_cmd_t) <= MSG_MAX_PAYLOAD,
 
 #endif
 
+#define LPC_I2C_ADDRESS (0x22)
+
 #endif
