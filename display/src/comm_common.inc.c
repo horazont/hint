@@ -28,19 +28,19 @@ static inline void swap_app_buffers()
 }
 
 static inline bool comm_enqueue_tx_nowait(
-    struct comm_port_t *port,
+    struct comm_port_queue_t *queue,
     const volatile struct msg_header_t *header,
     const volatile uint8_t *data,
     const volatile msg_checksum_t checksum,
     volatile bool *flag_to_clear)
 {
     for (int i = 0; i < MSG_QUEUE_SIZE; i++) {
-        if (port->queue[i].empty) {
-            port->queue[i].empty = false;
-            port->queue[i].flag_to_clear = flag_to_clear;
-            port->queue[i].header = header;
-            port->queue[i].data = data;
-            port->queue[i].checksum = checksum;
+        if (queue->items[i].empty) {
+            queue->items[i].empty = false;
+            queue->items[i].flag_to_clear = flag_to_clear;
+            queue->items[i].header = header;
+            queue->items[i].data = data;
+            queue->items[i].checksum = checksum;
             return true;
         }
     }

@@ -55,7 +55,7 @@ static inline enum msg_status_t comm_tx_message_uart(
     volatile bool pending = true;
     NVIC_DisableIRQ(UART_IRQn);
     while (!comm_enqueue_tx_nowait(
-            &uart,
+            &uart.queue,
             hdr,
             payload,
             checksum,

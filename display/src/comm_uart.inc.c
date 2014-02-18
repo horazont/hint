@@ -1,25 +1,25 @@
 /* types */
 
 typedef enum {
-    RX_IDLE,
-    RX_RECEIVE_HEADER,
-    RX_RECEIVE_PAYLOAD,
-    RX_RECEIVE_CHECKSUM,
-    RX_DUMP
+    RXU_IDLE,
+    RXU_RECEIVE_HEADER,
+    RXU_RECEIVE_PAYLOAD,
+    RXU_RECEIVE_CHECKSUM,
+    RXU_DUMP
 } uart_rx_state_t;
 
 typedef enum {
-    TX_IDLE,
-    TX_SEND_HEADER,
-    TX_SEND_PSEUDOHEADER,
-    TX_SEND_PAYLOAD,
-    TX_SEND_CHECKSUM
+    TXU_IDLE,
+    TXU_SEND_HEADER,
+    TXU_SEND_PSEUDOHEADER,
+    TXU_SEND_PAYLOAD,
+    TXU_SEND_CHECKSUM
 } uart_tx_state_t;
 
 /* data */
 
-static uart_rx_state_t uart_rx_state VAR_RAM = RX_IDLE;
-static uart_tx_state_t uart_tx_state VAR_RAM = TX_IDLE;
+static uart_rx_state_t uart_rx_state VAR_RAM = RXU_IDLE;
+static uart_tx_state_t uart_tx_state VAR_RAM = TXU_IDLE;
 static struct comm_port_t uart VAR_RAM = {
     .state = {
         .curr_header = {0},
@@ -31,17 +31,19 @@ static struct comm_port_t uart VAR_RAM = {
         .dest_msg = NULL
     },
     .queue = {
-        {
-            .empty = true
+        .items = {
+            {
+                .empty = true
+            },
+            {
+                .empty = true
+            }
         },
-        {
-            .empty = true
-        }
+        .active_item = -1
     },
     .route_buffer = {
         .in_use = false
     },
-    .active_queue = -1
 };
 
 static uint8_t pending_pings VAR_RAM = 0;
@@ -120,86 +122,86 @@ static inline bool uart_tx_trns()
 void uart_tx_irq()
 {
     switch (uart_tx_state) {
-    case TX_IDLE:
+    case TXU_IDLE:
     {
         if (pending_pings > 0) {
             pending_pings -= 1;
-            uart_tx_state = TX_SEND_PSEUDOHEADER;
+            uart_tx_state = TXU_SEND_PSEUDOHEADER;
             uart.state.trns_src = (const volatile uint8_t*)(&ping_header);
             uart.state.trns_end = uart.state.trns_src + sizeof(struct msg_header_t);
             // this is more than ugly (we just proceed to
-            // TX_SEND_HEADER). but we can do that because only one
+            // TXU_SEND_HEADER). but we can do that because only one
             // byte gets transmitted per uart_tx_trns() call.
             uart_tx_irq();
             break;
         } else {
             for (uint_fast8_t i = 0; i < MSG_QUEUE_SIZE; i++) {
-                if (!uart.queue[i].empty) {
-                    uart.active_queue = i;
+                if (!uart.queue.items[i].empty) {
+                    uart.queue.active_item = i;
                     break;
                 }
             }
-            if (uart.active_queue == -1) {
+            if (uart.queue.active_item == -1) {
                 UART_U0IER &= ~(UART_U0IER_THRE_Interrupt_Enabled);
                 return;
             }
-            uart_tx_state = TX_SEND_HEADER;
-            uart.state.trns_src = (const volatile uint8_t*)uart.queue[uart.active_queue].header;
+            uart_tx_state = TXU_SEND_HEADER;
+            uart.state.trns_src = (const volatile uint8_t*)uart.queue.items[uart.queue.active_item].header;
             uart.state.trns_end = uart.state.trns_src + sizeof(struct msg_header_t);
         }
     }
-    case TX_SEND_HEADER:
+    case TXU_SEND_HEADER:
     {
         if (!uart_tx_trns()) {
             return;
         }
-        uint16_t len = HDR_GET_PAYLOAD_LENGTH(*uart.queue[uart.active_queue].header);
+        uint16_t len = HDR_GET_PAYLOAD_LENGTH(*uart.queue.items[uart.queue.active_item].header);
         if (len == 0) {
             // allow tx-ing payloadless messages
-            uart_tx_state = TX_IDLE;
-            if (uart.queue[uart.active_queue].flag_to_clear) {
-                *uart.queue[uart.active_queue].flag_to_clear = false;
+            uart_tx_state = TXU_IDLE;
+            if (uart.queue.items[uart.queue.active_item].flag_to_clear) {
+                *uart.queue.items[uart.queue.active_item].flag_to_clear = false;
             }
-            uart.queue[uart.active_queue].empty = true;
-            uart.active_queue = -1;
+            uart.queue.items[uart.queue.active_item].empty = true;
+            uart.queue.active_item = -1;
             break;
         }
-        uart_tx_state = TX_SEND_PAYLOAD;
-        uart.state.trns_src = uart.queue[uart.active_queue].data;
+        uart_tx_state = TXU_SEND_PAYLOAD;
+        uart.state.trns_src = uart.queue.items[uart.queue.active_item].data;
         uart.state.trns_end = uart.state.trns_src + len;
         break;
     }
-    case TX_SEND_PSEUDOHEADER:
+    case TXU_SEND_PSEUDOHEADER:
     {
         if (!uart_tx_trns()) {
             return;
         }
-        uart_tx_state = TX_IDLE;
+        uart_tx_state = TXU_IDLE;
         // pseudoheader packets are not associated to any buffer, nor
-        // do they have a payload. so just reset to TX_IDLE.
+        // do they have a payload. so just reset to TXU_IDLE.
         break;
     }
-    case TX_SEND_PAYLOAD:
+    case TXU_SEND_PAYLOAD:
     {
         if (!uart_tx_trns()) {
             return;
         }
-        uart_tx_state = TX_SEND_CHECKSUM;
-        uart.state.trns_src = (const uint8_t*)&uart.queue[uart.active_queue].checksum;
+        uart_tx_state = TXU_SEND_CHECKSUM;
+        uart.state.trns_src = (const uint8_t*)&uart.queue.items[uart.queue.active_item].checksum;
         uart.state.trns_end = uart.state.trns_src + sizeof(msg_checksum_t);
         break;
     }
-    case TX_SEND_CHECKSUM:
+    case TXU_SEND_CHECKSUM:
     {
         if (!uart_tx_trns()) {
             return;
         }
-        uart_tx_state = TX_IDLE;
-        if (uart.queue[uart.active_queue].flag_to_clear) {
-            *uart.queue[uart.active_queue].flag_to_clear = false;
+        uart_tx_state = TXU_IDLE;
+        if (uart.queue.items[uart.queue.active_item].flag_to_clear) {
+            *uart.queue.items[uart.queue.active_item].flag_to_clear = false;
         }
-        uart.queue[uart.active_queue].empty = true;
-        uart.active_queue = -1;
+        uart.queue.items[uart.queue.active_item].empty = true;
+        uart.queue.active_item = -1;
         break;
     }
     }
@@ -209,7 +211,7 @@ static inline void uart_tx_trigger()
 {
     // only trigger if uart tx is in IDLE state; otherwise, it'll
     // retrigger automatically
-    if (uart_tx_state == TX_IDLE) {
+    if (uart_tx_state == TXU_IDLE) {
         UART_U0IER |= UART_U0IER_THRE_Interrupt_Enabled;
         if (UART_U0LSR & UART_U0LSR_THRE) {
             uart_tx_irq();
@@ -254,20 +256,20 @@ static inline bool uart_rx_recv_chksummed()
 static inline void uart_rx_irq_end_of_transmission()
 {
     switch (uart_rx_state) {
-    case RX_IDLE:
+    case RXU_IDLE:
     {
         // okay
         break;
     }
-    case RX_DUMP:
+    case RXU_DUMP:
     {
         // just stop dumping
-        uart_rx_state = RX_IDLE;
+        uart_rx_state = RXU_IDLE;
         break;
     }
-    case RX_RECEIVE_CHECKSUM:
-    case RX_RECEIVE_HEADER:
-    case RX_RECEIVE_PAYLOAD:
+    case RXU_RECEIVE_CHECKSUM:
+    case RXU_RECEIVE_HEADER:
+    case RXU_RECEIVE_PAYLOAD:
     {
         switch (HDR_GET_RECIPIENT(uart.state.curr_header)) {
         case MSG_ADDRESS_LPC1114:
@@ -283,7 +285,7 @@ static inline void uart_rx_irq_end_of_transmission()
             break;
         }
         }
-        uart_rx_state = RX_IDLE;
+        uart_rx_state = RXU_IDLE;
         break;
     }
     }
@@ -296,15 +298,15 @@ void uart_rx_irq()
     // on rx irq, we can reset the timer always
     TMR_COMM_TIMEOUT_TC = 0;
     switch (uart_rx_state) {
-    case RX_IDLE:
+    case RXU_IDLE:
     {
-        uart_rx_state = RX_RECEIVE_HEADER;
+        uart_rx_state = RXU_RECEIVE_HEADER;
         uart.state.recv_dest = (uint8_t*)(&uart.state.curr_header);
         uart.state.recv_end = (uint8_t*)(&uart.state.curr_header) + sizeof(struct msg_header_t);
         // missing break is intentional: receive the first bytes immediately
         TMR_COMM_TIMEOUT_TCR = (1<<0);
     }
-    case RX_RECEIVE_HEADER:
+    case RXU_RECEIVE_HEADER:
     {
         if (!uart_rx_recv()) {
             return;
@@ -318,13 +320,13 @@ void uart_rx_irq()
             {
                 // this is a ping, reply to it asap
                 pending_pings += 1;
-                uart_rx_state = RX_IDLE;
+                uart_rx_state = RXU_IDLE;
                 uart_tx_trigger();
                 return;
             }
             case MSG_FLAG_RESET:
             {
-                uart_rx_state = RX_IDLE;
+                uart_rx_state = RXU_IDLE;
                 appbuffer_back->in_use = false;
                 backbuffer_ready = false;
                 return;
@@ -335,7 +337,7 @@ void uart_rx_irq()
             if (appbuffer_back->in_use) {
                 //~ dropped_message = true;
                 //~ problem = COMM_ERR_NO_BACKBUFFER_AVAILABLE;
-                uart_rx_state = RX_DUMP;
+                uart_rx_state = RXU_DUMP;
                 uart.state.remaining =
                     HDR_GET_PAYLOAD_LENGTH(uart.state.curr_header)
                     +sizeof(msg_checksum_t);
@@ -353,7 +355,7 @@ void uart_rx_irq()
             if (uart.route_buffer.in_use) {
                 //~ dropped_message = true;
                 //~ problem = COMM_ERR_NO_ROUTEBUFFER_AVAILABLE;
-                uart_rx_state = RX_DUMP;
+                uart_rx_state = RXU_DUMP;
                 uart.state.remaining =
                     HDR_GET_PAYLOAD_LENGTH(uart.state.curr_header)
                     +sizeof(msg_checksum_t);
@@ -368,7 +370,7 @@ void uart_rx_irq()
             // discard, we have no idea where to forward to
             //~ dropped_message = true;
             //~ problem = COMM_ERR_UNKNOWN_RECIPIENT;
-            uart_rx_state = RX_DUMP;
+            uart_rx_state = RXU_DUMP;
             uart.state.remaining =
                 HDR_GET_PAYLOAD_LENGTH(uart.state.curr_header)
                 +sizeof(msg_checksum_t);
@@ -377,21 +379,21 @@ void uart_rx_irq()
         }
 
         CHECKSUM_CLEAR(uart.state.recv_checksum);
-        uart_rx_state = RX_RECEIVE_PAYLOAD;
+        uart_rx_state = RXU_RECEIVE_PAYLOAD;
         uart.state.recv_dest = &uart.state.dest_msg->msg.data[0];
         uart.state.recv_end = uart.state.recv_dest + HDR_GET_PAYLOAD_LENGTH(uart.state.curr_header);
         // we can smoothly continue here if more data is available
     }
-    case RX_RECEIVE_PAYLOAD:
+    case RXU_RECEIVE_PAYLOAD:
     {
         if (!uart_rx_recv_chksummed()) {
             return;
         }
-        uart_rx_state = RX_RECEIVE_CHECKSUM;
+        uart_rx_state = RXU_RECEIVE_CHECKSUM;
         uart.state.recv_dest = (uint8_t*)&uart.state.dest_msg->msg.checksum;
         uart.state.recv_end = uart.state.recv_dest + sizeof(msg_checksum_t);
     }
-    case RX_RECEIVE_CHECKSUM:
+    case RXU_RECEIVE_CHECKSUM:
     {
         if (!uart_rx_recv()) {
             return;
@@ -401,7 +403,7 @@ void uart_rx_irq()
             uart_rx_irq_end_of_transmission();
             break;
         }
-        uart_rx_state = RX_IDLE;
+        uart_rx_state = RXU_IDLE;
         // reset the timer
         TMR_COMM_TIMEOUT_TCR = (0<<0);
         copy_header(&uart.state.dest_msg->msg.header,
@@ -421,7 +423,7 @@ void uart_rx_irq()
         case MSG_ADDRESS_HOST:
         {
             if (!comm_enqueue_tx_nowait(
-                    &uart,
+                    &uart.queue,
                     &uart.state.dest_msg->msg.header,
                     &uart.state.dest_msg->msg.data[0],
                     uart.state.dest_msg->msg.checksum,
@@ -436,7 +438,7 @@ void uart_rx_irq()
         }
         break;
     }
-    case RX_DUMP:
+    case RXU_DUMP:
     {
         while (uart.state.remaining) {
             uint32_t status = UART_U0LSR;
@@ -446,7 +448,7 @@ void uart_rx_irq()
             UART_U0SCR = UART_U0RBR;
             uart.state.remaining--;
         }
-        uart_rx_state = RX_IDLE;
+        uart_rx_state = RXU_IDLE;
         // reset the timer
         TMR_COMM_TIMEOUT_TCR = (0<<0);
         break;
@@ -489,4 +491,3 @@ void UART_IRQHandler(void)
     }
     }
 }
-

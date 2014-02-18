@@ -11,6 +11,11 @@ struct port_queue_item_t {
     uint8_t checksum;
 };
 
+struct comm_port_queue_t {
+    struct port_queue_item_t items[MSG_QUEUE_SIZE];
+    int active_item;
+};
+
 struct comm_port_t {
     struct {
         struct msg_header_t curr_header;
@@ -26,8 +31,7 @@ struct comm_port_t {
 
     struct msg_buffer_t route_buffer;
 
-    struct port_queue_item_t queue[MSG_QUEUE_SIZE];
-    int active_queue;
+    struct comm_port_queue_t queue;
 };
 
 #endif
