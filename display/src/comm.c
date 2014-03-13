@@ -1,5 +1,7 @@
 #include "comm.h"
 
+#include "common/comm_lpc1114.h"
+
 #include "time.h"
 #include "config.h"
 
@@ -8,8 +10,10 @@
 #include "comm_internal.h"
 #include "comm_common.inc.c"
 #include "comm_uart.inc.c"
+#include "comm_i2c.inc.c"
 
-void comm_init(const uint32_t uart_baudrate)
+void comm_init(const uint32_t uart_baudrate,
+               const uint32_t i2c_bitrate)
 {
     for (int i = 0; i < 2; i++) {
         appbuffer[i].in_use = false;
@@ -18,6 +22,7 @@ void comm_init(const uint32_t uart_baudrate)
     frontbuffer_locked = false;
 
     uart_init(uart_baudrate);
+    i2c_init(i2c_bitrate);
 }
 
 struct msg_buffer_t *comm_get_rx_message()

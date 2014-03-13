@@ -13,14 +13,18 @@
 #define TMR_COMM_TIMEOUT_IR TMR_TMR32B0IR
 #define TMR_COMM_TIMEOUT_IR_RESET TMR_TMR32B0IR_MR0
 
+extern volatile uint32_t last_i2c_state;
+
 /**
  * Initialize the communication subsystem.
  *
- * This initializes the UART (and will later also initialize the SPI).
+ * This initializes the UART and the I²C bus.
  *
  * @param uart_baudrate baudrate to communicate with over the UART.
+ * @param i2c_bitrate the bitrate to communicate with over the I²C bus.
  */
-void comm_init(const uint32_t uart_baudrate);
+void comm_init(const uint32_t uart_baudrate,
+               const uint32_t i2c_bitrate);
 
 /**
  * Return received message. This should be called from the RX interrupt

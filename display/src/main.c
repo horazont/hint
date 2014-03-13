@@ -112,6 +112,7 @@ static coord_int_t prevz VAR_RAM = 0;
 
 static inline enum event_t wait_for_event()
 {
+    static uint8_t buf[9];
     struct ticks_t t1 = ticks_get();
     while (1) {
         do {
@@ -423,8 +424,6 @@ int main(void)
     cpuPllSetup(CPU_MULTIPLIER_3);
     systickInit((CFG_CPU_CCLK / 1000) * CFG_SYSTICK_DELAY_IN_MS);
 
-    comm_init(115200);
-
     DISABLE_IRQ();
 
     SCB_PDRUNCFG &= ~SCB_PDRUNCFG_ADC;
@@ -436,12 +435,15 @@ int main(void)
                       |  SCB_SYSAHBCLKCTRL_CT32B0
                       |  SCB_SYSAHBCLKCTRL_CT16B1
                       |  SCB_SYSAHBCLKCTRL_CT16B0
-                      |  SCB_SYSAHBCLKCTRL_ADC;
+                      |  SCB_SYSAHBCLKCTRL_ADC
+                      |  SCB_SYSAHBCLKCTRL_I2C;
 
     ADC_AD0CR = (((CFG_CPU_CCLK/4000000UL)-1)<< 8) | //4MHz
                                           (0<<16) | //burst off
                                         (0x0<<17) | //10bit
                                         (0x0<<24);  //stop
+
+    SCB_PRESETCTRL |= SCB_PRESETCTRL_I2C_RESETDISABLED; // de-assert I²C reset
 
     lcd_init_backlight(0x0000);
 
@@ -454,6 +456,7 @@ int main(void)
 
     ENABLE_IRQ();
 
+    comm_init(115200, 100000);
     lcd_init();
     touch_init();
     lcd_enable();
