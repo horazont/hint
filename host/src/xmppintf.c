@@ -452,6 +452,7 @@ void xmppintf_conn_state_change(xmpp_conn_t * const conn,
 
 void xmppintf_free(struct xmpp_t *xmpp)
 {
+    fprintf(stderr, "debug: xmppintf: free\n");
     pthread_mutex_lock(&xmpp->conn_mutex);
     xmpp->terminated = true;
     if (xmpp->conn) {
@@ -483,6 +484,7 @@ void xmppintf_free(struct xmpp_t *xmpp)
     }
 
     xmpp_shutdown();
+    fprintf(stderr, "debug: xmppintf: freed completely\n");
 }
 
 void xmppintf_free_queue_item(struct xmpp_queue_item_t *item)

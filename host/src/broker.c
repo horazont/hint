@@ -206,6 +206,7 @@ void broker_enqueue_task(struct broker_t *broker, struct task_t *task)
 
 void broker_free(struct broker_t *broker)
 {
+    fprintf(stderr, "debug: broker: free\n");
     broker->terminated = true;
     pthread_join(broker->thread, NULL);
 
@@ -225,6 +226,7 @@ void broker_free(struct broker_t *broker)
     {
         screen_free(&broker->screens[i]);
     }
+    fprintf(stderr, "debug: broker: freed completely\n");
 }
 
 struct task_t *broker_get_next_task(struct broker_t *broker)
