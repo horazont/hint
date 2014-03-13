@@ -934,8 +934,12 @@ void *comm_thread(struct comm_t *comm)
              timeout);
         bool timed_out = true;
         if (result < 0) {
-            panicf("comm: poll returned error: %d (%s)\n",
-                   errno, strerror(errno));
+            if (errno == EINTR) {
+                fprintf(stderr, "debug: comm: poll returned EINTR\n");
+            } else {
+                panicf("comm: poll returned error: %d (%s)\n",
+                       errno, strerror(errno));
+            }
         } else {
             timed_out = result == 0;
         }
