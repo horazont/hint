@@ -274,6 +274,7 @@ void comm_enqueue_msg(struct comm_t *comm, void *msg)
 
 void comm_free(struct comm_t *comm)
 {
+    fprintf(stderr, "debug: comm: free\n");
     comm->terminated = true;
     write(comm->signal_fd, "w", 1);
     pthread_join(comm->thread, NULL);
@@ -301,6 +302,7 @@ void comm_free(struct comm_t *comm)
 
     pthread_mutex_destroy(&comm->data_mutex);
     free(comm->_devfile);
+    fprintf(stderr, "debug: comm: freed completely\n");
 }
 
 void comm_init(
