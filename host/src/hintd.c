@@ -1,5 +1,6 @@
 #include <signal.h>
 #include <pthread.h>
+#include <stdlib.h>
 #include <unistd.h>
 
 #include "common/comm.h"
@@ -26,6 +27,16 @@ void sigterm(int signum)
 
 int main(int argc, char *argv[])
 {
+    struct sigaction sighandler;
+    memset(&sighandler, 0, sizeof(struct sigaction));
+
+    sighandler.sa_handler = SIG_IGN;
+    sigaction(SIGPIPE, &sighandler, NULL);
+
+    sighandler.sa_handler = sigterm;
+    sigaction(SIGTERM, &sighandler, NULL);
+    sigaction(SIGINT, &sighandler, NULL);
+
     struct xmpp_t xmpp;
     xmppintf_init(
         &xmpp,
@@ -46,12 +57,10 @@ int main(int argc, char *argv[])
 
     lpcd_set_brightness(&comm, 0x0FFF);
 
-    signal(SIGTERM, &sigterm);
-    signal(SIGINT, &sigterm);
-
     while (1) {
         if (sleep(PERIODIC_SLEEP) < PERIODIC_SLEEP) {
             if (terminated) {
+                fprintf(stderr, "hintd: sleep interrupted + terminated\n");
                 break;
             }
         }
