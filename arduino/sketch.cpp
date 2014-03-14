@@ -126,11 +126,7 @@ void loop() {
             // crc error
             break;
         }
-
         read_sensor_and_send_readout(addr);
-
-        delay(250);
     }
-    // delay(10000);
-    // delay(1000);
+    delay(10000);
 }
