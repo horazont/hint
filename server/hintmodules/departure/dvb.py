@@ -10,6 +10,8 @@ import urllib.error
 import hintmodules.utils
 import hintmodules.errors
 
+logger = logging.getLogger()
+
 def get_timestamp():
     import calendar
     return calendar.timegm(datetime.utcnow().utctimetuple())
@@ -74,17 +76,17 @@ class Departure(object):
             finally:
                 response.close()
         except socket.timeout as err:
-            logging.warn("temporarily not available: %s: %s", type(err), err)
+            logger.warn("temporarily not available: %s: %s", type(err), err)
             raise self._not_available() from err
         except http.client.BadStatusLine as err:
-            logging.warn("temporarily not available: %s: %s", type(err), err)
+            logger.warn("temporarily not available: %s: %s", type(err), err)
             raise self._not_available() from err
         except urllib.error.HTTPError as err:
             if err.code == 304:
                 return self._get_cached_data(stop_name)
             raise self._not_available() from err
         except urllib.error.URLError as err:
-            logging.warn("temporarily not available: %s: %s", type(err), err)
+            logger.warn("temporarily not available: %s: %s", type(err), err)
             raise self._not_available() from err
 
         self.cached_data[stop_name] = stop_filter.filter_departures(
