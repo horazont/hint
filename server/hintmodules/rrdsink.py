@@ -44,7 +44,7 @@ class RRDServer(object):
         if response.startswith("OK"):
             return
         elif response.startswith("ERROR"):
-            raise RRDToolError(response[6:])
+            raise RRDToolError(response[6:].strip())
         else:
             raise UnknownRRDToolResponse(response)
 
@@ -80,8 +80,11 @@ class RRDSink:
         self._ds_name = ds_name
 
     def put_sensor_value(self, timestamp, value):
-        self._server.update_ds_with_timestamp(
-            self._rrdfile,
-            self._ds_name,
-            timestamp,
-            value)
+        try:
+            self._server.update_ds_with_timestamp(
+                self._rrdfile,
+                self._ds_name,
+                timestamp,
+                value)
+        except RRDToolError as err:
+            logger.warn("Failed to submit sensor value: %s", err)
