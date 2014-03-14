@@ -626,9 +626,9 @@ void broker_submit_sensor_data(
         memcpy(&dest->sensor_id[0], &sensor_id[0], 7);
         dest->raw_value = raw_value;
 
-        fprintf(stderr, "broker: debug: wrote %d out of %d in current batch\n",
-                batch->write_offset,
-                MAX_READOUTS_IN_BATCH);
+        /* fprintf(stderr, "broker: debug: wrote %d out of %d in current batch\n", */
+        /*         batch->write_offset, */
+        /*         MAX_READOUTS_IN_BATCH); */
 
         if (batch->write_offset == MAX_READOUTS_IN_BATCH) {
             heap_insert(&broker->sensor.full_batches, batch);
