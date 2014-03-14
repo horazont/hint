@@ -38,6 +38,8 @@ int main(int argc, char *argv[])
     sigaction(SIGTERM, &sighandler, NULL);
     sigaction(SIGINT, &sighandler, NULL);
 
+    timestamp_sanity_check();
+
     struct xmpp_t xmpp;
     xmppintf_init(
         &xmpp,

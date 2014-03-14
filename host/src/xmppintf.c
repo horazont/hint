@@ -71,6 +71,36 @@ struct departure_callback_t *departure_callback_new(
     return cb;
 }
 
+struct sensor_submission_callback_t {
+    sensor_submission_callback_t callback;
+    struct sensor_readout_batch_t *batch;
+    void *userdata;
+};
+
+void sensor_submission_callback_free(struct sensor_submission_callback_t *cb)
+{
+    free(cb);
+}
+
+struct sensor_submission_callback_t *sensor_submission_callback_new(
+    sensor_submission_callback_t callback,
+    struct sensor_readout_batch_t *batch,
+    void *userdata)
+{
+    struct sensor_submission_callback_t *cb =
+        malloc(sizeof(struct sensor_submission_callback_t));
+
+    if (!cb) {
+        panicf("sensor_submission_callback_new: out of memory\n");
+    }
+
+    cb->callback = callback;
+    cb->batch = batch;
+    cb->userdata = userdata;
+
+    return cb;
+}
+
 /* iq callback handling */
 
 typedef void (*iq_response_callback_t)(
@@ -126,9 +156,7 @@ bool iq_callback_less(
 
 /* end of iq callback handling */
 
-const char *xmppintf_ns_sensor = "http://xmpp.zombofant.net/xmlns/sensor";
-
-const char *xmppintf_ns_public_transport = "http://xmpp.zombofant.net/xmlns/public-transport";
+const char *xmppintf_ns_public_transport = "https://xmlns.zombofant.net/xmpp/public-transport";
 /*
  * in an iq set, this defines the interval at which push updates shall
  * be sent
@@ -162,7 +190,8 @@ const char *xmppintf_ns_public_transport = "http://xmpp.zombofant.net/xmlns/publ
  *
  */
 
-const char *xmppintf_ns_meteo_service = "http://xmpp.zombofant.net/xmlns/meteo-service";
+const char *xmppintf_ns_meteo_service = "https://xmlns.zombofant.net/xmpp/meteo-service";
+const char *xmppintf_ns_sensor = "https://xmlns.zombofant.net/xmpp/sensor";
 
 /* namespace tag names */
 
@@ -195,6 +224,12 @@ const char *xml_pt_departure_time = "dt";
 const char *xml_pt_attr_departure_time_eta = "e";
 const char *xml_pt_attr_departure_time_destination = "d";
 const char *xml_pt_attr_departure_time_lane = "l";
+const char *xml_sensor_data = "data";
+const char *xml_sensor_point = "p";
+const char *xml_sensor_attr_sensortype = "st";
+const char *xml_sensor_attr_sensorid = "sid";
+const char *xml_sensor_attr_readout_time = "t";
+const char *xml_sensor_attr_raw_value = "rv";
 
 const char *xmppintf_ns_ping = "urn:xmpp:ping";
 
@@ -330,6 +365,10 @@ void xmppintf_handle_ping_reply(
     xmpp_stanza_t *const stanza,
     void *const userdata,
     enum xmpp_request_status_t status);
+int xmppintf_handle_presence(
+    xmpp_conn_t *const xmpp,
+    xmpp_stanza_t *const stanza,
+    void *const userdata);
 int xmppintf_handle_time_request(
     xmpp_conn_t *const conn,
     xmpp_stanza_t *const stanza,
@@ -422,6 +461,15 @@ void xmppintf_conn_state_change(xmpp_conn_t * const conn,
             "iq",
             "result",
             userdata);
+
+        xmpp_handler_add(
+            conn,
+            &xmppintf_handle_presence,
+            NULL,
+            "presence",
+            NULL,
+            userdata);
+
         xmpp_timed_handler_add(
             conn,
             &xmppintf_handle_iq_timeout,
@@ -801,6 +849,44 @@ int xmppintf_handle_last_activity_request(
     return 1;
 }
 
+void xmppintf_handle_sensor_submission_reply(
+    struct xmpp_t *const xmpp,
+    xmpp_stanza_t *const stanza,
+    void *const userdata,
+    enum xmpp_request_status_t status)
+{
+    struct sensor_submission_callback_t *cb = userdata;
+
+    switch (status)
+    {
+    case REQUEST_STATUS_ERROR:
+    {
+        xmpp_stanza_t *error_stanza = xmpp_stanza_get_children(stanza);
+        if (error_stanza) {
+            error_stanza = xmpp_stanza_get_children(error_stanza);
+        }
+        fprintf(stderr,
+                "xmpp: sensor_submission_reply: error: %s\n",
+                (error_stanza
+                 ? xmpp_stanza_get_name(error_stanza) :
+                 "no error stanza supplied"));
+        break;
+    }
+    default:
+    {
+        break;
+    }
+    }
+
+    cb->callback(
+        xmpp,
+        cb->batch,
+        cb->userdata,
+        status);
+
+    sensor_submission_callback_free(cb);
+}
+
 void xmppintf_handle_weather_reply(
     struct xmpp_t *const xmpp,
     xmpp_stanza_t *const stanza,
@@ -1085,6 +1171,42 @@ void xmppintf_handle_ping_reply(
         xmppintf_send_ping,
         xmpp->ping.probe_interval,
         xmpp);
+}
+
+int xmppintf_handle_presence(
+    xmpp_conn_t *const conn,
+    xmpp_stanza_t *const stanza,
+    void *const userdata)
+{
+    struct xmpp_t *const state = userdata;
+
+    const char *from = xmpp_stanza_get_attribute(stanza, "from");
+    const char *type = xmpp_stanza_get_attribute(stanza, "type");
+
+    fprintf(stderr, "xmppintf: debug: presence from='%s' type=%s\n",
+            from, (type == NULL ? "NULL" : type));
+
+    bool available;
+    if (type && (strcmp(type, "unavailable") == 0)) {
+        available = false;
+    } else if (!type) {
+        available = true;
+    } else {
+        return 1;
+    }
+
+    if (strcmp(from, state->weather.peer) == 0) {
+        pthread_mutex_lock(&state->status_mutex);
+        state->weather.peer_available = available;
+        pthread_mutex_unlock(&state->status_mutex);
+    }
+    if (strcmp(from, state->departure.peer) == 0) {
+        pthread_mutex_lock(&state->status_mutex);
+        state->departure.peer_available = available;
+        pthread_mutex_unlock(&state->status_mutex);
+    }
+
+    return 1;
 }
 
 int xmppintf_handle_time_request(
@@ -1533,10 +1655,14 @@ void *xmppintf_thread(struct xmpp_t *xmpp)
         pthread_mutex_unlock(&xmpp->conn_mutex);
         xmpp_resume(xmpp->ctx);
         pthread_mutex_lock(&xmpp->conn_mutex);
+        pthread_mutex_lock(&xmpp->status_mutex);
         xmppintf_clear_iq_heap(xmpp);
         xmpp_conn_release(xmpp->conn);
         xmpp->conn = NULL;
         xmpp->curr_status = PRESENCE_UNAVAILABLE;
+        xmpp->weather.peer_available = false;
+        xmpp->departure.peer_available = false;
+        pthread_mutex_unlock(&xmpp->status_mutex);
     }
 
     xmpp_ctx_free(xmpp->ctx);
@@ -1623,4 +1749,98 @@ void xmppintf_set_presence(
     xmpp_stanza_release(presence);
     pthread_mutex_unlock(&xmpp->status_mutex);
     pthread_mutex_unlock(&xmpp->conn_mutex);
+}
+
+bool xmppintf_submit_sensor_data(
+    struct xmpp_t *xmpp,
+    struct sensor_readout_batch_t *batch,
+    sensor_submission_callback_t callback,
+    void *const userdata)
+{
+    xmpp_ctx_t *const ctx = xmpp->ctx;
+    pthread_mutex_lock(&xmpp->conn_mutex);
+    xmpp_conn_t *const conn = xmpp->conn;
+    if (!conn) {
+        goto leave_with_error;
+    }
+
+    fprintf(stderr, "xmppintf: submitting sensor data batch\n");
+
+    isodate_buffer date_buffer;
+    char sensorid_buffer[15];
+    char value_buffer[15];
+
+    char *id_str = xmppintf_get_next_id(xmpp);
+    xmpp_stanza_t *root = iq(
+        xmpp->ctx,
+        "set",
+        xmpp->weather.peer,
+        id_str);
+    free(id_str);
+
+    xmpp_stanza_t *data = xmpp_stanza_new(ctx);
+    xmpp_stanza_set_name(data, xml_sensor_data);
+    xmpp_stanza_set_ns(data, xmppintf_ns_sensor);
+
+    for (int i = 0; i < batch->write_offset; i++) {
+        struct sensor_readout_t *curr = &batch->data[i];
+        format_isodate(date_buffer, gmtime(&curr->readout_time));
+        snprintf(sensorid_buffer,
+                 sizeof(sensorid_buffer),
+                 "%02x%02x%02x%02x%02x%02x%02x",
+                 curr->sensor_id[0],
+                 curr->sensor_id[1],
+                 curr->sensor_id[2],
+                 curr->sensor_id[3],
+                 curr->sensor_id[4],
+                 curr->sensor_id[5],
+                 curr->sensor_id[6]);
+        snprintf(value_buffer,
+                 sizeof(value_buffer),
+                 "%hd",
+                 curr->raw_value);
+
+        xmpp_stanza_t *p = xmpp_stanza_new(ctx);
+        xmpp_stanza_set_name(p, xml_sensor_point);
+        xmpp_stanza_set_attribute(
+            p, xml_sensor_attr_sensortype, "T");
+        xmpp_stanza_set_attribute(
+            p, xml_sensor_attr_sensorid, sensorid_buffer);
+        xmpp_stanza_set_attribute(
+            p, xml_sensor_attr_readout_time, date_buffer);
+        xmpp_stanza_set_attribute(
+            p, xml_sensor_attr_raw_value, value_buffer);
+        xmpp_stanza_add_child(data, p);
+        xmpp_stanza_release(p);
+    }
+
+    xmpp_stanza_add_child(root, data);
+    xmpp_stanza_release(data);
+
+    xmppintf_send_iq_with_callback(
+        xmpp,
+        root,
+        &xmppintf_handle_sensor_submission_reply,
+        xmpp->weather.timeout_interval,
+        sensor_submission_callback_new(
+            callback,
+            batch,
+            userdata));
+
+    pthread_mutex_unlock(&xmpp->conn_mutex);
+    return true;
+
+leave_with_error:
+    pthread_mutex_unlock(&xmpp->conn_mutex);
+    return false;
+}
+
+bool xmppintf_weather_peer_is_available(
+    struct xmpp_t *xmpp)
+{
+    bool result = false;
+    pthread_mutex_lock(&xmpp->status_mutex);
+    result = xmpp->weather.peer_available;
+    pthread_mutex_unlock(&xmpp->status_mutex);
+    return result;
 }

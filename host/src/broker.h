@@ -7,6 +7,7 @@
 #include "screen.h"
 #include "xmppintf.h"
 #include "heap.h"
+#include "sensor.h"
 
 #define SCREEN_COUNT                    (4)
 #define SCREEN_BUS_MONITOR              (0)
@@ -47,6 +48,16 @@ struct broker_t {
     int active_screen;
 
     struct heap_t tasks;
+
+    struct {
+        pthread_mutex_t mutex;
+        struct array_t all_batches;
+        // we need a heap, because we must submit batches in the order of their
+        // timestamps
+        struct heap_t full_batches;
+        struct array_t free_batches;
+        struct sensor_readout_batch_t *curr_batch;
+    } sensor;
 };
 
 void broker_enqueue_new_task_at(

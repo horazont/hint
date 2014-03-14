@@ -1,5 +1,6 @@
 #include "broker.h"
 
+#include "common/comm_arduino.h"
 #include "common/comm_lpc1114.h"
 
 #include <poll.h>
@@ -14,6 +15,7 @@
 #include "timestamp.h"
 #include "utils.h"
 #include "private_config.h"
+#include "sensor.h"
 
 #include "screen_dept.h"
 #include "screen_weather.h"
@@ -32,6 +34,15 @@ bool task_less(
     return timestamp_less(
         &task_a->run_at, &task_b->run_at);
 }
+
+bool batch_less(
+    struct sensor_readout_batch_t *const batch_a,
+    struct sensor_readout_batch_t *const batch_b)
+{
+    // items are already sorted by time
+    return batch_a->data[0].readout_time < batch_b->data[0].readout_time;
+}
+
 
 bool broker_departure_request(
     struct broker_t *broker,
@@ -83,10 +94,19 @@ void broker_repaint_time(
 void broker_reset_sleepout_timer(
     struct broker_t *broker);
 void broker_run_next_task(struct broker_t *broker);
+void broker_sensor_submission_response(
+    struct xmpp_t *xmpp,
+    struct sensor_readout_batch_t *batch,
+    void *const userdata,
+    enum xmpp_request_status_t status);
 bool broker_sleep_timer(
     struct broker_t *broker,
     struct timespec *next_run,
     void *userdata);
+void broker_submit_sensor_data(
+    struct broker_t *broker,
+    const uint8_t sensor_id[7],
+    const int16_t raw_value);
 void broker_switch_screen(
     struct broker_t *broker,
     int new_screen);
@@ -311,8 +331,16 @@ void broker_init(
         "Misc");
     screen_misc_init(&broker->screens[SCREEN_MISC]);
 
+    array_init(&broker->sensor.all_batches, MAX_BATCHES);
+    array_init(&broker->sensor.free_batches, MAX_BATCHES / 2);
+    heap_init(&broker->sensor.full_batches,
+              MAX_BATCHES / 2,
+              (heap_less_t)&batch_less);
+    broker->sensor.curr_batch = NULL;
+
     pthread_mutex_init(&broker->screen_mutex, NULL);
     pthread_mutex_init(&broker->activity_mutex, NULL);
+    pthread_mutex_init(&broker->sensor.mutex, NULL);
     pthread_create(
         &broker->thread, NULL,
         (void*(*)(void*))&broker_thread,
@@ -355,6 +383,41 @@ void broker_process_lpc_message(
     }
 }
 
+void broker_process_arduino_message(
+    struct broker_t *broker, struct ard_msg_t *msg)
+{
+    switch (msg->subject) {
+    case ARD_SUBJECT_SENSOR_READOUT:
+    {
+        uint8_t sensor_id[7];
+        memcpy(&sensor_id[0],
+               &msg->data.sensor_readout.sensor_id[0], 7);
+        const int16_t raw_temperature = le16toh(
+            msg->data.sensor_readout.raw_readout);
+
+        /* fprintf(stderr, "broker: debug: received sensor readout: sensor_id="); */
+        /* for (int i = 0; i < 7; i++) { */
+        /*     fprintf(stderr, "%02x", sensor_id[i]); */
+        /* } */
+        /* fprintf(stderr, "; raw_value=%04x; value=%.2f\n", */
+        /*         raw_temperature, */
+        /*         raw_temperature/16.); */
+
+        broker_submit_sensor_data(broker,
+                                  sensor_id,
+                                  raw_temperature);
+
+        break;
+    }
+    default:
+    {
+        fprintf(stderr, "broker: unknown subject in arduino message: %d\n",
+                msg->subject);
+        break;
+    }
+    }
+}
+
 void broker_process_comm_message(struct broker_t *broker, void *item)
 {
     struct msg_header_t *hdr = (struct msg_header_t *)item;
@@ -375,8 +438,12 @@ void broker_process_comm_message(struct broker_t *broker, void *item)
     }
     case MSG_ADDRESS_ARDUINO:
     {
-        fprintf(stderr, "broker: received message from arduino, cannot handle\n");
-        break;
+        struct ard_msg_t msg;
+        memcpy(&msg, &((uint8_t*)item)[sizeof(struct msg_header_t)],
+               HDR_GET_PAYLOAD_LENGTH(*hdr));
+        free(item);
+        broker_process_arduino_message(broker, &msg);
+        return;
     }
     default:
     {
@@ -490,6 +557,98 @@ void broker_run_next_task(struct broker_t *broker)
         return;
     }
     broker_enqueue_task(broker, task);
+}
+
+void broker_sensor_submission_response(
+    struct xmpp_t *xmpp,
+    struct sensor_readout_batch_t *batch,
+    void *const userdata,
+    enum xmpp_request_status_t status)
+{
+    struct broker_t *broker = userdata;
+
+    pthread_mutex_lock(&broker->sensor.mutex);
+    switch (status)
+    {
+    case REQUEST_STATUS_TIMEOUT:
+    case REQUEST_STATUS_ERROR:
+    case REQUEST_STATUS_DISCONNECTED:
+    {
+        fprintf(stderr,
+                "broker: sensor submission failed: %d, reenqueing buffer\n",
+                status);
+        heap_insert(&broker->sensor.full_batches, batch);
+        break;
+    }
+    case REQUEST_STATUS_SUCCESS:
+    {
+        array_append(&broker->sensor.free_batches, batch);
+        break;
+    }
+    }
+    pthread_mutex_unlock(&broker->sensor.mutex);
+}
+
+void broker_submit_sensor_data(
+    struct broker_t *broker,
+    const uint8_t sensor_id[7],
+    const int16_t raw_value)
+{
+    pthread_mutex_lock(&broker->sensor.mutex);
+
+    if (broker->sensor.curr_batch == NULL) {
+        if (array_length(&broker->sensor.free_batches) > 0) {
+            broker->sensor.curr_batch = array_pop(
+                &broker->sensor.free_batches, -1);
+            broker->sensor.curr_batch->write_offset = 0;
+        } else if (array_length(&broker->sensor.all_batches) < MAX_BATCHES) {
+            broker->sensor.curr_batch = malloc(
+                sizeof(struct sensor_readout_batch_t));
+            if (!broker->sensor.curr_batch) {
+                panicf("broker: out of memory while allocating sensor readout "
+                       "batch\n");
+            }
+            array_append(&broker->sensor.all_batches, broker->sensor.curr_batch);
+            broker->sensor.curr_batch->write_offset = 0;
+        } else {
+            fprintf(stderr, "broker: dropping sensor data, running out of "
+                    "space\n");
+            // do not exit here -- submission may free space later
+        }
+    }
+
+    // space to write
+    if (broker->sensor.curr_batch != NULL) {
+        struct sensor_readout_batch_t *batch = broker->sensor.curr_batch;
+        struct sensor_readout_t *dest = &batch->data[batch->write_offset++];
+        dest->readout_time = time(NULL);
+        memcpy(&dest->sensor_id[0], &sensor_id[0], 7);
+        dest->raw_value = raw_value;
+
+        fprintf(stderr, "broker: debug: wrote %d out of %d in current batch\n",
+                batch->write_offset,
+                MAX_READOUTS_IN_BATCH);
+
+        if (batch->write_offset == MAX_READOUTS_IN_BATCH) {
+            heap_insert(&broker->sensor.full_batches, batch);
+            broker->sensor.curr_batch = NULL;
+        }
+    }
+
+    if (!xmppintf_weather_peer_is_available(broker->xmpp)) {
+        pthread_mutex_unlock(&broker->sensor.mutex);
+        return;
+    }
+
+    while (heap_length(&broker->sensor.full_batches) > 0) {
+        xmppintf_submit_sensor_data(
+            broker->xmpp,
+            heap_pop_min(&broker->sensor.full_batches),
+            &broker_sensor_submission_response,
+            broker);
+    }
+
+    pthread_mutex_unlock(&broker->sensor.mutex);
 }
 
 void broker_switch_screen(

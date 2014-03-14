@@ -8,6 +8,7 @@
 #include "array.h"
 #include "departure.h"
 #include "heap.h"
+#include "sensor.h"
 
 #define XMPPINTF_PIPECHAR_READY ('r')
 #define XMPPINTF_PIPECHAR_FAILED ('f')
@@ -25,7 +26,8 @@ enum xmpp_presence_status_t {
 
 enum xmpp_queue_item_type_t {
     XMPP_DEPARTURE_DATA,
-    XMPP_WEATHER_DATA
+    XMPP_WEATHER_DATA,
+    XMPP_SUBMIT_SENSOR_DATA
 };
 
 enum xmpp_request_status_t {
@@ -83,10 +85,12 @@ struct xmpp_t {
     } ping;
     struct {
         char *peer;
+        bool peer_available;
         int timeout_interval;
     } weather;
     struct {
         char *peer;
+        bool peer_available;
         int timeout_interval;
     } departure;
 };
@@ -101,7 +105,15 @@ typedef void (*departure_callback_t)(
     struct array_t *arr,
     void *const userdata,
     enum xmpp_request_status_t status);
+typedef void (*sensor_submission_callback_t)(
+    struct xmpp_t *xmpp,
+    struct sensor_readout_batch_t *batch,
+    void *const userdata,
+    enum xmpp_request_status_t status);
 
+void xmppintf_enqueue(
+    struct xmpp_t *xmpp,
+    struct xmpp_queue_item_t *queue_item);
 void xmppintf_free(struct xmpp_t *xmpp);
 void xmppintf_free_queue_item(struct xmpp_queue_item_t *item);
 void xmppintf_init(
@@ -116,10 +128,6 @@ bool xmppintf_is_available(
 struct xmpp_queue_item_t *xmppintf_new_queue_item(
     enum xmpp_queue_item_type_t type);
 void *xmppintf_thread(struct xmpp_t *xmpp);
-void xmppintf_set_presence(
-    struct xmpp_t *xmpp,
-    enum xmpp_presence_status_t new_status,
-    const char *message);
 bool xmppintf_request_departure_data(
     struct xmpp_t *xmpp,
     departure_callback_t callback,
@@ -131,5 +139,16 @@ bool xmppintf_request_weather_data(
     weather_callback_t callback,
     struct array_t *request_intervals,
     void *const userdata);
+void xmppintf_set_presence(
+    struct xmpp_t *xmpp,
+    enum xmpp_presence_status_t new_status,
+    const char *message);
+bool xmppintf_submit_sensor_data(
+    struct xmpp_t *xmpp,
+    struct sensor_readout_batch_t *data,
+    sensor_submission_callback_t callback,
+    void *const userdata);
+bool xmppintf_weather_peer_is_available(
+    struct xmpp_t *xmpp);
 
 #endif
