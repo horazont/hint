@@ -5,7 +5,7 @@
 
 #define CELSIUS_OFFSET (273.15f);
 #define ISODATE_LENGTH 20
-typedef char isodate_buffer[ISODATE_LENGTH];
+typedef char isodate_buffer[ISODATE_LENGTH+1];
 const char *isodate_fmt;
 
 static inline float kelvin_to_celsius(const float value)
