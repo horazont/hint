@@ -10,6 +10,7 @@ from sleekxmpp.xmlstream.matcher import StanzaPath
 
 import hintmodules.weather.stanza as weather_stanza
 import hintmodules.departure.stanza as departure_stanza
+import hintmodules.sensor.stanza as sensor_stanza
 import hintmodules.errors
 
 class ConfigError(Exception):
@@ -45,7 +46,8 @@ class Config:
             self,
             credentials,
             weather_sources,
-            departure):
+            departure,
+            sensor_sinks):
         self._validate_credentials(credentials)
         if (self.credentials is not None and
             credentials != self.credentials):
@@ -55,6 +57,7 @@ class Config:
         self.credentials = credentials
         self.weather_sources = weather_sources
         self.departure = departure
+        self.sensor_sinks = sensor_sinks
 
     @property
     def jid(self):
@@ -86,10 +89,13 @@ class Config:
                 "weather_sources must be dict-able: {}".format(err))
         departure = self.require(data, "departure")
 
+        sensor_sinks = self.require(data, "sensor_sinks")
+
         self._update(
             credentials,
             weather_sources,
-            departure)
+            departure,
+            sensor_sinks)
 
 class HintBot:
     def __init__(self, config):
@@ -116,6 +122,11 @@ class HintBot:
                 "",
                 StanzaPath("iq@type=get/departure"),
                 lambda iq: self._xmpp.event("departure.get", iq)))
+        self._xmpp.register_handler(
+            Callback(
+                "",
+                StanzaPath("iq@type=set/sensor_data"),
+                lambda iq: self._xmpp.event("sensor_data.set", iq)))
 
         self._xmpp.add_event_handler(
             "session_start",
@@ -132,6 +143,9 @@ class HintBot:
         self._xmpp.add_event_handler(
             "departure.get",
             self.get_departure_data)
+        self._xmpp.add_event_handler(
+            "sensor_data.set",
+            self.set_sensor_data)
 
         self._weather_geocache = {}
 
@@ -260,6 +274,34 @@ class HintBot:
         iq['type'] = 'result'
         iq['id'] = orig_iq['id']
         iq.set_payload(response)
+        iq.send()
+
+    def set_sensor_data(self, orig_iq):
+        for point in orig_iq["sensor_data"]:
+            if point["sensor_type"] != "T":
+                self._logger.warn("Unknown sensor type: %s", point["sensor_type"])
+                continue
+
+            try:
+                dest = self._config.sensor_sinks[point["sensor_id"]]
+            except KeyError:
+                self._logger.warn("No sensor sink configured for id %r",
+                                  point["sensor_id"])
+                continue
+
+            if point["sensor_type"] == "T":
+                value = point["raw_value"] / 16.
+            else:
+                value = point["raw_value"]
+
+            dest.put_sensor_value(
+                point["time"],
+                value)
+
+        iq = self._xmpp.Iq()
+        iq['to'] = orig_iq['from']
+        iq['type'] = 'result'
+        iq['id'] = orig_iq['id']
         iq.send()
 
     def session_start(self, event):

@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from sleekxmpp import Iq
 from sleekxmpp.xmlstream import register_stanza_plugin, ElementBase
 
-xmlns = "http://xmpp.zombofant.net/xmlns/meteo-service"
+xmlns = "https://xmlns.zombofant.net/xmpp/meteo-service"
 datefmt = "%Y-%m-%dT%H:%M:%SZ"
 
 class AttributeContainer(ElementBase):

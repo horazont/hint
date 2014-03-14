@@ -1,7 +1,7 @@
 from sleekxmpp import Iq, Message
 from sleekxmpp.xmlstream import register_stanza_plugin, ElementBase, ET, JID
 
-xmlns = "http://xmpp.zombofant.net/xmlns/public-transport"
+xmlns = "https://xmlns.zombofant.net/xmpp/public-transport"
 
 class Departure(ElementBase):
     namespace = xmlns
