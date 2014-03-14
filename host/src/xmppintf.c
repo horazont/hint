@@ -1764,8 +1764,6 @@ bool xmppintf_submit_sensor_data(
         goto leave_with_error;
     }
 
-    fprintf(stderr, "xmppintf: submitting sensor data batch\n");
-
     isodate_buffer date_buffer;
     char sensorid_buffer[15];
     char value_buffer[15];
