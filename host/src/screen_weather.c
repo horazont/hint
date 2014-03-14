@@ -7,6 +7,7 @@
 #include "common/comm_lpc1114.h"
 
 #include "lpcdisplay.h"
+#include "theme.h"
 
 /* utilities */
 
@@ -329,6 +330,10 @@ void screen_weather_init(struct screen_t *screen)
         weather->timeslots[i].type = 0;
     }
 
+    for (int i = 0; i < SENSOR_COUNT; i++) {
+        weather->sensors[i].temperature = NAN;
+    }
+
     screen->private = weather;
 }
 
@@ -342,7 +347,44 @@ void screen_weather_repaint(struct screen_t *screen)
     struct screen_weather_t *weather = screen->private;
 
     static const coord_int_t x0 = SCREEN_CLIENT_AREA_LEFT;
-    static const coord_int_t y0 = SCREEN_CLIENT_AREA_TOP;
+    static const coord_int_t y0 = SCREEN_CLIENT_AREA_TOP+20;
+
+    coord_int_t current_y0 = y0 - 4;
+    char buffer[127];
+
+    lpcd_fill_rectangle(
+        screen->comm,
+        x0,
+        y0,
+        SCREEN_CLIENT_AREA_RIGHT-1,
+        current_y0+4,
+        THEME_CLIENT_AREA_BACKGROUND_COLOUR);
+
+    snprintf(
+        buffer,
+        sizeof(buffer),
+        "Außenwelt: %5.1f°C",
+        weather->sensors[SENSOR_EXTERIOR].temperature);
+    lpcd_draw_text(
+        screen->comm,
+        x0,
+        current_y0,
+        LPC_FONT_DEJAVU_SANS_12PX,
+        THEME_CLIENT_AREA_COLOUR,
+        buffer);
+
+    snprintf(
+        buffer,
+        sizeof(buffer),
+        "Innen: %5.1f°C",
+        weather->sensors[SENSOR_INTERIOR].temperature);
+    lpcd_draw_text(
+        screen->comm,
+        x0+(SCREEN_CLIENT_AREA_RIGHT - SCREEN_CLIENT_AREA_LEFT - 1)/2,
+        current_y0,
+        LPC_FONT_DEJAVU_SANS_12PX,
+        THEME_CLIENT_AREA_COLOUR,
+        buffer);
 
     draw_weather_interval(
         screen,
@@ -391,4 +433,19 @@ void screen_weather_update(struct screen_t *screen)
         struct weather_info_t *dst = &weather->timeslots[i];
         calculate_weather_type(dst);
     }
+}
+
+void screen_weather_set_sensor(
+    struct screen_t *screen,
+    int sensor_id,
+    int16_t raw_value)
+{
+    if (sensor_id < 0 || sensor_id >= SENSOR_COUNT) {
+        return;
+    }
+
+    struct screen_weather_t *weather = screen->private;
+    struct screen_weather_sensor_t *sensor = &weather->sensors[sensor_id];
+    sensor->last_update = time(NULL);
+    sensor->temperature = raw_value / 16.;
 }

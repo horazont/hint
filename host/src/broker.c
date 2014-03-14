@@ -25,6 +25,11 @@
 #define TABBAR_LEFT ((LCD_WIDTH-1)-SCREEN_MARGIN_RIGHT)
 #define TABBAR_TOP (SCREEN_CLIENT_AREA_TOP+4)
 
+static const uint8_t board_sensor[7] = {0x28,
+                                        0x5e, 0xdd, 0x52, 0x04, 0x00, 0x00};
+static const uint8_t hall_sensor[7] = {0x28,
+                                       0xe1, 0x89, 0x02, 0x04, 0x00, 0x00};
+
 /* helper functions */
 
 bool task_less(
@@ -634,6 +639,18 @@ void broker_submit_sensor_data(
             heap_insert(&broker->sensor.full_batches, batch);
             broker->sensor.curr_batch = NULL;
         }
+    }
+
+    if (memcmp(&sensor_id[0], &board_sensor[0], 7) == 0) {
+        screen_weather_set_sensor(
+            &broker->screens[SCREEN_WEATHER_INFO],
+            SENSOR_EXTERIOR,
+            raw_value);
+    } else if (memcmp(&sensor_id[0], &hall_sensor[0], 7) == 0) {
+        screen_weather_set_sensor(
+            &broker->screens[SCREEN_WEATHER_INFO],
+            SENSOR_INTERIOR,
+            raw_value);
     }
 
     if (!xmppintf_weather_peer_is_available(broker->xmpp)) {

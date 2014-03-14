@@ -32,9 +32,19 @@ struct weather_info_t {
 #define WEATHER_HOURS_PER_INTERVAL1         (3)
 #define WEATHER_HOURS_PER_INTERVAL2         (6)
 
+#define SENSOR_EXTERIOR                     (0)
+#define SENSOR_INTERIOR                     (1)
+#define SENSOR_COUNT                        (2)
+
+struct screen_weather_sensor_t {
+    time_t last_update;
+    float temperature;
+};
+
 struct screen_weather_t {
     struct array_t request_array;
     struct weather_info_t timeslots[WEATHER_TIMESLOTS];
+    struct screen_weather_sensor_t sensors[SENSOR_COUNT];
 };
 
 void screen_weather_free(struct screen_t *screen);
@@ -45,5 +55,9 @@ void screen_weather_repaint(struct screen_t *screen);
 void screen_weather_show(struct screen_t *screen);
 void screen_weather_update(struct screen_t *screen);
 
+void screen_weather_set_sensor(
+    struct screen_t *screen,
+    int sensor_id,
+    int16_t raw_value);
 
 #endif
