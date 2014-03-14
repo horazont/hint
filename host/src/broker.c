@@ -232,6 +232,7 @@ void broker_free(struct broker_t *broker)
 
     pthread_mutex_destroy(&broker->screen_mutex);
     pthread_mutex_destroy(&broker->activity_mutex);
+    pthread_mutex_destroy(&broker->sensor.mutex);
 
     for (int i = 0;
          i < array_length(&broker->tasks.array);
