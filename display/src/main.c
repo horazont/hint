@@ -112,7 +112,6 @@ static coord_int_t prevz VAR_RAM = 0;
 
 static inline enum event_t wait_for_event()
 {
-    static uint8_t buf[9];
     struct ticks_t t1 = ticks_get();
     while (1) {
         do {
