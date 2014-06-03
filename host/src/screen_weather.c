@@ -41,9 +41,9 @@ static inline void calculate_weather_type(struct weather_info_t *info)
     }
 
     /* cloud */
-    if (info->interval.cloudiness_percent < 0.25) {
+    if (info->interval.cloudiness_percent < 25.) {
         type |= WEATHER_NO_CLOUD;
-    } else if (info->interval.cloudiness_percent < 0.75) {
+    } else if (info->interval.cloudiness_percent < 75.) {
         type |= WEATHER_LIGHT_CLOUD;
     } else {
         type |= WEATHER_DENSE_CLOUD;
