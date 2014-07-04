@@ -59,14 +59,13 @@ class DVBRequester(hintmodules.caching_requester.AdvancedRequester):
         ]
         cache_entry.data = (departures, delay)
 
-
     def _not_available(self, err, cache_entry=None):
         if cache_entry:
             self._extrapolate(cache_entry)
         return hintmodules.caching_requester.RequestError(
             str(err),
             back_off=True,
-            cache_enrty=cache_entry,
+            cache_entry=cache_entry,
             use_context=False)
 
     def _parse_data(self, contents):
