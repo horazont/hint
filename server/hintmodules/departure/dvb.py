@@ -54,7 +54,7 @@ class DVBRequester(hintmodules.caching_requester.AdvancedRequester):
         delay = (datetime.utcnow() - cache_entry.extrapolate_base).total_seconds()
 
         departures = [
-            (route, dest, time - delay)
+            (route, dest, round(time - delay))
             for route, dest, time in cache_entry.original_data
         ]
         cache_entry.data = (departures, delay)
