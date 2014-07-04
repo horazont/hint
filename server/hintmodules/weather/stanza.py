@@ -91,6 +91,8 @@ class AggregatedValuesMixin:
         self.aggregate_buffer = []
 
     def aggregate_value(self, value):
+        if value is None:
+            return
         self.aggregate_buffer.append(value)
         self.transfer_aggregate(False)
 
@@ -242,11 +244,11 @@ class WindSpeed(AggregatedValuesMixin, SingleValueMixin, ElementBase):
     interfaces = set(
         ("aggregated_values", "value"))
 
-class Precipitation(ElementBase, SingleValueMixin):
+class Precipitation(AggregatedValuesMixin, SingleValueMixin, ElementBase):
     namespace = xmlns
     name = "prec"
     plugin_attrib = "precipitation"
-    interfaces = set(("value",))
+    interfaces = set(("aggregated_values", "value",))
 
 register_stanza_plugin(Iq, Data)
 register_stanza_plugin(Iq, Sources)
