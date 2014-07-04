@@ -12,6 +12,8 @@
 #include "weather.h"
 #include "timestamp.h"
 
+#include "config.h"
+
 /* temporary structures for iq callback */
 
 struct weather_callback_t {
@@ -1535,7 +1537,8 @@ bool xmppintf_request_weather_data(
     xmpp_stanza_t *data = xmpp_stanza_new(ctx);
     xmpp_stanza_set_name(data, "data");
     xmpp_stanza_set_ns(data, xmppintf_ns_meteo_service);
-    xmpp_stanza_set_attribute(data, "from", "http://api.met.no");
+    xmpp_stanza_set_attribute(data, "from",
+                              CONFIG_WEATHER_SERVICE_URI);
 
     xmpp_stanza_t *loc = xmpp_stanza_new(ctx);
     xmpp_stanza_set_name(loc, "l");
