@@ -121,9 +121,12 @@ class Departure(object):
 
     def get_stop_departure_data(self, stop_name, stop_filter):
         try:
-            return self.requester.request(stop_name=stop_name)
+            data, age = self.requester.request(stop_name=stop_name)
         except hintmodules.caching_requester.RequestError as err:
             raise hintmodules.errors.ServiceNotAvailable(self.NAME)
+
+        data = stop_filter.filter_departures(data)
+        return data, age
 
     @staticmethod
     def annotate_age(age, row):
