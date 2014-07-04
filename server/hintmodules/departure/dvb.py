@@ -3,6 +3,7 @@ import abc
 from datetime import datetime, timedelta
 import http.client
 import logging
+import math
 import socket
 import warnings
 import urllib.error
@@ -47,17 +48,15 @@ class DVBRequester(hintmodules.caching_requester.AdvancedRequester):
 
     def _extrapolate(self, cache_entry):
         if not hasattr(cache_entry, "original_data"):
-            cache_entry.extrapolate_base = \
-                cache_entry.expires - self._cache_timeout
             cache_entry.original_data = cache_entry.data[0]
 
-        delay = (datetime.utcnow() - cache_entry.extrapolate_base).total_seconds()
+        delay = (datetime.utcnow() - cache_entry.data[1]).total_seconds() / 60.
 
         departures = [
-            (route, dest, round(time - delay))
+            (route, dest, math.floor(time - delay))
             for route, dest, time in cache_entry.original_data
         ]
-        cache_entry.data = (departures, delay)
+        cache_entry.data = (departures, cache_entry.data[1])
 
     def _not_available(self, err, cache_entry=None):
         if cache_entry:
@@ -102,9 +101,12 @@ class DVBRequester(hintmodules.caching_requester.AdvancedRequester):
             logger.warn("temporarily not available: %s: %s", type(err), err)
             raise self._not_available(err, cache_entry) from err
 
+        if cache_entry is None:
+            cache_entry = hintmodules.caching_requester.CacheEntry()
+
         departures = self._parse_data(contents)
-        cache_entry.data = (departures, 0)
-        cache_entry.expires = datetime.utcnow() + self._cache_timeout
+        cache_entry.data = (departures, datetime.utcnow())
+        cache_entry.expires = cache_entry.data[1] + self._cache_timeout
 
         return cache_entry
 
@@ -125,13 +127,13 @@ class Departure(object):
 
     def get_stop_departure_data(self, stop_name, stop_filter):
         try:
-            data, age = self.requester.request(stop_name=stop_name)
+            data, timestamp = self.requester.request(stop_name=stop_name)
         except (hintmodules.caching_requester.RequestError,
                 hintmodules.caching_requester.BackingOff) as err:
             raise hintmodules.errors.ServiceNotAvailable(self.NAME)
 
         data = stop_filter.filter_departures(data)
-        return data, age
+        return data, timestamp
 
     @staticmethod
     def annotate_age(age, row):
@@ -140,7 +142,9 @@ class Departure(object):
     def get_departure_data(self):
         merged = []
         for stop_name, stop_filter in self.stops:
-            rows, age = self.get_stop_departure_data(stop_name, stop_filter)
+            rows, timestamp = self.get_stop_departure_data(stop_name,
+                                                           stop_filter)
+            age = round((datetime.utcnow() - timestamp).total_seconds())
             merged.extend(
                 self.annotate_age(age, row)
                 for row in rows)
