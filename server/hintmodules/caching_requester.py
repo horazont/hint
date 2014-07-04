@@ -5,8 +5,12 @@ import sys
 from datetime import datetime, timedelta
 
 class CacheEntry:
-    timestamp = None
+    expires = None
     data = None
+
+    def __init__(self, data=None):
+        super().__init__()
+        self.data = data
 
 class RequestError(Exception):
     def __init__(self, *args,
@@ -47,9 +51,7 @@ class AdvancedRequester(metaclass=abc.ABCMeta):
       data or failure for some time before retrying. This is useful to
       circumvent rate limiting and to take load off APIs being overloaded.
 
-    Some parameters control the behaviour of the requester. *cache_timeout* is
-    the time until which cached entries are served, no questions asked. No call
-    to :meth:`_perform_request` is made until that timeout is elapsed.
+    Some parameters control the behaviour of the requester.
 
     If *back_off* is :data:`True`, exponential back off mode is enabled. If a
     request fails with :attr:`RequestError.back_off` set to :data:`True`, the
@@ -64,15 +66,13 @@ class AdvancedRequester(metaclass=abc.ABCMeta):
     the API from requests.
     """
 
-    def __init__(self,
-                 cache_timeout, *,
+    def __init__(self, *,
                  back_off=True,
                  initial_back_off_time=timedelta(seconds=10),
                  back_off_cap=None,
                  **kwargs):
         super().__init__(**kwargs)
         self._cache = {}
-        self.cache_timeout = cache_timeout
         self.back_off = back_off
         self.backing_off = False
         self.backing_off_until = None
@@ -102,6 +102,12 @@ class AdvancedRequester(metaclass=abc.ABCMeta):
         Return a cache entry to use. The cache entry will be stored in the
         cache, preserving all attributes, and may be passed to this function
         during a subsequent function call.
+
+        The returned cache entry must have a properly set
+        :attr:`CacheEntry.expires` attribute. When returning the
+        *expired_cache_entry*, it might or might not be useful to update the
+        expires, which is why it is left up to the implementation to take care
+        of a proper timestamp value.
         """
 
     def _get_backing_off_result(self, expired_cache_entry=None, **kwargs):
@@ -202,14 +208,14 @@ class AdvancedRequester(metaclass=abc.ABCMeta):
         except KeyError:
             cache_entry = CacheEntry()
         else:
-            if now - cache_entry.timestamp <= self.cache_timeout:
+            if cache_entry.expires >= now:
                 return cache_entry.data
 
         cache_entry = self._execute_request(
             now,
             cache_entry,
             kwargs)
-        cache_entry.timestamp = now
+        # the timestamp must have been set in _execute_request
         self._cache[cache_key] = cache_entry
 
         return cache_entry.data

@@ -1,7 +1,10 @@
+__version__ = "0.2"
+
 import urllib.error
 import runpy
 import logging
 import copy
+
 from sleekxmpp.exceptions import IqError, IqTimeout
 from sleekxmpp.xmlstream import ET, JID
 from sleekxmpp import Iq, Message, ClientXMPP
@@ -314,3 +317,6 @@ class HintBot:
     def run(self):
         self._xmpp.connect()
         self._xmpp.process(block=True)
+
+def get_default_user_agent():
+    return "hintbot/{}".format(__version__)
