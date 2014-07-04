@@ -108,6 +108,11 @@ class DVBRequester(hintmodules.caching_requester.AdvancedRequester):
 
         return cache_entry
 
+    def _get_backing_off_result(self, expired_cache_entry, stop_name):
+        cache_entry = expired_cache_entry
+        if cache_entry:
+            self._extrapolate(cache_entry)
+        return cache_entry
 
 class Departure(object):
     MAX_AGE = timedelta(seconds=30)
@@ -121,7 +126,8 @@ class Departure(object):
     def get_stop_departure_data(self, stop_name, stop_filter):
         try:
             data, age = self.requester.request(stop_name=stop_name)
-        except hintmodules.caching_requester.RequestError as err:
+        except (hintmodules.caching_requester.RequestError,
+                hintmodules.caching_requester.BackingOff) as err:
             raise hintmodules.errors.ServiceNotAvailable(self.NAME)
 
         data = stop_filter.filter_departures(data)
