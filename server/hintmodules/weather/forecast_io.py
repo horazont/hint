@@ -87,7 +87,7 @@ class ForecastDataPoint:
 
 
 class ForecastIORequester(hintmodules.caching_requester.AdvancedRequester):
-    URL_TEMPLATE = "https://api.forecast.io/forecast/{apikey}/{lat},{lon}"
+    URL_TEMPLATE = "https://api.forecast.io/forecast/{apikey}/{lat},{lon}?units=si"
 
     def __init__(self, apikey):
         super().__init__(
