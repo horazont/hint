@@ -7,6 +7,7 @@ struct dept_row_t {
     char lane[DEPARTURE_LANE_LENGTH+1];
     char *destination;
     int eta;
+    int age;
 };
 
 #endif

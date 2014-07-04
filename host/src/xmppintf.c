@@ -224,6 +224,7 @@ const char *xml_pt_departure_time = "dt";
 const char *xml_pt_attr_departure_time_eta = "e";
 const char *xml_pt_attr_departure_time_destination = "d";
 const char *xml_pt_attr_departure_time_lane = "l";
+const char *xml_pt_attr_departure_time_age = "a";
 const char *xml_sensor_data = "data";
 const char *xml_sensor_point = "p";
 const char *xml_sensor_attr_sensortype = "st";
@@ -693,6 +694,9 @@ void xmppintf_handle_departure_reply(
         char *lane = xmpp_stanza_get_attribute(
             dt_stanza,
             xml_pt_attr_departure_time_lane);
+        char *age = xmpp_stanza_get_attribute(
+            dt_stanza,
+            xml_pt_attr_departure_time_age);
         if (!eta || !dest || !lane) {
             fprintf(stderr,
                 "xmpp: departure_reply: missing "
@@ -733,6 +737,18 @@ void xmppintf_handle_departure_reply(
             free(row);
             goto out_of_memory;
         }
+
+        if (!age || *age == '\0') {
+            row->age = 0;
+        } else {
+            row->age = strtol(age, &endptr, 10);
+            if (*endptr != '\0') {
+                fprintf(stderr,
+                        "xmpp: departure_reply: @age is not integer "
+                        "-- ignoring trailing data \n");
+            }
+        }
+
         array_append(result, row);
     }
 

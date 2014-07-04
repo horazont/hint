@@ -13,19 +13,21 @@
 
 /* utilities */
 
-static inline void deptarture_paint(
+static inline void departure_paint(
     struct screen_t *screen,
     struct screen_dept_t *dept)
 {
-    static struct table_column_t columns[3];
+    static struct table_column_t columns[4];
     columns[0].width = 40;
     columns[0].alignment = TABLE_ALIGN_LEFT;
-    columns[1].width = 186;
+    columns[1].width = 154;
     columns[1].alignment = TABLE_ALIGN_LEFT;
     columns[2].width = 28;
     columns[2].alignment = TABLE_ALIGN_RIGHT;
+    columns[3].width = 32;
+    columns[3].alignment = TABLE_ALIGN_RIGHT;
 
-    static const char* header = "L#\0Fahrtziel\0min";
+    static const char* header = "L#\0Fahrtziel\0min\0age";
 
     //~ lpcd_fill_rectangle(
         //~ screen->comm,
@@ -36,14 +38,14 @@ static inline void deptarture_paint(
     lpcd_table_start(
         screen->comm,
         SCREEN_CLIENT_AREA_LEFT, SCREEN_CLIENT_AREA_TOP+11,
-        14, columns, 3);
+        14, columns, 4);
 
     lpcd_table_row(
         screen->comm,
         LPC_FONT_DEJAVU_SANS_12PX_BF,
         THEME_TH_COLOUR,
         THEME_TH_BACKGROUND_COLOUR,
-        header, 17);
+        header, 21);
 
     char *buffer = NULL;
     intptr_t buflen = 0;
@@ -61,6 +63,7 @@ static inline void deptarture_paint(
             strlen(row->lane) + 1 +
             strlen(row->destination) + 1 +
             5 + // fixed length for eta
+            5 + // fixed length for age
             1 // NUL
             ;
 
@@ -108,6 +111,24 @@ static inline void deptarture_paint(
         }
         assert(written < remlength);
         total_length += written;
+        pos += written;
+        remlength -= written;
+
+        if (row->age < 0) {
+            written = snprintf(
+                pos, remlength,
+                "-∞")+1;
+        } else if (row->age > 999) {
+            written = snprintf(
+                pos, remlength,
+                "+∞")+1;
+        } else {
+            written = snprintf(
+                pos, remlength,
+                "%d", row->age)+1;
+        }
+        assert(written < remlength);
+        total_length += written;
 
         const bool even = (i % 2 == 0);
 
@@ -125,7 +146,7 @@ static inline void deptarture_paint(
 
     free(buffer);
 
-    static const char *empty = "\0\0";
+    static const char *empty = "\0\0\0";
     for (int i = array_length(&dept->rows); i < MAX_DEPT_ROWS; i++) {
         // fill with empty buffer
         lpcd_table_row(
@@ -133,7 +154,7 @@ static inline void deptarture_paint(
             LPC_FONT_DEJAVU_SANS_12PX,
             THEME_CLIENT_AREA_COLOUR,
             THEME_CLIENT_AREA_BACKGROUND_COLOUR,
-            empty, 3);
+            empty, 4);
     }
 
     lpcd_table_end(screen->comm);
@@ -222,7 +243,7 @@ void screen_dept_repaint(struct screen_t *screen)
     }
     case REQUEST_STATUS_SUCCESS:
     {
-        deptarture_paint(screen, dept);
+        departure_paint(screen, dept);
         break;
     }
     }
