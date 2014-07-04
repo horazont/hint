@@ -30,6 +30,9 @@ class DepartureTime(ElementBase):
     def get_lane(self):
         return self._get_attr("l")
 
+    def get_age(self):
+        return float(self._get_attr("a"))
+
     def set_destination(self, value):
         self._set_attr("d", value)
 
@@ -38,6 +41,9 @@ class DepartureTime(ElementBase):
 
     def set_lane(self, value):
         self._set_attr("l", value)
+
+    def set_age(self, value):
+        self._set_attr("a", "{:d}".format(value))
 
 
 register_stanza_plugin(Iq, Departure)

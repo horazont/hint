@@ -16,7 +16,14 @@ def to_timestamp(datetime):
 def parse_http_date(httpdate):
     return datetime(*eutils.parsedate(httpdate)[:6])
 
-def http_request(url, user_agent=None, accept=None, last_modified=None, headers=dict()):
+def format_http_date(datetime):
+    return wsgiref.handlers.format_date_time(to_timestamp(datetime))
+
+def http_request(url,
+                 user_agent=None,
+                 accept=None,
+                 last_modified=None,
+                 headers=dict()):
     use_headers = {}
     if user_agent is not None:
         use_headers["User-Agent"] = user_agent
