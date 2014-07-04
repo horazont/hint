@@ -210,11 +210,11 @@ void screen_dept_repaint(struct screen_t *screen)
         screen_draw_background(screen);
         lpcd_draw_text(
             screen->comm,
-            LPC_FONT_DEJAVU_SANS_12PX_BF,
             SCREEN_CLIENT_AREA_LEFT,
             SCREEN_CLIENT_AREA_TOP+14,
+            LPC_FONT_DEJAVU_SANS_12PX_BF,
             THEME_CLIENT_AREA_COLOUR,
-            "Data request timeouted");
+            "Data request timed out");
         break;
     }
     case REQUEST_STATUS_ERROR:
@@ -234,14 +234,15 @@ void screen_dept_repaint(struct screen_t *screen)
         screen_draw_background(screen);
         lpcd_draw_text(
             screen->comm,
-            LPC_FONT_DEJAVU_SANS_12PX_BF,
             SCREEN_CLIENT_AREA_LEFT,
             SCREEN_CLIENT_AREA_TOP+14,
+            LPC_FONT_DEJAVU_SANS_12PX_BF,
             THEME_CLIENT_AREA_COLOUR,
             "Disconnect during request");
         break;
     }
     case REQUEST_STATUS_SUCCESS:
+    default:
     {
         departure_paint(screen, dept);
         break;
