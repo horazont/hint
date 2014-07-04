@@ -206,7 +206,7 @@ class AdvancedRequester(metaclass=abc.ABCMeta):
         try:
             cache_entry = self._cache[cache_key]
         except KeyError:
-            cache_entry = CacheEntry()
+            cache_entry = None
         else:
             if cache_entry.expires >= now:
                 return cache_entry.data
