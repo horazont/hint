@@ -11,7 +11,36 @@
 #include "lpcdisplay.h"
 #include "utils.h"
 
+static const char *age_chars[] = {
+    "█",
+    "▉",
+    "▊",
+    "▋",
+    "▌",
+    "▍",
+    "▎",
+    "▏"
+};
+
 /* utilities */
+
+static const char *get_quality_char(int age)
+{
+    // age is the age of the data in seconds
+    size_t char_index = 0;
+    int quarter_minutes = age / 15;
+    if (quarter_minutes <= 4) {
+        char_index = quarter_minutes;
+    } else {
+        char_index = 4 + ((quarter_minutes - 4) / 2);
+    }
+
+    if (char_index >= 8) {
+        char_index = 7;
+    }
+
+    return age_chars[char_index];
+}
 
 static inline void departure_paint(
     struct screen_t *screen,
@@ -20,14 +49,14 @@ static inline void departure_paint(
     static struct table_column_t columns[4];
     columns[0].width = 40;
     columns[0].alignment = TABLE_ALIGN_LEFT;
-    columns[1].width = 154;
+    columns[1].width = 168;
     columns[1].alignment = TABLE_ALIGN_LEFT;
     columns[2].width = 28;
     columns[2].alignment = TABLE_ALIGN_RIGHT;
-    columns[3].width = 32;
-    columns[3].alignment = TABLE_ALIGN_RIGHT;
+    columns[3].width = 18;
+    columns[3].alignment = TABLE_ALIGN_CENTER;
 
-    static const char* header = "L#\0Fahrtziel\0min\0age";
+    static const char* header = "L#\0Fahrtziel\0min\0█";
 
     //~ lpcd_fill_rectangle(
         //~ screen->comm,
@@ -45,7 +74,7 @@ static inline void departure_paint(
         LPC_FONT_DEJAVU_SANS_12PX_BF,
         THEME_TH_COLOUR,
         THEME_TH_BACKGROUND_COLOUR,
-        header, 21);
+        header, 22);
 
     char *buffer = NULL;
     intptr_t buflen = 0;
@@ -63,7 +92,7 @@ static inline void departure_paint(
             strlen(row->lane) + 1 +
             strlen(row->destination) + 1 +
             5 + // fixed length for eta
-            5 + // fixed length for age
+            5 + // fixed length for age char
             1 // NUL
             ;
 
@@ -114,19 +143,10 @@ static inline void departure_paint(
         pos += written;
         remlength -= written;
 
-        if (row->age < 0) {
-            written = snprintf(
-                pos, remlength,
-                "-∞")+1;
-        } else if (row->age > 999) {
-            written = snprintf(
-                pos, remlength,
-                "+∞")+1;
-        } else {
-            written = snprintf(
-                pos, remlength,
-                "%d", row->age)+1;
-        }
+        written = snprintf(
+            pos, remlength,
+            "%s",
+            get_quality_char(row->age))+1;
         assert(written < remlength);
         total_length += written;
 
