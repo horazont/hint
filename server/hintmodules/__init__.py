@@ -193,14 +193,30 @@ class HintBot:
                 "{:.4f}".format(lon))
 
     def _get_weather_service_for(self, uri, lat, lon):
-        if uri not in self._config.weather_sources:
-            raise ValueError("No such weather service: {}".format(uri))
+        try:
+            service_entry = self._config.weather_sources[uri]
+        except KeyError:
+            raise ValueError("No such weather service: {}".format(uri)) from None
 
-        key = self._weather_service_key(uri, lat, lon)
+        try:
+            servicecls, per_coord = service_entry
+        except ValueError:
+            servicecls = service_entry
+            per_coord = True
+
+        if per_coord:
+            key = self._weather_service_key(uri, lat, lon)
+        else:
+            key = uri
+
         try:
             return self._weather_geocache[key]
         except KeyError:
-            service = self._config.weather_sources[uri](lat, lon)
+            if per_coord:
+                service = servicecls(lat, lon)
+            else:
+                service = servicecls
+
             self._weather_geocache[key] = service
             return service
 
@@ -229,10 +245,10 @@ class HintBot:
             weather_data = weather_stanza.Data()
             for request_stanza in orig_iq["weather_data"]:
                 if request_stanza.name == weather_stanza.Interval.name:
-                    service.query_interval(request_stanza)
+                    service.query_interval(lat, lon, request_stanza)
                     weather_data.append(request_stanza)
                 elif request_stanza.name == weather_stanza.PointData.name:
-                    service.query_data_point(request_stanza)
+                    service.query_data_point(lat, lon, request_stanza)
                     weather_data.append(request_stanza)
         except ValueError as err:
             print("EINTERVAL")
