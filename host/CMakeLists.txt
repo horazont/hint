@@ -21,7 +21,8 @@ set(LIBS ${LIBS}
     ${CMAKE_SOURCE_DIR}/fritzbox-static/libs/libresolv.so.0
     ${CMAKE_SOURCE_DIR}/fritzbox-static/libs/libssl.so
     ${CMAKE_SOURCE_DIR}/fritzbox-static/libs/libpthread.so.0
-    ${CMAKE_SOURCE_DIR}/fritzbox-static/libs/libcrypto.so.1)
+    ${CMAKE_SOURCE_DIR}/fritzbox-static/libs/libcrypto.so.1
+    ${CMAKE_SOURCE_DIR}/fritzbox-static/libs/libm.so.0)
 
 set(COUPLET_CONFIGURE
     CC=/home/horazont/Builds/freetz-trunk/toolchain/build/mips_gcc-4.6.3_uClibc-0.9.32.1/mips-linux-uclibc/bin/mips-linux-uclibc-gcc
@@ -32,14 +33,14 @@ set(COUPLET_CONFIGURE
     --enable-static=yes
     --enable-shared=no)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --sysroot=/home/horazont/Builds/freetz-trunk/toolchain/build/mips_gcc-4.6.3_uClibc-0.9.32.1/mips-linux-uclibc/")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --sysroot=/home/horazont/Builds/freetz-trunk/toolchain/build/mips_gcc-4.6.3_uClibc-0.9.32.1/mips-linux-uclibc/ -DMISSING_FMAXF_FMINF")
 
 else (PLATFORM STREQUAL "mips-linux-uclibc")
 message(FATAL_ERROR "unknown platform ${PLATFORM}")
 endif (PLATFORM STREQUAL "mips-linux-uclibc")
 else (DEFINED PLATFORM)
 
-set(LIBS pthread ${LIBS} ssl resolv expat)
+set(LIBS pthread ${LIBS} ssl resolv expat m)
 endif (DEFINED PLATFORM)
 
 ExternalProject_Add(libcouplet

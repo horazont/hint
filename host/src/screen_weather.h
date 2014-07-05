@@ -28,9 +28,7 @@ struct weather_info_t {
     weather_type_t type;
 };
 
-#define WEATHER_TIMESLOTS                   (6)
-#define WEATHER_HOURS_PER_INTERVAL1         (3)
-#define WEATHER_HOURS_PER_INTERVAL2         (6)
+#define WEATHER_INTERVALS                   (24)
 
 #define SENSOR_EXTERIOR                     (0)
 #define SENSOR_INTERIOR                     (1)
@@ -43,7 +41,7 @@ struct screen_weather_sensor_t {
 
 struct screen_weather_t {
     struct array_t request_array;
-    struct weather_info_t timeslots[WEATHER_TIMESLOTS];
+    struct weather_info_t timeslots[WEATHER_INTERVALS];
     struct screen_weather_sensor_t sensors[SENSOR_COUNT];
 };
 

@@ -106,17 +106,20 @@ src/generated_font_data.inc: $(GENFONT)
 		"Cantarell" 20 cantarell_20px_bf >> $@
 	$(GENFONT) --no-flip \
 		-r "'A'" "'Z'" \
+		-r "'a'" "'z'" \
 		-r "'0'" "'9'" \
-		-c "'.'" "':'" \
+		-c "'.'" "':'" "'°'" \
+		-c "'ä'" "'ö'" "'ü'" \
 		-c 0xfffd \
 		-c 0x2026 \
+		-c 0x202f \
 		--\
 		"DejaVu Sans" 8 dejavu_sans_8px >> $@
 	$(GENFONT) --no-flip \
-		-c 0x2600 0x2601 0x2603 0x2604 0x26c5 0x26c8 \
 		--section ".text#" \
 		-- \
 		"DejaVu Sans" 40 dejavu_sans_40px >> $@
+#		-c 0x2600 0x2601 0x2603 0x2604 0x26c5 0x26c8
 
 $(FIRMWAREBASE).elf: $(OBJ_FILES) $(FAKEDEPS) $(COMMONDEPS)
 	-@echo "MEMORY" > $(LD_TEMP)
