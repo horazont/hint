@@ -37,14 +37,18 @@ static inline utf8_cstr_t table_cell(
         x, yrect,
         x+column->width-1, yrect+row_height-1,
         bgcolour);
-    switch (column->alignment) {
+
+    coord_int_t width, height, depth;
+    font_text_metrics(
+        font,
+        content,
+        &width, &height, &depth);
+
+    y += (row_height - font->height - 1) / 2;
+
+    switch (column->alignment){
     case TABLE_ALIGN_RIGHT:
     {
-        coord_int_t width, height, depth;
-        font_text_metrics(
-            font,
-            content,
-            &width, &height, &depth);
         if (width < column->width) {
             // text will fit, so we can do right alignment
             x += (column->width - width);
@@ -58,11 +62,6 @@ static inline utf8_cstr_t table_cell(
     }
     case TABLE_ALIGN_CENTER:
     {
-        coord_int_t width, height, depth;
-        font_text_metrics(
-            font,
-            content,
-            &width, &height, &depth);
         if (width < column->width) {
             // text will fit, so we can do center alignment
             x += (column->width - width) / 2;
