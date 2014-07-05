@@ -256,11 +256,17 @@ static void draw_weather_bar(
                  textfmt,
                  &this_time);
 
+        lpcd_fill_rectangle(
+            screen->comm,
+            x, y,
+            x+interval_width, y+text_height,
+            THEME_CLIENT_AREA_BACKGROUND_COLOUR);
+
         lpcd_draw_text(
             screen->comm,
             x, y+8,
             LPC_FONT_DEJAVU_SANS_8PX,
-            0x0000,
+            THEME_CLIENT_AREA_COLOUR,
             textbuffer);
 
         y += text_height;
@@ -420,7 +426,7 @@ void screen_weather_repaint(struct screen_t *screen)
     lpcd_fill_rectangle(
         screen->comm,
         x0,
-        y0,
+        SCREEN_CLIENT_AREA_TOP,
         SCREEN_CLIENT_AREA_RIGHT-1,
         current_y0+4,
         THEME_CLIENT_AREA_BACKGROUND_COLOUR);
