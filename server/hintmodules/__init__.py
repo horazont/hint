@@ -150,7 +150,8 @@ class HintBot:
 
         self._weather_geocache = {}
 
-        self._config.start(self)
+        if self._config.start is not None:
+            self._config.start(self)
 
     def get_departure_data(self, stanza):
         response = self.xmpp.Iq()
