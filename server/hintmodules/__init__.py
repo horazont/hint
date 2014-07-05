@@ -28,10 +28,9 @@ class Config:
             raise ConfigError(
                 "Required config key not found: {}".format(err)) from None
 
-    def __init__(
-            self,
-            controller,
-            modulepath):
+    def __init__(self,
+                 controller,
+                 modulepath):
         self._controller = controller
         self._modulepath = modulepath
         self.credentials = None
@@ -45,12 +44,12 @@ class Config:
         if not "password" in credentials:
             raise ConfigError("password not in credentials")
 
-    def _update(
-            self,
-            credentials,
-            weather_sources,
-            departure,
-            sensor_sinks):
+    def _update(self,
+                credentials,
+                weather_sources,
+                departure,
+                sensor_sinks,
+                start):
         self._validate_credentials(credentials)
         if (self.credentials is not None and
             credentials != self.credentials):
@@ -61,6 +60,7 @@ class Config:
         self.weather_sources = weather_sources
         self.departure = departure
         self.sensor_sinks = sensor_sinks
+        self.start = start
 
     @property
     def jid(self):
@@ -75,12 +75,9 @@ class Config:
         self.credentials["password"] = None
 
     def reload(self):
-        data = runpy.run_path(
-            self._modulepath,
-            init_globals={
-                "controller": self._controller
-            },
-            run_name="hint_config")
+        data = {}
+        with open(self._modulepath, "rb") as f:
+            exec(f.read(), data)
 
         credentials = self.require(data, "credentials")
         try:
@@ -91,14 +88,16 @@ class Config:
             raise ConfigError(
                 "weather_sources must be dict-able: {}".format(err))
         departure = self.require(data, "departure")
-
         sensor_sinks = self.require(data, "sensor_sinks")
+
+        start = data.get("start", None)
 
         self._update(
             credentials,
             weather_sources,
             departure,
-            sensor_sinks)
+            sensor_sinks,
+            start)
 
 class HintBot:
     def __init__(self, config):
@@ -106,54 +105,55 @@ class HintBot:
         self._config = Config(self, config)
         self._config.reload()
 
-        self._xmpp = ClientXMPP(
-            self._config.jid, self._config.password)
+        self.xmpp = ClientXMPP(self._config.jid, self._config.password)
         del self._config.password
 
-        self._xmpp.register_handler(
+        self.xmpp.register_handler(
             Callback(
                 "",
                 StanzaPath("iq@type=get/weather_sources"),
-                lambda iq: self._xmpp.event("weather_sources.get", iq)))
-        self._xmpp.register_handler(
+                lambda iq: self.xmpp.event("weather_sources.get", iq)))
+        self.xmpp.register_handler(
             Callback(
                 "",
                 StanzaPath("iq@type=get/weather_data"),
-                lambda iq: self._xmpp.event("weather_data.get", iq)))
-        self._xmpp.register_handler(
+                lambda iq: self.xmpp.event("weather_data.get", iq)))
+        self.xmpp.register_handler(
             Callback(
                 "",
                 StanzaPath("iq@type=get/departure"),
-                lambda iq: self._xmpp.event("departure.get", iq)))
-        self._xmpp.register_handler(
+                lambda iq: self.xmpp.event("departure.get", iq)))
+        self.xmpp.register_handler(
             Callback(
                 "",
                 StanzaPath("iq@type=set/sensor_data"),
-                lambda iq: self._xmpp.event("sensor_data.set", iq)))
+                lambda iq: self.xmpp.event("sensor_data.set", iq)))
 
-        self._xmpp.add_event_handler(
+        self.xmpp.add_event_handler(
             "session_start",
             self.session_start)
-        self._xmpp.add_event_handler(
+        self.xmpp.add_event_handler(
             "session_end",
             self.session_end)
-        self._xmpp.add_event_handler(
+        self.xmpp.add_event_handler(
             "weather_sources.get",
             self.get_weather_sources)
-        self._xmpp.add_event_handler(
+        self.xmpp.add_event_handler(
             "weather_data.get",
             self.get_weather_data)
-        self._xmpp.add_event_handler(
+        self.xmpp.add_event_handler(
             "departure.get",
             self.get_departure_data)
-        self._xmpp.add_event_handler(
+        self.xmpp.add_event_handler(
             "sensor_data.set",
             self.set_sensor_data)
 
         self._weather_geocache = {}
 
+        self._config.start(self)
+
     def get_departure_data(self, stanza):
-        response = self._xmpp.Iq()
+        response = self.xmpp.Iq()
         response["to"] = stanza["from"]
         response["id"] = stanza["id"]
 
@@ -192,7 +192,7 @@ class HintBot:
                 "{:.4f}".format(lat),
                 "{:.4f}".format(lon))
 
-    def _get_weather_service_for(self, uri, lat, lon):
+    def get_weather_service_for(self, uri, lat, lon):
         try:
             service_entry = self._config.weather_sources[uri]
         except KeyError:
@@ -225,12 +225,12 @@ class HintBot:
         lon = orig_iq["weather_data"]["location"]["lon"]
         uri = orig_iq["weather_data"]["from"]
 
-        response = self._xmpp.Iq()
+        response = self.xmpp.Iq()
         response["to"] = orig_iq["from"]
         response["id"] = orig_iq["id"]
 
         try:
-            service = self._get_weather_service_for(
+            service = self.get_weather_service_for(
                 uri, lat, lon)
         except ValueError as err:
             print("ENOSERVICE")
@@ -289,7 +289,7 @@ class HintBot:
             source["name"] = sourcecls.NAME
             response.append(source)
 
-        iq = self._xmpp.Iq()
+        iq = self.xmpp.Iq()
         iq['to'] = orig_iq['from']
         iq['type'] = 'result'
         iq['id'] = orig_iq['id']
@@ -318,7 +318,7 @@ class HintBot:
                 point["time"],
                 value)
 
-        iq = self._xmpp.Iq()
+        iq = self.xmpp.Iq()
         iq['to'] = orig_iq['from']
         iq['type'] = 'result'
         iq['id'] = orig_iq['id']
@@ -326,14 +326,14 @@ class HintBot:
 
     def session_start(self, event):
         self._departure_push_destinations = set()
-        self._xmpp.send_presence()
+        self.xmpp.send_presence()
 
     def session_end(self, event):
         self._departure_push_destinations = set()
 
     def run(self):
-        self._xmpp.connect()
-        self._xmpp.process(block=True)
+        self.xmpp.connect()
+        self.xmpp.process(block=True)
 
 def get_default_user_agent():
     return "hintbot/{}".format(__version__)
