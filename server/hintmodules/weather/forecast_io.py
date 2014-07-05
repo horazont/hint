@@ -98,7 +98,7 @@ class ForecastIORequester(hintmodules.caching_requester.AdvancedRequester):
         self.user_agent = hintmodules.get_default_user_agent()
 
     def _is_too_stale(self, cache_entry):
-        age = datetime.utcnow() - expired_cache_entry.expires
+        age = datetime.utcnow() - cache_entry.expires
         return age > self.max_cache_over_expiry
 
     def _get_backing_off_result(self, expired_cache_entry=None, **kwargs):
