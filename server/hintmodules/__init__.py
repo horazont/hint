@@ -310,7 +310,7 @@ class HintBot:
     def set_sensor_data(self, orig_iq):
         for point in orig_iq["sensor_data"]:
             sensor_type, sensor_id = point["sensor_type"], point["sensor_id"]
-            time, value = point["time"], point["raw_value"]
+            time, raw_value = point["time"], point["raw_value"]
 
             if sensor_type != "T":
                 self._logger.warn("Unknown sensor type: %s", sensor_type)
