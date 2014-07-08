@@ -24,10 +24,10 @@ class SensorIdentifyingBase:
     def set_sensor_type(self, value):
         self._set_attr("st", value)
 
-class Point(ElementBase, SensorIdentifyingBase):
+class RawPoint(ElementBase, SensorIdentifyingBase):
     namespace = xmlns
     name = "p"
-    plugin_attrib = "point"
+    plugin_attrib = "raw_point"
     interfaces = set(
         ("sensor_type", "sensor_id", "time", "raw_value"))
 
@@ -35,6 +35,25 @@ class Point(ElementBase, SensorIdentifyingBase):
         return int(self._get_attr("rv"))
 
     def set_raw_value(self, value):
+        self._set_attr("rv", str(value))
+
+    def get_time(self):
+        return datetime.strptime(self._get_attr("t"), datefmt)
+
+    def set_time(self, dt):
+        self._set_attr("t", dt.strftime(datefmt))
+
+class Point(ElementBase, SensorIdentifyingBase):
+    namespace = xmlns
+    name = "pp"
+    plugin_attrib = "point"
+    interfaces = set(
+        ("sensor_type", "sensor_id", "time", "value"))
+
+    def get_value(self):
+        return int(self._get_attr("v"))
+
+    def set_value(self, value):
         self._set_attr("v", str(value))
 
     def get_time(self):
