@@ -73,3 +73,4 @@ register_stanza_plugin(Iq, Data)
 
 register_stanza_plugin(Data, Point, iterable=True)
 register_stanza_plugin(Data, Request, iterable=True)
+register_stanza_plugin(Data, RawPoint, iterable=True)
