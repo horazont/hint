@@ -128,6 +128,11 @@ class HintBot:
                 "",
                 StanzaPath("iq@type=set/sensor_data"),
                 lambda iq: self.xmpp.event("sensor_data.set", iq)))
+        self.xmpp.register_handler(
+            Callback(
+                "",
+                StanzaPath("iq@type=get/sensor_data"),
+                lambda iq: self.xmpp.event("sensor_data.get", iq)))
 
         self.xmpp.add_event_handler(
             "session_start",
@@ -147,8 +152,13 @@ class HintBot:
         self.xmpp.add_event_handler(
             "sensor_data.set",
             self.set_sensor_data)
+        self.xmpp.add_event_handler(
+            "sensor_data.get",
+            self.get_sensor_data)
 
         self._weather_geocache = {}
+
+        self._last_measurements = {}
 
         if self._config.start is not None:
             self._config.start(self)
@@ -299,30 +309,67 @@ class HintBot:
 
     def set_sensor_data(self, orig_iq):
         for point in orig_iq["sensor_data"]:
-            if point["sensor_type"] != "T":
-                self._logger.warn("Unknown sensor type: %s", point["sensor_type"])
+            sensor_type, sensor_id = point["sensor_type"], point["sensor_id"]
+            time, value = point["time"], point["raw_value"]
+
+            if sensor_type != "T":
+                self._logger.warn("Unknown sensor type: %s", sensor_type)
                 continue
 
             try:
-                dest = self._config.sensor_sinks[point["sensor_id"]]
+                dest = self._config.sensor_sinks[sensor_id]
             except KeyError:
                 self._logger.warn("No sensor sink configured for id %r",
-                                  point["sensor_id"])
+                                  sensor_id)
                 continue
 
-            if point["sensor_type"] == "T":
-                value = point["raw_value"] / 16.
+            if sensor_type == "T":
+                value = raw_value / 16.
             else:
-                value = point["raw_value"]
+                value = raw_value
 
-            dest.put_sensor_value(
-                point["time"],
-                value)
+            sensor_key = sensor_type, sensor_id
+            try:
+                prev_time, *_ = self._last_measurements[sensor_key]
+                if prev_time < time:
+                    prev_time = None
+            except KeyError:
+                prev_time = None
+
+            if prev_time is None:
+                self._last_measurements[sensor_key] = time, value
+
+            dest.put_sensor_value(time, value)
 
         iq = self.xmpp.Iq()
         iq['to'] = orig_iq['from']
         iq['type'] = 'result'
         iq['id'] = orig_iq['id']
+        iq.send()
+
+    def get_sensor_data(self, orig_iq):
+        iq = self.xmpp.Iq()
+        iq['to'] = orig_iq['from']
+        iq['type'] = 'result'
+        iq['id'] = orig_iq['id']
+
+        response_data = iq["sensor_data"]
+
+        for request in orig_iq["sensor_data"]["substanzas"]:
+            sensor_key = request["sensor_type"], request["sensor_id"]
+
+            try:
+                time, value = self._last_measurements[sensor_key]
+            except KeyError:
+                pass
+
+            point = sensor_stanza.Point(
+                parent=response_data)
+
+            point["sensor_type"], point["sensor_id"] = sensor_key
+            point["time"] = time
+            point["value"] = value
+
         iq.send()
 
     def session_start(self, event):

@@ -11,7 +11,20 @@ class Data(ElementBase):
     name = "data"
     plugin_attrib = "sensor_data"
 
-class Point(ElementBase):
+class SensorIdentifyingBase:
+    def get_sensor_id(self):
+        return self._get_attr("sid")
+
+    def set_sensor_id(self, value):
+        self._set_attr("sid", value)
+
+    def get_sensor_type(self):
+        return self._get_attr("st")
+
+    def set_sensor_type(self, value):
+        self._set_attr("st", value)
+
+class Point(ElementBase, SensorIdentifyingBase):
     namespace = xmlns
     name = "p"
     plugin_attrib = "point"
@@ -21,15 +34,23 @@ class Point(ElementBase):
     def get_raw_value(self):
         return int(self._get_attr("rv"))
 
-    def get_sensor_id(self):
-        return self._get_attr("sid")
-
-    def get_sensor_type(self):
-        return self._get_attr("st")
+    def set_raw_value(self, value):
+        self._set_attr("v", str(value))
 
     def get_time(self):
         return datetime.strptime(self._get_attr("t"), datefmt)
 
+    def set_time(self, dt):
+        self._set_attr("t", dt.strftime(datefmt))
+
+class Request(ElementBase, SensorIdentifyingBase):
+    namespace = xmlns
+    name = "rq"
+    plugin_attrib = "request"
+    interfaces = set(
+        ("sensor_type", "sensor_id"))
+
 register_stanza_plugin(Iq, Data)
 
 register_stanza_plugin(Data, Point, iterable=True)
+register_stanza_plugin(Data, Request, iterable=True)
