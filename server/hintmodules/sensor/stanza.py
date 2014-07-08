@@ -51,7 +51,7 @@ class Point(ElementBase, SensorIdentifyingBase):
         ("sensor_type", "sensor_id", "time", "value"))
 
     def get_value(self):
-        return int(self._get_attr("v"))
+        return float(self._get_attr("v"))
 
     def set_value(self, value):
         self._set_attr("v", str(value))
