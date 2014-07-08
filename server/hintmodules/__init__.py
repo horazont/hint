@@ -361,7 +361,7 @@ class HintBot:
             try:
                 time, value = self._last_measurements[sensor_key]
             except KeyError:
-                pass
+                continue
 
             point = sensor_stanza.Point(
                 parent=response_data)
