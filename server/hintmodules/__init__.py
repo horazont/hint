@@ -341,6 +341,8 @@ class HintBot:
 
             dest.put_sensor_value(time, value)
 
+            logging.debug("logged data for sensor %s", sensor_id)
+
         iq = self.xmpp.Iq()
         iq['to'] = orig_iq['from']
         iq['type'] = 'result'
@@ -361,6 +363,8 @@ class HintBot:
             try:
                 time, value = self._last_measurements[sensor_key]
             except KeyError:
+                logging.warn("received sensor request for sensor %s, but no "
+                             "data available.", sensor_key)
                 continue
 
             point = sensor_stanza.Point(
