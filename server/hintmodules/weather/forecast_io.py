@@ -116,7 +116,8 @@ class ForecastIORequester(hintmodules.caching_requester.AdvancedRequester):
         try:
             contents = json.loads(response.read().decode())
         except ValueError:
-            raise RequestError(str(err), back_off=False) from err
+            raise hintmodules.caching_requester.RequestError(
+                str(err), back_off=False) from err
 
         try:
             expires = hintmodules.utils.parse_http_date(
@@ -147,7 +148,7 @@ class ForecastIORequester(hintmodules.caching_requester.AdvancedRequester):
             else:
                 cache_entry = expired_cache_entry
 
-            raise RequestError(
+            raise hintmodules.caching_requester.RequestError(
                 str(err),
                 back_off=True,
                 cache_entry=cache_entry) from err
