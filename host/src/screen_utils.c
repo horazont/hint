@@ -93,7 +93,7 @@ void table_row_formatter_init_dynamic(
     }
 
     this->offset = 0;
-    this->dynamic = false;
+    this->dynamic = true;
 }
 
 void table_row_formatter_reset(
