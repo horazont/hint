@@ -55,7 +55,7 @@ void set_to_databaud()
     UCSRB = (1<<RXEN) | (1<<TXEN);
 }
 
-inline uint8_t onewire_probe(const uint8_t signal)
+static inline uint8_t onewire_probe(const uint8_t signal)
 {
     uart_tx_sync(signal);
     return uart_rx_sync();
@@ -71,7 +71,7 @@ static inline void onewire_write0()
     onewire_probe(0x00);
 }
 
-inline uint8_t onewire_read()
+static inline uint8_t onewire_read()
 {
     // startbit pulls the bus low, then keep the bus high
     return onewire_probe(0xFF) == 0xFF;
@@ -107,46 +107,6 @@ void onewire_init()
     set_to_databaud();
     init_uart();
 }
-
-bool onewire_test(uint8_t blob[9])
-{
-    if (onewire_reset() != UART_1W_PRESENCE) {
-        return false;
-    }
-    _delay_ms(1);
-    onewire_write_byte(0x33);
-    _delay_ms(1);
-    /* onewire_write1(); */
-    /* _delay_ms(1); */
-    /* onewire_write_byte(0xBE); */
-    for (uint8_t i = 0; i < 9; i++) {
-        _delay_ms(1);
-        blob[i] = onewire_read_byte();
-    }
-
-    return true;
-}
-
-/* static void lcd_writestate(uint8_t fp, uint8_t tp, uint8_t prevbit) */
-/* { */
-/*     static const __flash char map[8] = { */
-/*         '-', '0', '1', '2', */
-/*         'p', '3', '4', '5', */
-/*     }; */
-
-/*     uint8_t idx = 0; */
-/*     if (fp) { */
-/*         idx |= 1; */
-/*     } */
-/*     if (tp) { */
-/*         idx |= 2; */
-/*     } */
-/*     if (prevbit) { */
-/*         idx |= 4; */
-/*     } */
-
-/*     lcd_write_textch(map[idx]); */
-/* } */
 
 uint8_t onewire_findnext(onewire_addr_t addr)
 {
@@ -197,9 +157,6 @@ uint8_t onewire_findnext(onewire_addr_t addr)
             onewire_write0();
         }
     }
-
-    /* lcd_write_textch('0' + ((previous_alternative_bit & 0xF0) >> 4)); */
-    /* lcd_write_textch('0' + (previous_alternative_bit & 0xF)); */
 
     // we found no higher possible address
     if (previous_alternative_bit == 0xff) {
@@ -282,7 +239,7 @@ uint8_t onewire_findnext(onewire_addr_t addr)
     return UART_1W_PRESENCE;
 }
 
-uint8_t onewire_control_probe(const uint8_t signal)
+static inline uint8_t onewire_control_probe(const uint8_t signal)
 {
     set_to_controlbaud();
     _delay_ms(1);
