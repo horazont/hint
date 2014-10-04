@@ -141,15 +141,15 @@ uint8_t onewire_findnext(onewire_addr_t addr)
             if (true_presence) {
                 previous_alternative_bit = offs;
             }
-            /* if (!false_presence) { */
-            /*     // we can abort here; the device which possibly was at the */
-            /*     // current address is not here anymore. */
-            /*     break; */
-            /* } */
-        } /* else if (!true_presence) { */
-        /*     // dito */
-        /*     break; */
-        /* } */
+            if (!false_presence) {
+                // we can abort here; the device which possibly was at the
+                // current address is not here anymore.
+                break;
+            }
+        } else if (!true_presence) {
+            // dito
+            break;
+        }
 
         if (prevbit) {
             onewire_write1();
