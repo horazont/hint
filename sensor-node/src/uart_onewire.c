@@ -6,6 +6,8 @@
 
 #define ONEWIRE_TXEN_SHIFT (DDB4)
 
+#define wait_for_conversion() { _delay_ms(800); }
+
 void init_uart()
 {
     UCSRC = (1<<UCSZ1) | (1<<UCSZ0);
@@ -277,41 +279,48 @@ uint8_t onewire_findnext(onewire_addr_t addr)
     return UART_1W_PRESENCE;
 }
 
+uint8_t onewire_address_device(const onewire_addr_t addr)
+{
+    uint8_t status = onewire_reset();
+    if (status != UART_1W_PRESENCE) {
+        return status;
+    }
+    // MATCH ROM
+    onewire_write_byte(0x55);
+    // write addr
+    for (uint8_t i = 0; i < UART_1W_ADDR_LEN; i++) {
+        onewire_write_byte(addr[i]);
+    }
+
+    return status;
+}
+
 void onewire_ds18b20_broadcast_conversion()
 {
     onewire_reset();
-    _delay_ms(1);
-    // skip over rom search
+    // skip over rom search (address all teh devices)
     onewire_write_byte(0xCC);
-    _delay_ms(1);
     onewire_write_byte(0x44);
-    _delay_ms(1);
+    onewire_enable_pullup();
+    wait_for_conversion();
+    onewire_disable_pullup();
+}
+
+void onewire_ds18b20_invoke_conversion(
+    const onewire_addr_t device)
+{
+    onewire_address_device(device);
+    onewire_write_byte(0x44);
+    onewire_enable_pullup();
+    wait_for_conversion();
+    onewire_disable_pullup();
 }
 
 void onewire_ds18b20_read_scratchpad(
     const onewire_addr_t device,
     uint8_t blob[9])
 {
-    onewire_reset();
-    // MATCH ROM
-    onewire_write_byte(0x55);
-    // write addr
-    for (uint8_t i = 0; i < UART_1W_ADDR_LEN; i++) {
-        onewire_write_byte(device[i]);
-    }
-    /* onewire_write_byte_and_pullup(0x44); */
-    onewire_write_byte(0x44);
-    onewire_enable_pullup();
-    _delay_ms(1750);
-    onewire_disable_pullup();
-
-    onewire_reset();
-    // MATCH ROM
-    onewire_write_byte(0x55);
-    // write addr
-    for (uint8_t i = 0; i < UART_1W_ADDR_LEN; i++) {
-        onewire_write_byte(device[i]);
-    }
+    onewire_address_device(device);
     onewire_write_byte(0xBE);
     for (uint8_t i = 0; i < 9; i++) {
         blob[i] = onewire_read_byte();
