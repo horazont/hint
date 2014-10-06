@@ -8,8 +8,8 @@ OCFLAGS ?= --strip-unneeded
 SIZE = avr-size
 
 PROGRAM = main
-SRCS = main.c lcd.c bcd.c uart.c uart_onewire.c
-COMMONDEPS = config.h lcd.h bcd.h uart.h uart_onewire.h allstrings.h
+SRCS = main.c lcd.c bcd.c uart.c uart_onewire.c systick.c
+COMMONDEPS = config.h lcd.h bcd.h uart.h uart_onewire.h allstrings.h systick.h
 
 OBJS = $(addsuffix .o,$(basename $(SRCS)))
 PRODUCTS = $(OBJS) $(PROGRAM).hex $(PROGRAM).elf

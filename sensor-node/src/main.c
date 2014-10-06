@@ -11,6 +11,7 @@
 #include "uart_onewire.h"
 #include "lcd.h"
 #include "bcd.h"
+#include "systick.h"
 
 static inline char nybble_to_hex(uint8_t nybble)
 {
@@ -53,6 +54,7 @@ int main()
 
     _delay_ms(50);
 
+    systick_init();
     onewire_init();
     lcd_init();
     _delay_ms(50);
