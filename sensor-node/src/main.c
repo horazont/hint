@@ -48,9 +48,10 @@ static void clear_addr(onewire_addr_t addr)
 int main()
 {
     // configure all Ds as outputs
-    DDRD = (1<<DDD2) | (1<<DDB3)
-        | (1<<DDB4) | (1<<DDB5) | (1<<DDB6);
-    DDRB = (1<<DDB0) | (1<<DDB1) | (1<<DDB2) | (1<<DDB3);
+    DDRD = (1<<DDD2) | (1<<DDD3) | (1<<DDD4) | (1<<DDD5) | (1<<DDD6);
+    DDRB = (1<<DDB3) | (1<<DDB2) | (1<<DDB4);
+
+    _delay_ms(50);
 
     onewire_init();
     lcd_init();
@@ -61,7 +62,10 @@ int main()
     bcd2_t ctr = 0;
     char hexed[2];
     onewire_addr_t addr;
+    uint8_t blob[9];
     clear_addr(addr);
+    /* onewire_ds18b20_broadcast_conversion(); */
+    _delay_ms(1000);
     while (1) {
         lcd_clear();
         lcd_set_cursor(0, 17);
@@ -87,6 +91,14 @@ int main()
         if (status != UART_1W_PRESENCE) {
             // reset address
             clear_addr(addr);
+        } else {
+            onewire_ds18b20_read_scratchpad(addr, blob);
+            lcd_set_cursor(3, 0);
+            for (uint8_t i = 0; i < 9; i++) {
+                uint8_to_hex(hexed, blob[i]);
+                lcd_write_textbuf(hexed, 2);
+            }
+
         }
 
         /* lcd_set_cursor(1, 0); */

@@ -26,8 +26,10 @@ static inline bool onewire_findfirst(onewire_addr_t dest)
 }
 
 void onewire_init();
-
-bool onewire_test(uint8_t blob[8]);
+void onewire_ds18b20_broadcast_conversion();
+void onewire_ds18b20_read_scratchpad(
+    const onewire_addr_t device,
+    uint8_t blob[9]);
 
 /**
  * Reset the one-wire bus. Return a value dependent on the state of the bus.

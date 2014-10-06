@@ -4,6 +4,8 @@
 
 #include <util/delay.h>
 
+#define ONEWIRE_TXEN_SHIFT (DDB4)
+
 void init_uart()
 {
     UCSRC = (1<<UCSZ1) | (1<<UCSZ0);
@@ -77,6 +79,16 @@ static inline uint8_t onewire_read()
     return onewire_probe(0xFF) == 0xFF;
 }
 
+static inline void onewire_disable_pullup()
+{
+    PORTB |= (1<<ONEWIRE_TXEN_SHIFT);
+}
+
+static inline void onewire_enable_pullup()
+{
+    PORTB &= ~(1<<ONEWIRE_TXEN_SHIFT);
+}
+
 void onewire_write_byte(uint8_t byte)
 {
     for (uint8_t i = 0; i < 8; i++) {
@@ -88,6 +100,31 @@ void onewire_write_byte(uint8_t byte)
         }
         byte >>= 1;
     }
+}
+
+void onewire_write_byte_and_pullup(uint8_t byte)
+{
+    for (uint8_t i = 0; i < 7; i++) {
+        _delay_us(10);
+        if (byte & 0x1) {
+            onewire_write1();
+        } else {
+            onewire_write0();
+        }
+        byte >>= 1;
+    }
+    _delay_us(10);
+    if (byte & 0x1) {
+        uart_tx_sync(0xFF);
+    } else {
+        uart_tx_sync(0x00);
+    }
+    // wait a few us so that the uart has a chance to start sending.
+    _delay_us(15);
+    // aaand pullup.
+    onewire_enable_pullup();
+    // and only now we wait for receiving the full frame.
+    uart_rx_sync();
 }
 
 uint8_t onewire_read_byte()
@@ -106,6 +143,7 @@ void onewire_init()
 {
     set_to_databaud();
     init_uart();
+    onewire_disable_pullup();
 }
 
 uint8_t onewire_findnext(onewire_addr_t addr)
@@ -237,6 +275,47 @@ uint8_t onewire_findnext(onewire_addr_t addr)
     }
 
     return UART_1W_PRESENCE;
+}
+
+void onewire_ds18b20_broadcast_conversion()
+{
+    onewire_reset();
+    _delay_ms(1);
+    // skip over rom search
+    onewire_write_byte(0xCC);
+    _delay_ms(1);
+    onewire_write_byte(0x44);
+    _delay_ms(1);
+}
+
+void onewire_ds18b20_read_scratchpad(
+    const onewire_addr_t device,
+    uint8_t blob[9])
+{
+    onewire_reset();
+    // MATCH ROM
+    onewire_write_byte(0x55);
+    // write addr
+    for (uint8_t i = 0; i < UART_1W_ADDR_LEN; i++) {
+        onewire_write_byte(device[i]);
+    }
+    /* onewire_write_byte_and_pullup(0x44); */
+    onewire_write_byte(0x44);
+    onewire_enable_pullup();
+    _delay_ms(1750);
+    onewire_disable_pullup();
+
+    onewire_reset();
+    // MATCH ROM
+    onewire_write_byte(0x55);
+    // write addr
+    for (uint8_t i = 0; i < UART_1W_ADDR_LEN; i++) {
+        onewire_write_byte(device[i]);
+    }
+    onewire_write_byte(0xBE);
+    for (uint8_t i = 0; i < 9; i++) {
+        blob[i] = onewire_read_byte();
+    }
 }
 
 static inline uint8_t onewire_control_probe(const uint8_t signal)
