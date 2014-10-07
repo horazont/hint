@@ -32,6 +32,8 @@ void onewire_ds18b20_invoke_conversion(
 void onewire_ds18b20_read_scratchpad(
     const onewire_addr_t device,
     uint8_t blob[9]);
+int16_t onewire_ds18b20_read_temperature(
+    const onewire_addr_t device);
 
 /**
  * Reset the one-wire bus. Return a value dependent on the state of the bus.

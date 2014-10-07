@@ -327,6 +327,17 @@ void onewire_ds18b20_read_scratchpad(
     }
 }
 
+int16_t onewire_ds18b20_read_temperature(
+    const onewire_addr_t device)
+{
+    onewire_address_device(device);
+    onewire_write_byte(0xBE);
+    uint16_t temperature = 0x00;
+    temperature |= onewire_read_byte();
+    temperature |= (onewire_read_byte() << 8);
+    return (int16_t)temperature;
+}
+
 static inline uint8_t onewire_control_probe(const uint8_t signal)
 {
     set_to_controlbaud();
