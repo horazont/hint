@@ -247,11 +247,17 @@ void I2C_IRQHandler()
     {
         // this is EOT right now ...
         i2c_ack();
+        i2c_rx_state = RXI_IDLE;
         break;
     }
 
     case 0x88: // Slave RX: Directly addressed, Data received, NAK returned
     case 0x98: // Slave RX: General call, Data received, NAK returned
+    {
+        i2c_ack();
+        break;
+    }
+
     case 0xA8: // Slave TX: Slave Address + Read received, ACK returned
     case 0xB0: // Slave TX: Arbitration lost as master, now addressed for read
     case 0xB8: // Slave TX: Data transmitted, ACK received
@@ -262,6 +268,11 @@ void I2C_IRQHandler()
 
     // unhandled codes
     case 0x00: // Bus Error
+    {
+        I2C_I2CCONSET |= I2C_I2CCONSET_STO | I2C_I2CCONSET_AA;
+        I2C_I2CCONCLR |= I2C_I2CCONCLR_SIC;
+        break;
+    }
     case 0x08: // Master: START transmitted
     case 0x10: // Master: ReSTART transmitted
     case 0x18: // Master TX: Slave Address + Write transmitted, ACK received
