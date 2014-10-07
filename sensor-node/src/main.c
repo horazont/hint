@@ -8,10 +8,30 @@
 #include <util/delay.h>
 #include <util/atomic.h>
 
+#include "common/comm.h"
+#include "common/comm_arduino.h"
+#include "common/comm_lpc1114.h"
+
 #include "uart_onewire.h"
 #include "lcd.h"
-#include "bcd.h"
-#include "systick.h"
+// #include "bcd.h"
+// #include "systick.h"
+
+#include "USI_TWI_Master.h"
+
+struct __attribute__((packed)) i2c_sensor_message
+{
+    uint8_t i2c_addr;
+    struct msg_encoded_header_t header;
+    uint8_t subject;
+    union __attribute__((packed)) {
+        struct __attribute__((packed)) {
+            uint8_t sensor_addr[7];
+            int16_t reading;
+        } sensor_readout;
+    } data;
+    msg_checksum_t checksum;
+};
 
 static inline char nybble_to_hex(uint8_t nybble)
 {
@@ -38,6 +58,34 @@ static inline void lcd_writebool(bool value)
     }
 }
 
+uint8_t send_readout(
+    const uint8_t i2c_addr,
+    const onewire_addr_t sensor,
+    const int16_t reading)
+{
+    struct i2c_sensor_message msg = {
+        .i2c_addr = (i2c_addr << 1),
+        .header = HDR_INIT(MSG_ADDRESS_ARDUINO,
+                           MSG_ADDRESS_HOST,
+                           10UL,
+                           0UL)
+    };
+    msg.subject = ARD_SUBJECT_SENSOR_READOUT;
+    for (uint8_t i = 0; i < 7; i++) {
+        msg.data.sensor_readout.sensor_addr[i] = sensor[i];
+    }
+    msg.data.sensor_readout.reading = reading;
+    msg.checksum = checksum(&msg.subject,
+                            sizeof(msg.subject) + sizeof(msg.data));
+
+    if (!USI_TWI_Start_Transceiver_With_Data((uint8_t*)&msg, sizeof(msg)))
+    {
+        return 0x80 | USI_TWI_Get_State_Info();
+    }
+
+    return 0;
+}
+
 static void clear_addr(onewire_addr_t addr)
 {
     for (uint_least8_t i = 0; i < UART_1W_ADDR_LEN; i++)
@@ -48,60 +96,66 @@ static void clear_addr(onewire_addr_t addr)
 
 int main()
 {
-    // configure all Ds as outputs
     DDRD = (1<<DDD2) | (1<<DDD3) | (1<<DDD4) | (1<<DDD5) | (1<<DDD6);
     DDRB = (1<<DDB3) | (1<<DDB2) | (1<<DDB4);
 
     _delay_ms(50);
 
-    systick_init();
-    onewire_init();
+    /* systick_init(); */
+    /* onewire_init(); */
     lcd_init();
     _delay_ms(50);
     lcd_reset();
     lcd_set_backlight(4);
 
-    bcd2_t ctr = 0;
+    USI_TWI_Master_Initialise();
+
+    uint8_t ctr = 0x01;
     char hexed[2];
     onewire_addr_t addr;
-    uint8_t blob[9];
+    /* uint8_t blob[9]; */
     clear_addr(addr);
-    /* onewire_ds18b20_broadcast_conversion(); */
-    _delay_ms(1000);
     while (1) {
         lcd_clear();
         lcd_set_cursor(0, 17);
-        lcd_write_textbuf(bcd_to_digits2(ctr, true), 2);
-
-        lcd_set_cursor(1, 0);
-        for (uint8_t i = 0; i < UART_1W_ADDR_LEN; i++) {
-            uint8_to_hex(hexed, addr[i]);
-            lcd_write_textbuf(hexed, 2);
-        }
-
-        lcd_set_cursor(0, 0);
-        uint8_t status = onewire_findnext(addr);
-        uint8_to_hex(hexed, status);
+        uint8_to_hex(hexed, ctr);
         lcd_write_textbuf(hexed, 2);
 
-        lcd_set_cursor(2, 0);
-        for (uint8_t i = 0; i < UART_1W_ADDR_LEN; i++) {
-            uint8_to_hex(hexed, addr[i]);
-            lcd_write_textbuf(hexed, 2);
-        }
+        uint8_t state = send_readout(LPC_I2C_ADDRESS, addr, 0x1234);
+        lcd_set_cursor(0, 0);
+        uint8_to_hex(hexed, state);
+        lcd_write_textbuf(hexed, 2);
 
-        if (status != UART_1W_PRESENCE) {
-            // reset address
-            clear_addr(addr);
-        } else {
-            onewire_ds18b20_read_scratchpad(addr, blob);
-            lcd_set_cursor(3, 0);
-            for (uint8_t i = 0; i < 9; i++) {
-                uint8_to_hex(hexed, blob[i]);
-                lcd_write_textbuf(hexed, 2);
-            }
+        /* lcd_set_cursor(1, 0); */
+        /* for (uint8_t i = 0; i < UART_1W_ADDR_LEN; i++) { */
+        /*     uint8_to_hex(hexed, addr[i]); */
+        /*     lcd_write_textbuf(hexed, 2); */
+        /* } */
 
-        }
+        /* lcd_set_cursor(0, 0); */
+        /* uint8_t status = onewire_findnext(addr); */
+        /* uint8_to_hex(hexed, status); */
+        /* lcd_write_textbuf(hexed, 2); */
+
+        /* lcd_set_cursor(2, 0); */
+        /* for (uint8_t i = 0; i < UART_1W_ADDR_LEN; i++) { */
+        /*     uint8_to_hex(hexed, addr[i]); */
+        /*     lcd_write_textbuf(hexed, 2); */
+        /* } */
+
+        /* if (status != UART_1W_PRESENCE) { */
+        /*     // reset address */
+        /*     clear_addr(addr); */
+        /*     onewire_ds18b20_broadcast_conversion(); */
+        /* } else { */
+        /*     onewire_ds18b20_read_scratchpad(addr, blob); */
+        /*     lcd_set_cursor(3, 0); */
+        /*     for (uint8_t i = 0; i < 9; i++) { */
+        /*         uint8_to_hex(hexed, blob[i]); */
+        /*         lcd_write_textbuf(hexed, 2); */
+        /*     } */
+
+        /* } */
 
         /* lcd_set_cursor(1, 0); */
         /* uint8_to_hex(hexed, onewire_control_probe(0xF0)); */
@@ -119,8 +173,11 @@ int main()
         /* lcd_writebool(onewire_read()); */
 
 
-        bcd_inc2(&ctr);
-        _delay_ms(1000);
+        ctr += 1;
+        if (ctr > 0x7F) {
+            ctr = 0x01;
+        }
+        _delay_ms(500);
     }
 
     return 0;

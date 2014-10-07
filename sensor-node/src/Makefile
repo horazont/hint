@@ -1,6 +1,6 @@
 CC = avr-gcc
 CFLAGS ?= -Wall -Wextra -Werror -Os -std=gnu11
-CFLAGS += -mmcu=attiny2313a -fstack-usage -Wstack-usage=64
+CFLAGS += -mmcu=attiny2313a -fstack-usage -Wstack-usage=64 -I../../ -I. -Wno-attributes
 
 OBJCOPY = avr-objcopy
 OCFLAGS ?= --strip-unneeded
@@ -8,8 +8,8 @@ OCFLAGS ?= --strip-unneeded
 SIZE = avr-size
 
 PROGRAM = main
-SRCS = main.c lcd.c bcd.c uart.c uart_onewire.c systick.c
-COMMONDEPS = config.h lcd.h bcd.h uart.h uart_onewire.h allstrings.h systick.h
+SRCS = main.c lcd.c bcd.c USI_TWI_Master.c
+COMMONDEPS = config.h lcd.h bcd.h allstrings.h USI_TWI_Master.h
 
 OBJS = $(addsuffix .o,$(basename $(SRCS)))
 PRODUCTS = $(OBJS) $(PROGRAM).hex $(PROGRAM).elf
