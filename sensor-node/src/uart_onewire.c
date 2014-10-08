@@ -327,15 +327,20 @@ void onewire_ds18b20_read_scratchpad(
     }
 }
 
-int16_t onewire_ds18b20_read_temperature(
-    const onewire_addr_t device)
+uint8_t onewire_ds18b20_read_temperature(
+    const onewire_addr_t device,
+    int16_t *Tout)
 {
-    onewire_address_device(device);
+    uint8_t status = onewire_address_device(device);
+    if (status != UART_1W_PRESENCE) {
+        return status;
+    }
     onewire_write_byte(0xBE);
     uint16_t temperature = 0x00;
     temperature |= onewire_read_byte();
     temperature |= (onewire_read_byte() << 8);
-    return (int16_t)temperature;
+    *Tout = (int16_t)temperature;
+    return UART_1W_PRESENCE;
 }
 
 static inline uint8_t onewire_control_probe(const uint8_t signal)

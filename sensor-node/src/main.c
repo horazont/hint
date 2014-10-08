@@ -13,9 +13,7 @@
 #include "common/comm_lpc1114.h"
 
 #include "uart_onewire.h"
-#include "lcd.h"
-// #include "bcd.h"
-// #include "systick.h"
+#include "systick.h"
 
 #include "USI_TWI_Master.h"
 
@@ -47,15 +45,6 @@ static inline void uint8_to_hex(char buf[2], uint8_t value)
     char *dest = &buf[1];
     *dest-- = nybble_to_hex(value & 0xF);
     *dest = nybble_to_hex((value >> 4) & 0xF);
-}
-
-static inline void lcd_writebool(bool value)
-{
-    if (value) {
-        lcd_write_textch('1');
-    } else {
-        lcd_write_textch('0');
-    }
 }
 
 uint8_t send_readout(
@@ -94,90 +83,60 @@ static void clear_addr(onewire_addr_t addr)
     }
 }
 
+static void strobe_led_500(uint8_t n)
+{
+    for (uint8_t i = 0; i < n; i++) {
+        PORTD |= (1<<DDD2);
+        _delay_ms(500);
+        PORTD &= ~(1<<DDD2);
+        _delay_ms(500);
+    }
+}
+
+static void strobe_led_1000(uint8_t n)
+{
+    for (uint8_t i = 0; i < n; i++) {
+        PORTD |= (1<<DDD2);
+        _delay_ms(1000);
+        PORTD &= ~(1<<DDD2);
+        _delay_ms(1000);
+    }
+}
+
 int main()
 {
     DDRD = (1<<DDD2) | (1<<DDD3) | (1<<DDD4) | (1<<DDD5) | (1<<DDD6);
     DDRB = (1<<DDB3) | (1<<DDB2) | (1<<DDB4);
 
     _delay_ms(50);
-
-    /* systick_init(); */
-    /* onewire_init(); */
-    lcd_init();
-    _delay_ms(50);
-    lcd_reset();
-    lcd_set_backlight(4);
-
+    onewire_init();
+    systick_init();
     USI_TWI_Master_Initialise();
 
-    uint8_t ctr = 0x01;
-    char hexed[2];
-    onewire_addr_t addr;
-    /* uint8_t blob[9]; */
-    clear_addr(addr);
+    strobe_led_500(3);
+
     while (1) {
-        lcd_clear();
-        lcd_set_cursor(0, 17);
-        uint8_to_hex(hexed, ctr);
-        lcd_write_textbuf(hexed, 2);
-
-        uint8_t state = send_readout(LPC_I2C_ADDRESS, addr, 0x1234);
-        lcd_set_cursor(0, 0);
-        uint8_to_hex(hexed, state);
-        lcd_write_textbuf(hexed, 2);
-
-        /* lcd_set_cursor(1, 0); */
-        /* for (uint8_t i = 0; i < UART_1W_ADDR_LEN; i++) { */
-        /*     uint8_to_hex(hexed, addr[i]); */
-        /*     lcd_write_textbuf(hexed, 2); */
-        /* } */
-
-        /* lcd_set_cursor(0, 0); */
-        /* uint8_t status = onewire_findnext(addr); */
-        /* uint8_to_hex(hexed, status); */
-        /* lcd_write_textbuf(hexed, 2); */
-
-        /* lcd_set_cursor(2, 0); */
-        /* for (uint8_t i = 0; i < UART_1W_ADDR_LEN; i++) { */
-        /*     uint8_to_hex(hexed, addr[i]); */
-        /*     lcd_write_textbuf(hexed, 2); */
-        /* } */
-
-        /* if (status != UART_1W_PRESENCE) { */
-        /*     // reset address */
-        /*     clear_addr(addr); */
-        /*     onewire_ds18b20_broadcast_conversion(); */
-        /* } else { */
-        /*     onewire_ds18b20_read_scratchpad(addr, blob); */
-        /*     lcd_set_cursor(3, 0); */
-        /*     for (uint8_t i = 0; i < 9; i++) { */
-        /*         uint8_to_hex(hexed, blob[i]); */
-        /*         lcd_write_textbuf(hexed, 2); */
-        /*     } */
-
-        /* } */
-
-        /* lcd_set_cursor(1, 0); */
-        /* uint8_to_hex(hexed, onewire_control_probe(0xF0)); */
-        /* lcd_write_textbuf(hexed, 2); */
-        /* onewire_write_byte(0x33); */
-        /* uint8_to_hex(hexed, onewire_probe(0xFF)); */
-        /* lcd_write_textbuf(hexed, 2); */
-        /* uint8_to_hex(hexed, onewire_probe(0xFF)); */
-        /* lcd_write_textbuf(hexed, 2); */
-
-        /* lcd_set_cursor(1, 0); */
-        /* onewire_reset(); */
-        /* onewire_write_byte(0xF0); */
-        /* lcd_writebool(onewire_read()); */
-        /* lcd_writebool(onewire_read()); */
-
-
-        ctr += 1;
-        if (ctr > 0x7F) {
-            ctr = 0x01;
+        strobe_led_1000(1);
+        onewire_addr_t addr;
+        clear_addr(addr);
+        /* strobe_led_500(onewire_reset()+1); */
+        // first command all sensors to do conversion
+        onewire_ds18b20_broadcast_conversion();
+        // now lets go over all of them and collect the data
+        while (onewire_findnext(addr) == UART_1W_PRESENCE) {
+            int16_t T;
+            uint8_t status = onewire_ds18b20_read_temperature(addr, &T);
+            if (status != UART_1W_PRESENCE) {
+                strobe_led_500(1);
+                continue;
+            }
+            if (send_readout(LPC_I2C_ADDRESS, addr, T) != 0) {
+                strobe_led_500(3);
+            }
+            _delay_ms(1);
         }
-        _delay_ms(500);
+
+        systick_wait_for(10000);
     }
 
     return 0;
