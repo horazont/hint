@@ -345,6 +345,7 @@ uint8_t onewire_ds18b20_read_temperature(
 
 static inline uint8_t onewire_control_probe(const uint8_t signal)
 {
+    // FIXME: wait for readiness before changing baudrate
     set_to_controlbaud();
     _delay_ms(1);
     uart_tx_sync(signal);
