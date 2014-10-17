@@ -1,6 +1,6 @@
 CC = avr-gcc
 CFLAGS ?= -Wall -Wextra -Werror -Os -std=gnu11
-CFLAGS += -mmcu=attiny2313a -fstack-usage -Wstack-usage=64 -I../../ -I. -Wno-attributes
+CFLAGS += -mmcu=attiny2313a -fstack-usage -Wstack-usage=64 -I../../ -I. -Wno-attributes -fdata-sections -ffunction-sections -Wl,--gc-sections
 
 OBJCOPY = avr-objcopy
 OCFLAGS ?= --strip-unneeded
