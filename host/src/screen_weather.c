@@ -187,11 +187,25 @@ static inline int format_number_with_unit(
     char *pos = buffer;
     size_t remlen = buflen;
     int total = 0;
-    int written = snprintf(
+    int written = 0;
+
+    if (value < 0) {
+        written = snprintf(
+            pos,
+            remlen,
+            "%s",
+            "–");
+        pos += written;
+        remlen += written;
+        total += written;
+    }
+
+    written = snprintf(
         pos,
         remlen,
-        (abs(value) >= 9.5 ? "%.0f" : "%.1f"),
-        value)+1;
+        (fabs(value) >= 9.5 ? "%.0f" : "%.1f"),
+        fabs(value))+1;
+
     pos += written;
     remlen -= written;
     total += written;

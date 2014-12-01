@@ -108,11 +108,12 @@ src/generated_font_data.inc: $(GENFONT)
 		-r "'A'" "'Z'" \
 		-r "'a'" "'z'" \
 		-r "'0'" "'9'" \
-		-c "'.'" "':'" "'°'" "'-'"\
+		-c "'.'" "':'" "'°'" \
 		-c "'ä'" "'ö'" "'ü'" \
 		-c 0xfffd \
 		-c 0x2026 \
 		-c 0x202f \
+		-c 0x2013 \
 		--\
 		"DejaVu Sans" 8 dejavu_sans_8px >> $@
 	$(GENFONT) --no-flip \
