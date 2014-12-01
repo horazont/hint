@@ -231,7 +231,7 @@ static void draw_weather_bar(
 {
     const coord_int_t interval_width = 42;
     const coord_int_t bar_height = 42;
-    const coord_int_t text_height = 10;
+    const coord_int_t text_height = 11;
     const coord_int_t block_height = (bar_height - text_height) / 2;
 
     const float temp_min = -10.0;
@@ -278,8 +278,8 @@ static void draw_weather_bar(
 
         lpcd_draw_text(
             screen->comm,
-            x, y+8,
-            LPC_FONT_DEJAVU_SANS_8PX,
+            x, y+9,
+            LPC_FONT_DEJAVU_SANS_9PX,
             THEME_CLIENT_AREA_COLOUR,
             textbuffer);
 
@@ -294,7 +294,7 @@ static void draw_weather_bar(
 
         lpcd_table_start(
             screen->comm,
-            x, y+8,
+            x, y+9,
             block_height,
             columns, 2);
 
@@ -310,7 +310,7 @@ static void draw_weather_bar(
 
         lpcd_table_row(
             screen->comm,
-            LPC_FONT_DEJAVU_SANS_8PX,
+            LPC_FONT_DEJAVU_SANS_9PX,
             text_colour, colour,
             textbuffer, total_length);
 
@@ -330,7 +330,7 @@ static void draw_weather_bar(
 
         lpcd_table_row(
             screen->comm,
-            LPC_FONT_DEJAVU_SANS_8PX,
+            LPC_FONT_DEJAVU_SANS_9PX,
             text_colour, colour,
             textbuffer, total_length);
 
@@ -432,9 +432,9 @@ void screen_weather_repaint(struct screen_t *screen)
     struct screen_weather_t *weather = screen->private;
 
     static const coord_int_t x0 = SCREEN_CLIENT_AREA_LEFT;
-    static const coord_int_t y0 = SCREEN_CLIENT_AREA_TOP+20;
+    static const coord_int_t y0 = SCREEN_CLIENT_AREA_TOP+22;
 
-    coord_int_t current_y0 = y0 - 4;
+    coord_int_t current_y0 = y0 - 6;
     char buffer[127];
 
     lpcd_fill_rectangle(
@@ -442,7 +442,7 @@ void screen_weather_repaint(struct screen_t *screen)
         x0,
         SCREEN_CLIENT_AREA_TOP,
         SCREEN_CLIENT_AREA_RIGHT-1,
-        current_y0+4,
+        current_y0+6,
         THEME_CLIENT_AREA_BACKGROUND_COLOUR);
 
     snprintf(

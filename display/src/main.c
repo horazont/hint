@@ -154,9 +154,9 @@ static struct font_t *get_font(const uint16_t font_id)
 {
     struct font_t *font = NULL;
     switch (font_id) {
-    case LPC_FONT_DEJAVU_SANS_8PX:
+    case LPC_FONT_DEJAVU_SANS_9PX:
     {
-        font = &dejavu_sans_8px;
+        font = &dejavu_sans_9px;
         break;
     }
     case LPC_FONT_DEJAVU_SANS_12PX:
@@ -174,14 +174,9 @@ static struct font_t *get_font(const uint16_t font_id)
         font = &cantarell_20px_bf;
         break;
     }
-    case LPC_FONT_DEJAVU_SANS_40PX:
-    {
-        font = &dejavu_sans_40px;
-        break;
-    }
     default:
     {
-        font = &dejavu_sans_8px;
+        font = &dejavu_sans_12px;
         break;
     }
     }

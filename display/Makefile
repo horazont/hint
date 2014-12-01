@@ -115,12 +115,7 @@ src/generated_font_data.inc: $(GENFONT)
 		-c 0x202f \
 		-c 0x2013 \
 		--\
-		"DejaVu Sans" 8 dejavu_sans_8px >> $@
-	$(GENFONT) --no-flip \
-		--section ".text#" \
-		-- \
-		"DejaVu Sans" 40 dejavu_sans_40px >> $@
-#		-c 0x2600 0x2601 0x2603 0x2604 0x26c5 0x26c8
+		"DejaVu Sans" 9 dejavu_sans_9px >> $@
 
 $(FIRMWAREBASE).elf: $(OBJ_FILES) $(FAKEDEPS) $(COMMONDEPS)
 	-@echo "MEMORY" > $(LD_TEMP)
