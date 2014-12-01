@@ -1,32 +1,205 @@
 #!/usr/bin/python2
 # encoding=utf8
 from __future__ import print_function
-import cairo
-from gi.repository import Pango
-from gi.repository import PangoCairo
-import struct
+
+import ConfigParser
+import cStringIO
 import itertools
 import textwrap
 import logging
+import struct
+
+import cairo
+from gi.repository import Pango
+from gi.repository import PangoCairo
 
 def split_to_parts(l, chunksize):
-    while len(l) >= chunksize:
-        part = l[:chunksize]
-        l = l[chunksize:]
-        yield part
-    if l:
-        yield l
+    assert chunksize >= 1
+
+    accum = []
+    for item in l:
+        accum.append(item)
+        if len(accum) == chunksize:
+            yield accum
+            accum = []
+
+    if accum:
+        yield accum
 
 class GlyphStruct(object):
     size = 1+1+1+2  # 1 byte for w, h and y0 each
                     # 2 bytes for data_offset
 
-    codepoint = 0
     width = 0
     height = 0
     y0 = 0
     data_offset = 0
     data = None
+
+    def __init__(self, codepoint=0):
+        self.codepoint = codepoint
+
+    def _strip_empty_rows(self):
+        if self.width == 0:
+            return
+        rows = list(split_to_parts(self.data, self.width))
+        rowiter = iter(rows)
+        skip_above = 0
+        skip_below = 0
+        for row in rowiter:
+            if all(byte < 127 for byte in row):
+                skip_above += 1
+            else:
+                break
+        for row in rowiter:
+            if all(byte < 127 for byte in row):
+                skip_below += 1
+            else:
+                skip_below = 0
+
+        self.height -= skip_above
+        self.y0 -= skip_above
+        self.height -= skip_below
+
+        if skip_below == 0:
+            data = itertools.chain(*rows[skip_above:])
+        else:
+            data = itertools.chain(*rows[skip_above:-skip_below])
+
+        self.data = bytearray(data)
+
+    def _compress_bits(self):
+        byteblocks = list(split_to_parts(self.data, 8))
+        final = bytearray(len(byteblocks))
+        for i, block in enumerate(byteblocks):
+            curr_byte = 0x00
+            bitmask = 0x80
+            for bit in block:
+                if bit >= 127:
+                    curr_byte |= bitmask
+                bitmask = bitmask >> 1
+            final[i] = curr_byte
+        self.data = final
+
+    def get_bytemap(self, alignment=1):
+        rowsize = self.width
+        if alignment > 1:
+            rowsize += (alignment - rowsize % alignment)
+        buf = bytearray(rowsize*self.height)
+
+        byteiter = iter(self.data)
+        bitmask = 0x00
+        desti = 0
+        for y in range(self.height):
+            for x in range(self.width):
+                if not bitmask:
+                    bitmask = 0x80
+                    curr_byte = next(byteiter)
+
+                buf[desti] = 0xff if (curr_byte & bitmask) else 0x00
+                desti += 1
+
+                bitmask = bitmask >> 1
+
+            desti += rowsize - self.width
+
+        return buf
+
+    def export_as_glyphfile(self, f):
+        config = ConfigParser.ConfigParser()
+        config.add_section("info")
+        config.set("info", "baseline", str(self.y0))
+        config.set("info", "codepoint", str(self.codepoint))
+        config.write(f)
+        print("[glyph]", file=f)
+        for row in split_to_parts(self.get_bytemap(alignment=1),
+                                  self.width):
+            print(
+                "".join("1" if cell > 0x7f else "0"
+                        for cell in row),
+                file=f)
+
+    def export_as_image(self, f):
+        if self.height == 0 or self.width == 0:
+            buf = bytearray([0]*4)
+            rowsize = 4
+            surf = cairo.ImageSurface.create_for_data(
+                buf, cairo.FORMAT_A8,
+                1, 1, rowsize)
+        else:
+            buf = self.get_bytemap(alignment=4)
+            surf = cairo.ImageSurface.create_for_data(
+                buf, cairo.FORMAT_A8,
+                self.width,
+                self.height,
+                rowsize)
+
+        surf.write_to_png(f)
+
+    def flip(self):
+        result = [None] * (self.width*self.height)
+
+        def srcpos(x, y):
+            return y*self.width+x
+
+        def resultpos(x, y):
+            return x*self.height+y
+
+        for y in range(self.height):
+            for x in range(self.width):
+                result[resultpos(x, y)] = self.data[srcpos(x, y)]
+
+        self.data = bytearray(result)
+
+    def import_glyphfile(self, f):
+        configlines = []
+        for line in f:
+            stripped = line.strip()
+            if stripped == "[glyph]":
+                break
+            configlines.append(line)
+
+        config = ConfigParser.ConfigParser()
+        config.readfp(cStringIO.StringIO("".join(configlines)))
+
+        y0 = config.getint("info", "baseline")
+        codepoint = config.getint("info", "codepoint")
+
+        glyphdata = [line for line in map(str.strip, f)
+                     if line]
+        if not glyphdata:
+            raise ValueError("No glyph data")
+        width = len(glyphdata[0])
+        if not all(len(line) == width for line in glyphdata):
+            raise ValueError("Glyph data is not equal-sized")
+
+        if not all(c in {"0", "1"}
+                   for c in line
+                   for line in glyphdata):
+            raise ValueError("Glyph data is malformed")
+
+        height = len(glyphdata)
+
+        buf = bytearray(width*height)
+        for i, row in enumerate(glyphdata):
+            for j, cell in enumerate(row):
+                buf[j+i*width] = 0xff if cell == "1" else 0x00
+
+        self.codepoint = codepoint
+        self.set_bytemap(
+            width,
+            height,
+            y0,
+            buf
+        )
+
+    def set_bytemap(self, width, height, baseline, bytemap):
+        self.width = width
+        self.height = height
+        self.y0 = baseline
+        self.data = bytemap
+        self._strip_empty_rows()
+        self._compress_bits()
 
     def to_c_source(self):
         return """{{
@@ -215,9 +388,7 @@ class Renderer:
     HEIGHT = 128
 
     def __init__(self, font_family, font_size,
-            weight=Pango.Weight.NORMAL,
-            export_dir=None,
-            flip=False):
+                 weight=Pango.Weight.NORMAL):
         font_descr = Pango.FontDescription()
         font_descr.set_family(font_family)
         font_descr.set_size(font_size * Pango.SCALE)
@@ -235,8 +406,6 @@ class Renderer:
         self._layout = Pango.Layout(self._pango)
         self._layout.set_font_description(font_descr)
 
-        self._export_dir = export_dir
-        self._flip = flip
         self._font_size = font_size
 
     def render_ustr(self, ustr):
@@ -267,136 +436,24 @@ class Renderer:
 
         return width, logical.height, baseline, new_buffer
 
-    def compress_glyph_to_mono(self, width, height, baseline, data):
-        if width == 0:
-            return width, height, baseline, data
-        logging.debug("compressing glyph (w=%d, h=%d)", width, height)
-        rows = list(split_to_parts(data, width))
-        rowiter = iter(rows)
-        skip_above = 0
-        skip_below = 0
-        for row in rowiter:
-            if all(byte < 127 for byte in row):
-                skip_above += 1
-            else:
-                break
-        for row in rowiter:
-            if all(byte < 127 for byte in row):
-                skip_below += 1
-            else:
-                skip_below = 0
-
-        height -= skip_above
-        baseline -= skip_above
-        height -= skip_below
-
-        if skip_below == 0:
-            data = itertools.chain(*rows[skip_above:])
-        else:
-            data = itertools.chain(*rows[skip_above:-skip_below])
-        data = bytearray(data)
-
-        return width, height, baseline, data
-
-    def compress_alpha(self, buf):
-        byteblocks = list(split_to_parts(buf, 8))
-        final = bytearray(len(byteblocks))
-        for i, block in enumerate(byteblocks):
-            curr_byte = 0x00
-            bitmask = 0x80
-            for bit in block:
-                if bit >= 127:
-                    curr_byte |= bitmask
-                bitmask = bitmask >> 1
-            final[i] = curr_byte
-        return final
-
-    def export_glyph(self, glyph_struct):
-        if glyph_struct.height == 0 or glyph_struct.width == 0:
-            buf = bytearray([0]*4)
-            rowsize = 4
-            surf = cairo.ImageSurface.create_for_data(
-                buf, cairo.FORMAT_A8,
-                1, 1, rowsize)
-        else:
-            rowsize = glyph_struct.width
-            rowsize += (4 - rowsize % 4)
-            buf = bytearray(rowsize*glyph_struct.height)
-
-            byteiter = iter(glyph_struct.data)
-            bitmask = 0x00
-            desti = 0
-            for y in range(glyph_struct.height):
-                for x in range(glyph_struct.width):
-                    if not bitmask:
-                        bitmask = 0x80
-                        curr_byte = next(byteiter)
-
-                    buf[desti] = 0xff if (curr_byte & bitmask) else 0x00
-                    desti += 1
-
-                    bitmask = bitmask >> 1
-
-                desti += rowsize - glyph_struct.width
-
-            surf = cairo.ImageSurface.create_for_data(
-                buf, cairo.FORMAT_A8,
-                glyph_struct.width,
-                glyph_struct.height,
-                rowsize)
-
-        with open(
-                os.path.join(
-                    self._export_dir,
-                    "0x{:08x}.png".format(glyph_struct.codepoint)),
-                "wb") as f:
-            surf.write_to_png(f)
-
-    def flip(self, width, height, data):
-        result = [None] * (width*height)
-
-        def srcpos(x, y):
-            return y*width+x
-
-        def resultpos(x, y):
-            return x*height+y
-
-        for y in range(height):
-            for x in range(width):
-                result[resultpos(x, y)] = data[srcpos(x, y)]
-
-        return bytearray(result)
-
     def struct_ustr(self, codepoint):
-        result = GlyphStruct()
-        result.codepoint = codepoint
-        w, h, baseline, data = self.compress_glyph_to_mono(
-            *self.render_ustr(unichr(codepoint)))
-        result.width = w
-        result.height = h
-        result.y0 = baseline
-        if self._flip:
-            data = self.flip(w, h, data)
-        result.data = self.compress_alpha(data)
+        glyph = GlyphStruct(codepoint)
+        glyph.set_bytemap(*self.render_ustr(unichr(codepoint)))
+        return glyph
+
+    def get_space_width(self):
+        result, _, _, _ = self.render_ustr(u' ')
         return result
 
-    def struct_font(self, codepoints):
+    def render_glyphs(self, font, codepoints):
         codepoints = set(codepoints)
         if 0x20 in codepoints:
             # space is handled specially
             codepoints.remove(0x20)
 
-        result = FontStruct(self._font_size)
-        result.space_width, _, _, _ = self.render_ustr(u' ')
-
         for codepoint in codepoints:
             logging.debug("rendering glyph for codepoint %d", codepoint)
-            glyph = self.struct_ustr(codepoint)
-            if self._export_dir is not None:
-                self.export_glyph(glyph)
-            result.add_glyph(glyph)
-
-        return result
+            yield self.struct_ustr(codepoint)
 
 def charint(v):
     if v.startswith(b"'") and v.endswith(b"'"):
@@ -439,6 +496,16 @@ if __name__ == "__main__":
         const=Pango.Weight.BOLD,
         default=Pango.Weight.NORMAL,
         help="Select boldface series"
+    )
+    parser.add_argument(
+        "-l", "--load",
+        nargs="+",
+        dest="load_files",
+        action="append",
+        metavar="FILE",
+        default=[],
+        help="Specify a list of glyphfiles to load. Glyphfiles can be created"
+        " using --export-dir."
     )
     parser.add_argument(
         "-r", "--add-range",
@@ -521,15 +588,50 @@ if __name__ == "__main__":
     for sequence in args.cp_exclude_sequences:
         codepoints -= frozenset(sequence)
 
+    font = FontStruct(args.size)
+    font.name = args.structname
+    font.section = args.elf_section
+
+    if args.flip:
+        def filterfunc(glyph):
+            glyph.flip()
+            return glyph
+    else:
+        filterfunc = lambda x: x
+
+    glyphs = []
+
+    loaded_codepoints = set()
+    if args.load_files:
+        for filelist in args.load_files:
+            for filename in filelist:
+                glyph = GlyphStruct()
+                with open(filename, "r") as f:
+                    glyph.import_glyphfile(f)
+                glyphs.append(glyph)
+                loaded_codepoints.add(glyph.codepoint)
+
+    codepoints -= loaded_codepoints
+
     renderer = Renderer(
         args.font,
         args.size,
-        weight=args.weight,
-        export_dir=args.export_dir,
-        flip=args.flip)
-    font = renderer.struct_font(codepoints)
-    font.name = args.structname
-    font.section = args.elf_section
+        weight=args.weight)
+    glyphs.extend(
+        renderer.render_glyphs(font, codepoints)
+    )
+    font.space_width = renderer.get_space_width()
+
+    for glyph in glyphs:
+        if args.export_dir:
+            with open(
+                    os.path.join(args.export_dir,
+                                 "0x{:08x}.glyph".format(glyph.codepoint)),
+                    "w") as f:
+                glyph.export_as_glyphfile(f)
+        if args.flip:
+            glyph.flip()
+        font.add_glyph(glyph)
 
     print(font.to_c_source())
     print("estimated size: {} bytes".format(font.size), file=sys.stderr)

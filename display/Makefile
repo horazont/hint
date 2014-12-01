@@ -28,6 +28,8 @@ OBJCOPY = $(TARGET_TOOLCHAIN)objcopy
 OBJDUMP = $(TARGET_TOOLCHAIN)objdump
 GENFONT = ../utils/genfont.py
 
+FONTDATA = data/*.glyph
+
 # flags
 INCLUDE_PATHS = -I$(ROOT) -I$(ROOT)/inc -I$(CODEBASEDIR)/core -I$(CODEBASEDIR) -I../
 
@@ -114,6 +116,7 @@ src/generated_font_data.inc: $(GENFONT)
 		-c 0x2026 \
 		-c 0x202f \
 		-c 0x2013 \
+		-l data/0x00000033.glyph \
 		--\
 		"DejaVu Sans" 9 dejavu_sans_9px >> $@
 
