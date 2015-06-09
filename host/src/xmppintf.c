@@ -1347,7 +1347,7 @@ void xmppintf_init(
     xmpp->weather.peer = strdup(weather_peer);
     xmpp->weather.timeout_interval = 6000;
     xmpp->departure.peer = strdup(departure_peer);
-    xmpp->departure.timeout_interval = 6000;
+    xmpp->departure.timeout_interval = 11000;
     xmpp->terminated = false;
 
     queue_init(&xmpp->recv_queue);
