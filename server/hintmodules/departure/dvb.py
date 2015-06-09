@@ -148,7 +148,7 @@ class Departure(object):
                                                            stop_filter)
             unix_timestamp = calendar.timegm(timestamp.utctimetuple())
             merged.extend(
-                self.annotate_age(unix_timestamp, row)
+                self.annotate_timestamp(unix_timestamp, row)
                 for row in rows)
         return merged
 
