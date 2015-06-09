@@ -3,7 +3,7 @@ include(CMakeForceCompiler)
 
 CMAKE_FORCE_C_COMPILER(mips-linux-uclibc-gcc GNU)
 
-SET(CMAKE_FIND_ROOT_PATH  /home/horazont/Builds/freetz-trunk/toolchain/build/mips_gcc-4.6.3_uClibc-0.9.32.1/mips-linux-uclibc/include)
+SET(CMAKE_FIND_ROOT_PATH  /home/horazont/Builds/freetz-trunk/toolchain/build/mips_gcc-4.8.4_uClibc-0.9.33.2-nptl/mips-linux-uclibc/include)
 #~ include_directories("")
 
 # search for programs in the build host directories

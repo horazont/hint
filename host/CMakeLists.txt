@@ -25,7 +25,7 @@ set(LIBS ${LIBS}
     ${CMAKE_SOURCE_DIR}/fritzbox-static/libs/libm.so.0)
 
 set(COUPLET_CONFIGURE
-    CC=/home/horazont/Builds/freetz-trunk/toolchain/build/mips_gcc-4.6.3_uClibc-0.9.32.1/mips-linux-uclibc/bin/mips-linux-uclibc-gcc
+  CC=/home/horazont/Builds/freetz-trunk/toolchain/build/mips_gcc-4.8.4_uClibc-0.9.33.2-nptl/mips-linux-uclibc/bin/mips-linux-uclibc-gcc
     expat_CFLAGS=-I${CMAKE_SOURCE_DIR}/fritzbox-static/includes/
     expat_LIBS=${CMAKE_SOURCE_DIR}/fritzbox-static/libs/libexpat.so
     ${COUPLET_CONFIGURE}
@@ -33,7 +33,7 @@ set(COUPLET_CONFIGURE
     --enable-static=yes
     --enable-shared=no)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --sysroot=/home/horazont/Builds/freetz-trunk/toolchain/build/mips_gcc-4.6.3_uClibc-0.9.32.1/mips-linux-uclibc/ -DMISSING_FMAXF_FMINF")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --sysroot=/home/horazont/Builds/freetz-trunk/toolchain/build/mips_gcc-4.8.4_uClibc-0.9.33.2-nptl/mips-linux-uclibc/ -DMISSING_FMAXF_FMINF")
 
 else (PLATFORM STREQUAL "mips-linux-uclibc")
 message(FATAL_ERROR "unknown platform ${PLATFORM}")
