@@ -183,7 +183,7 @@ class HintBot:
                     err, cause)
             else:
                 response["error"]["text"] = "{}".format(err)
-            self._logger.warn("returning error", exc_info=True)
+            self._logger.warn("returning error (due to %s)", err)
             response.send()
             return
 

@@ -132,7 +132,10 @@ class Departure(object):
             data, timestamp = self.requester.request(stop_name=stop_name)
         except (hintmodules.caching_requester.RequestError,
                 hintmodules.caching_requester.BackingOff) as err:
-            raise hintmodules.errors.ServiceNotAvailable(self.NAME)
+            raise hintmodules.errors.ServiceNotAvailable(
+                "{} did not respond properly ({})".format(
+                    self.NAME,
+                    err))
 
         data = stop_filter.filter_departures(data)
         return data, timestamp
