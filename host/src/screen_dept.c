@@ -81,14 +81,18 @@ static inline void departure_paint(
     char *buffer = NULL;
     intptr_t buflen = 0;
 
-
-
     int len = array_length(&dept->rows);
-    if (len > MAX_DEPT_ROWS) {
-        len = MAX_DEPT_ROWS;
-    }
+    int painted_rows = 0;
     for (int i = 0; i < len; i++) {
         struct dept_row_t *row = array_get(&dept->rows, i);
+
+        int eta = row->eta;
+        int age = now - row->timestamp;
+        eta -= age / 60;
+
+        if (eta < -3) {
+            continue;
+        }
 
         const intptr_t required_length =
             strlen(row->lane) + 1 +
@@ -127,18 +131,18 @@ static inline void departure_paint(
         total_length += written;
         remlength -= written;
 
-        if (row->eta < -9) {
+        if (eta < -9) {
             written = snprintf(
                 pos, remlength,
                 "-∞")+1;
-        } else if (row->eta > 999) {
+        } else if (eta > 999) {
             written = snprintf(
                 pos, remlength,
                 "+∞")+1;
         } else {
             written = snprintf(
                 pos, remlength,
-                "%d", row->eta)+1;
+                "%d", eta)+1;
         }
         assert(written < remlength);
         total_length += written;
@@ -148,7 +152,7 @@ static inline void departure_paint(
         written = snprintf(
             pos, remlength,
             "%s",
-            get_quality_char(now - row->timestamp))+1;
+            get_quality_char(age))+1;
         assert(written < remlength);
         total_length += written;
 
@@ -164,12 +168,17 @@ static inline void departure_paint(
              ? THEME_TR_EVEN_BACKGROUND_COLOUR
              : THEME_TR_ODD_BACKGROUND_COLOUR),
             buffer, total_length);
+
+        painted_rows += 1;
+        if (painted_rows >= MAX_DEPT_ROWS) {
+            break;
+        }
     }
 
     free(buffer);
 
     static const char *empty = "\0\0\0";
-    for (int i = array_length(&dept->rows); i < MAX_DEPT_ROWS; i++) {
+    for (int i = painted_rows; i < MAX_DEPT_ROWS; i++) {
         // fill with empty buffer
         lpcd_table_row(
             screen->comm,
@@ -226,10 +235,15 @@ void screen_dept_repaint(struct screen_t *screen)
 {
     struct screen_dept_t *dept = screen->private;
 
+    if (array_length(&dept->rows) > 0) {
+        departure_paint(screen, dept);
+        return;
+    }
+
+    screen_draw_background(screen);
     switch (dept->status) {
     case REQUEST_STATUS_TIMEOUT:
     {
-        screen_draw_background(screen);
         lpcd_draw_text(
             screen->comm,
             SCREEN_CLIENT_AREA_LEFT,
@@ -241,7 +255,6 @@ void screen_dept_repaint(struct screen_t *screen)
     }
     case REQUEST_STATUS_ERROR:
     {
-        screen_draw_background(screen);
         lpcd_draw_text(
             screen->comm,
             SCREEN_CLIENT_AREA_LEFT,
@@ -253,7 +266,6 @@ void screen_dept_repaint(struct screen_t *screen)
     }
     case REQUEST_STATUS_DISCONNECTED:
     {
-        screen_draw_background(screen);
         lpcd_draw_text(
             screen->comm,
             SCREEN_CLIENT_AREA_LEFT,
@@ -264,9 +276,25 @@ void screen_dept_repaint(struct screen_t *screen)
         break;
     }
     case REQUEST_STATUS_SUCCESS:
+    {
+        lpcd_draw_text(
+            screen->comm,
+            SCREEN_CLIENT_AREA_LEFT,
+            SCREEN_CLIENT_AREA_TOP+14,
+            LPC_FONT_DEJAVU_SANS_12PX_BF,
+            THEME_CLIENT_AREA_COLOUR,
+            "No data received yet");
+        break;
+    }
     default:
     {
-        departure_paint(screen, dept);
+        lpcd_draw_text(
+            screen->comm,
+            SCREEN_CLIENT_AREA_LEFT,
+            SCREEN_CLIENT_AREA_TOP+14,
+            LPC_FONT_DEJAVU_SANS_12PX_BF,
+            THEME_CLIENT_AREA_COLOUR,
+            "Internal error");
         break;
     }
     }
