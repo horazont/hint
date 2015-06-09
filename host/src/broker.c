@@ -252,6 +252,18 @@ void broker_free(struct broker_t *broker)
     {
         screen_free(&broker->screens[i]);
     }
+
+
+    for (int i = 0;
+         i < array_length(&broker->sensor.all_batches);
+         i++)
+    {
+        free(array_get(&broker->sensor.all_batches, i));
+    }
+    array_free(&broker->sensor.all_batches);
+    array_free(&broker->sensor.free_batches);
+    heap_free(&broker->sensor.full_batches);
+
     fprintf(stderr, "debug: broker: freed completely\n");
 }
 
@@ -447,6 +459,7 @@ void broker_process_comm_message(struct broker_t *broker, void *item)
         struct ard_msg_t msg;
         memcpy(&msg, &((uint8_t*)item)[sizeof(struct msg_header_t)],
                HDR_GET_PAYLOAD_LENGTH(*hdr));
+        /* comm_dump_message(hdr); */
         free(item);
         broker_process_arduino_message(broker, &msg);
         return;
@@ -723,6 +736,7 @@ void broker_remove_task_func(
         struct task_t *task = array_get(&broker->tasks.array, i);
         if (task->func == func) {
             heap_delete(&broker->tasks, i);
+            free(task);
             break;
         }
     }
