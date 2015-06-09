@@ -191,7 +191,7 @@ class HintBot:
             dt["eta"] = int(remaining_time)
             dt["destination"] = dest
             dt["lane"] = lane
-            dt["age"] = age
+            dt["timestamp"] = timestamp
             response["departure"]["data"].append(dt)
 
         response["type"] = "result"
