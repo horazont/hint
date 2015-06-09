@@ -172,7 +172,7 @@ class HintBot:
             departures = self._config.departure()
         except hintmodules.errors.ServiceNotAvailable as err:
             response["type"] = "error"
-            response["error"]["condition"] = "serviice-unavailable"
+            response["error"]["condition"] = "service-unavailable"
             response["error"]["type"] = "cancel"
             if err.__cause__:
                 cause = err.__cause__
@@ -183,6 +183,7 @@ class HintBot:
                     err, cause)
             else:
                 response["error"]["text"] = "{}".format(err)
+            self._logger.warn("returning error", exc_info=True)
             response.send()
             return
 
