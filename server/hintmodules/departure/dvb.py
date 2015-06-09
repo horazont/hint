@@ -69,12 +69,21 @@ class DVBRequester(hintmodules.caching_requester.AdvancedRequester):
                 # sic: the api returns plaintext (json), but Content-Type:
                 # text/html
                 accept="text/html",
-                timeout=5)
+                timeout=10)
             try:
                 contents = response.read().decode()
             finally:
                 response.close()
 
+            departures = self._parse_data(contents)
+            if not departures:
+                # no data returned, this is an indication of some kind of
+                # internal error at their side
+                raise ValueError("no data returned")
+
+        except ValueError as err:
+            logger.warn("temporarily not available: %s: %s", type(err), err)
+            raise self._not_available(err, cache_entry) from err
         except socket.timeout as err:
             logger.warn("temporarily not available: %s: %s", type(err), err)
             raise self._not_available(err, cache_entry) from err
@@ -92,7 +101,6 @@ class DVBRequester(hintmodules.caching_requester.AdvancedRequester):
         if cache_entry is None:
             cache_entry = hintmodules.caching_requester.CacheEntry()
 
-        departures = self._parse_data(contents)
         cache_entry.data = (departures, datetime.utcnow())
         cache_entry.expires = cache_entry.data[1] + self._cache_timeout
 
