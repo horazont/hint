@@ -141,7 +141,11 @@ bool broker_departure_request(
     struct timespec *next_run,
     void *userdata)
 {
-    timestamp_gettime_in_future(next_run, 30000);
+    if (broker->active_screen == SCREEN_BUS_MONITOR && !broker->asleep) {
+        timestamp_gettime_in_future(next_run, 30000);
+    } else {
+        timestamp_gettime_in_future(next_run, 120000);
+    }
     if (!xmppintf_is_available(broker->xmpp)) {
         return false;
     }
@@ -948,6 +952,9 @@ void broker_wake_up(struct broker_t *broker)
     pthread_mutex_unlock(&broker->screen_mutex);
 
     pthread_mutex_unlock(&broker->activity_mutex);
+
+    broker_remove_task_func(broker, &broker_departure_request);
+    broker_enqueue_new_task_in(broker, &broker_departure_request, 0, broker);
 }
 
 bool broker_weather_request(

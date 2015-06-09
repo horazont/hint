@@ -1,5 +1,6 @@
 import ast
 import abc
+import calendar
 from datetime import datetime, timedelta
 import http.client
 import logging
@@ -136,17 +137,17 @@ class Departure(object):
         return data, timestamp
 
     @staticmethod
-    def annotate_age(age, row):
-        return row + (age, )
+    def annotate_timestamp(unix_timestamp, row):
+        return row + (unix_timestamp, )
 
     def get_departure_data(self):
         merged = []
         for stop_name, stop_filter in self.stops:
             rows, timestamp = self.get_stop_departure_data(stop_name,
                                                            stop_filter)
-            age = round((datetime.utcnow() - timestamp).total_seconds())
+            unix_timestamp = calendar.timegm(timestamp.utctimetuple())
             merged.extend(
-                self.annotate_age(age, row)
+                self.annotate_age(unix_timestamp, row)
                 for row in rows)
         return merged
 

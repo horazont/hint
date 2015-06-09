@@ -58,6 +58,8 @@ static inline void departure_paint(
 
     static const char* header = "L#\0Fahrtziel\0min\0█";
 
+    time_t now = time(NULL);
+
     //~ lpcd_fill_rectangle(
         //~ screen->comm,
         //~ SCREEN_CLIENT_AREA_LEFT, SCREEN_CLIENT_AREA_TOP,
@@ -146,7 +148,7 @@ static inline void departure_paint(
         written = snprintf(
             pos, remlength,
             "%s",
-            get_quality_char(row->age))+1;
+            get_quality_char(now - row->timestamp))+1;
         assert(written < remlength);
         total_length += written;
 
