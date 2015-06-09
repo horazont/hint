@@ -173,7 +173,7 @@ class HintBot:
         except hintmodules.errors.ServiceNotAvailable as err:
             response["type"] = "error"
             response["error"]["condition"] = "service-unavailable"
-            response["error"]["type"] = "cancel"
+            response["error"]["type"] = "wait"
             if err.__cause__:
                 cause = err.__cause__
                 if cause.__context__ and \
