@@ -23,7 +23,8 @@ def http_request(url,
                  user_agent=None,
                  accept=None,
                  last_modified=None,
-                 headers=dict()):
+                 headers=dict(),
+                 timeout=3):
     use_headers = {}
     if user_agent is not None:
         use_headers["User-Agent"] = user_agent
@@ -35,7 +36,7 @@ def http_request(url,
             to_timestamp(last_modified))
 
     request = urllib.request.Request(url, headers=use_headers)
-    response = urllib.request.urlopen(request, timeout=3)
+    response = urllib.request.urlopen(request, timeout=timeout)
     last_modified = response.info().get("Last-Modified", None)
     if last_modified is not None:
         timestamp = parse_http_date(last_modified)

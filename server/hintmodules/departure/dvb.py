@@ -82,7 +82,8 @@ class DVBRequester(hintmodules.caching_requester.AdvancedRequester):
                 user_agent=self._user_agent,
                 # sic: the api returns plaintext (json), but Content-Type:
                 # text/html
-                accept="text/html")
+                accept="text/html",
+                timeout=5)
             try:
                 contents = response.read().decode()
             finally:
