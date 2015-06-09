@@ -47,21 +47,7 @@ class DVBRequester(hintmodules.caching_requester.AdvancedRequester):
         self._cache_timeout = timedelta(seconds=15)
         self._user_agent = user_agent
 
-    def _extrapolate(self, cache_entry):
-        if not hasattr(cache_entry, "original_data"):
-            cache_entry.original_data = cache_entry.data[0]
-
-        delay = (datetime.utcnow() - cache_entry.data[1]).total_seconds() / 60.
-
-        departures = [
-            (route, dest, math.floor(time - delay))
-            for route, dest, time in cache_entry.original_data
-        ]
-        cache_entry.data = (departures, cache_entry.data[1])
-
     def _not_available(self, err, cache_entry=None):
-        if cache_entry:
-            self._extrapolate(cache_entry)
         return hintmodules.caching_requester.RequestError(
             str(err),
             back_off=True,
@@ -114,8 +100,6 @@ class DVBRequester(hintmodules.caching_requester.AdvancedRequester):
 
     def _get_backing_off_result(self, expired_cache_entry, stop_name):
         cache_entry = expired_cache_entry
-        if cache_entry:
-            self._extrapolate(cache_entry)
         return cache_entry
 
 class Departure(object):
