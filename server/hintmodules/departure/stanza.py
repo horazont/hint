@@ -19,7 +19,7 @@ class DepartureTime(ElementBase):
     namespace = xmlns
     name = "dt"
     plugin_attrib = name
-    interfaces = set(("eta", "destination", "lane", "ts"))
+    interfaces = set(("eta", "destination", "lane", "timestamp"))
 
     def get_destination(self):
         return self._get_attr("d")
