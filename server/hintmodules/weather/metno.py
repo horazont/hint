@@ -128,7 +128,7 @@ class MetNoInterval:
             self.start, self.end)
 
 class Weather:
-    URL = "http://api.met.no/weatherapi/locationforecast/1.8/?lat={lat}&lon={lon}"
+    URL = "http://api.met.no/weatherapi/locationforecast/1.9/?lat={lat}&lon={lon}"
     MAX_AGE = timedelta(seconds=60*30)
 
     LICENSE = "CC-BY-SA"
