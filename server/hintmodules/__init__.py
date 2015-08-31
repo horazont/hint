@@ -212,7 +212,7 @@ class HintBot:
 
         try:
             servicecls, per_coord = service_entry
-        except ValueError:
+        except (ValueError, TypeError):
             servicecls = service_entry
             per_coord = True
 
