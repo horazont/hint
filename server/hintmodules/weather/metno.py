@@ -338,7 +338,7 @@ class Weather:
             if not hasattr(node, "set_aggregated_values"):
                 node.set_value(0)
 
-    def query_data_point(self, request):
+    def query_data_point(self, lat, lon, request):
         if len(request) == 0:
             self._populate_request_with_default(request, False)
         self._initialize_result_nodes(request)
@@ -351,7 +351,7 @@ class Weather:
 
         return request
 
-    def query_interval(self, request):
+    def query_interval(self, lat, lon, request):
         if len(request) == 0:
             # no children, we provide all information we can
             self._populate_request_with_default(request)
