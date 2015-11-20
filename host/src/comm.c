@@ -891,6 +891,7 @@ void comm_thread_to_state_open(struct comm_t *comm)
     if (comm->_conn_state == COMM_CONN_ESTABLISHED) {
         send_char(comm->_recv_fd, COMM_PIPECHAR_FAILED);
     }
+    comm_clear_queues(comm);
     fprintf(stderr, "comm[%s] -> comm[%s]\n",
                     comm_conn_state_str(comm->_conn_state),
                     comm_conn_state_str(COMM_CONN_OPEN));
