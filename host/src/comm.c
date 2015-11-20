@@ -353,7 +353,7 @@ bool comm_is_available(struct comm_t *comm)
 
 int comm_open(struct comm_t *state)
 {
-    int fd = open(state->_devfile, O_RDWR|O_CLOEXEC|O_NOCTTY);
+    int fd = open(state->_devfile, O_RDWR|O_CLOEXEC|O_NOCTTY|O_NONBLOCK);
     if (fd < 0) {
         return -1;
     }
