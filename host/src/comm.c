@@ -272,6 +272,21 @@ void comm_enqueue_msg(struct comm_t *comm, void *msg)
     write(comm->signal_fd, "m", 1);
 }
 
+void comm_clear_queues(struct comm_t *comm)
+{
+    fprintf(stderr, "debug: comm: dropping all queues\n");
+
+    while (!queue_empty(&comm->send_queue))
+    {
+        free(queue_pop(&comm->send_queue));
+    }
+
+    while (!queue_empty(&comm->recv_queue))
+    {
+        free(queue_pop(&comm->recv_queue));
+    }
+}
+
 void comm_free(struct comm_t *comm)
 {
     fprintf(stderr, "debug: comm: free\n");
@@ -279,16 +294,8 @@ void comm_free(struct comm_t *comm)
     write(comm->signal_fd, "w", 1);
     pthread_join(comm->thread, NULL);
 
-    while (!queue_empty(&comm->send_queue))
-    {
-        free(queue_pop(&comm->send_queue));
-    }
+    comm_clear_queues(comm);
     queue_free(&comm->send_queue);
-
-    while (!queue_empty(&comm->recv_queue))
-    {
-        free(queue_pop(&comm->recv_queue));
-    }
     queue_free(&comm->recv_queue);
 
     close(comm->signal_fd);
@@ -900,6 +907,7 @@ void comm_thread_to_state_out_of_sync(struct comm_t *comm)
                     comm_conn_state_str(comm->_conn_state),
                     comm_conn_state_str(COMM_CONN_OUT_OF_SYNC));
     comm->_conn_state = COMM_CONN_OUT_OF_SYNC;
+    comm_clear_queues(comm);
 }
 
 void *comm_thread(struct comm_t *comm)
