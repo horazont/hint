@@ -13,7 +13,16 @@
 #define TMR_COMM_TIMEOUT_IR TMR_TMR32B0IR
 #define TMR_COMM_TIMEOUT_IR_RESET TMR_TMR32B0IR_MR0
 
+typedef enum {
+    RXU_IDLE,
+    RXU_RECEIVE_HEADER,
+    RXU_RECEIVE_PAYLOAD,
+    RXU_RECEIVE_CHECKSUM,
+    RXU_DUMP
+} uart_rx_state_t;
+
 extern volatile uint32_t last_i2c_state;
+extern volatile uart_rx_state_t uart_rx_state;
 
 /**
  * Initialize the communication subsystem.

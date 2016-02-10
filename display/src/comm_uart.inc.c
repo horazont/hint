@@ -1,14 +1,6 @@
 /* types */
 
 typedef enum {
-    RXU_IDLE,
-    RXU_RECEIVE_HEADER,
-    RXU_RECEIVE_PAYLOAD,
-    RXU_RECEIVE_CHECKSUM,
-    RXU_DUMP
-} uart_rx_state_t;
-
-typedef enum {
     TXU_IDLE,
     TXU_SEND_HEADER,
     TXU_SEND_PSEUDOHEADER,
@@ -18,7 +10,7 @@ typedef enum {
 
 /* data */
 
-static uart_rx_state_t uart_rx_state VAR_RAM = RXU_IDLE;
+volatile uart_rx_state_t uart_rx_state VAR_RAM = RXU_IDLE;
 static uart_tx_state_t uart_tx_state VAR_RAM = TXU_IDLE;
 static struct comm_port_t uart VAR_RAM = {
     .state = {
@@ -289,8 +281,8 @@ static inline void uart_rx_irq_end_of_transmission()
         break;
     }
     }
-    // reset the timer
-    TMR_COMM_TIMEOUT_TCR = (0<<0);
+    // disable and reset the timer
+    TMR_COMM_TIMEOUT_TCR = (0<<0) | (1<<1);
 }
 
 void uart_rx_irq()
@@ -304,7 +296,8 @@ void uart_rx_irq()
         uart.state.recv_dest = (uint8_t*)(&uart.state.curr_header);
         uart.state.recv_end = (uint8_t*)(&uart.state.curr_header) + sizeof(struct msg_header_t);
         // missing break is intentional: receive the first bytes immediately
-        TMR_COMM_TIMEOUT_TCR = (1<<0);
+        // turn the timer on
+        TMR_COMM_TIMEOUT_TCR = (1<<0) | (0<<1);
     }
     case RXU_RECEIVE_HEADER:
     {
@@ -449,8 +442,8 @@ void uart_rx_irq()
             uart.state.remaining--;
         }
         uart_rx_state = RXU_IDLE;
-        // reset the timer
-        TMR_COMM_TIMEOUT_TCR = (0<<0);
+        // disable and reset the timer
+        TMR_COMM_TIMEOUT_TCR = (0<<0) | (1<<1);
         break;
     }
     }

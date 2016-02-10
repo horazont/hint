@@ -441,12 +441,13 @@ int main(void)
 
     lcd_init_backlight(0x0000);
 
+    // uart timeout timer
     TMR_TMR32B0TC = 0;
     TMR_TMR32B0PR = 48000-1; // prescale to one tick per ms
     TMR_TMR32B0PC = 0;
     TMR_TMR32B0MCR = TMR_TMR32B0MCR_MR0_INT_ENABLED | TMR_TMR32B0MCR_MR0_STOP_ENABLED | TMR_TMR32B0MCR_MR0_RESET_ENABLED;
     TMR_TMR32B0MR0 = 100; // read timeout
-    TMR_TMR32B0TCR = 0;
+    TMR_TMR32B0TCR = 0; // stopped
 
     ENABLE_IRQ();
 
@@ -578,6 +579,14 @@ int main(void)
             // nothing to do
         }
         }
+
+        /* lcd_enable(); */
+        /* uint8_t buf[9]; */
+        /* buf[8] = '\0'; */
+        /* uint32_to_hex(uart_rx_state, buf); */
+        /* font_draw_text(&dejavu_sans_12px, 21, 21, 0x0000, buf); */
+        /* font_draw_text(&dejavu_sans_12px, 20, 20, 0xffff, buf); */
+        /* lcd_disable(); */
     }
 
     return 0;

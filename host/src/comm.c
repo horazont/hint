@@ -11,9 +11,18 @@
 #include <errno.h>
 #include <poll.h>
 #include <stdarg.h>
+#include <signal.h>
 
 #include "utils.h"
 #include "timestamp.h"
+
+static struct comm_t *signal_comm;
+
+static void sigusr1(int signum)
+{
+    static char resync_cmd = 'S';
+    write(signal_comm->signal_fd, &resync_cmd, 1);
+}
 
 void dump_buffer(FILE *dest, const uint8_t *buffer, int len)
 {
@@ -347,6 +356,13 @@ void comm_init(
 
     pthread_mutex_init(&comm->data_mutex, NULL);
     pthread_create(&comm->thread, NULL, (void*(*)(void*))&comm_thread, comm);
+
+    struct sigaction sighandler;
+    memset(&sighandler, 0, sizeof(struct sigaction));
+
+    sighandler.sa_handler = &sigusr1;
+    sigaction(SIGUSR1, &sighandler, NULL);
+    signal_comm = comm;
 }
 
 bool comm_is_available(struct comm_t *comm)
@@ -592,7 +608,17 @@ void comm_thread_signalfd(struct comm_t *comm, struct pollfd *signalfd)
     if (signalfd->revents & (POLLERR|POLLHUP)) {
         comm_printf(comm, "signalfd POLLERR|POLLHUP\n");
     } else if (signalfd->revents & POLLIN) {
-        recv_char(comm->_signal_fd);
+        switch (recv_char(comm->_signal_fd))
+        {
+        case 'S':
+        {
+            // resync
+            fprintf(stderr, "SIGUSR1 received, resyncing comm\n");
+            comm_thread_to_state_out_of_sync(comm);
+            break;
+        }
+        default:;
+        }
     }
 }
 
@@ -621,6 +647,7 @@ bool comm_thread_state_open_tx(struct comm_t *state, uint8_t *buffer)
     }
     state->_pending_ack = buffer;
     timestamp_gettime(&state->_tx_timestamp);
+    tcdrain(state->_fd);
     return true;
 }
 
@@ -853,6 +880,8 @@ void comm_thread_state_out_of_sync(
     if (comm_check_datafd_error(comm, datafd)) {
         return;
     }
+
+    tcflush(datafd->fd, TCIOFLUSH);
 
     comm_thread_to_state_open(comm);
     comm_timed_in_future(comm, 0);
