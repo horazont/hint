@@ -66,7 +66,8 @@ static inline void read_sensor_and_send_readout(uint8_t addr[8])
     ds.reset();
     ds.select(addr);
     ds.write(0x44, 1);
-    delay(1000);
+    // give sensors more time to feed off the bus
+    delay(1500);
 
     ds.reset();
     ds.select(addr);
@@ -127,6 +128,8 @@ void loop() {
             break;
         }
         read_sensor_and_send_readout(addr);
+        // give bus more time to recover
+        delay(500);
     }
-    delay(10000);
+    delay(6000);
 }
