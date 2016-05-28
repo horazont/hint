@@ -394,6 +394,7 @@ int comm_open(struct comm_t *state)
     cfsetispeed(&port_settings, speed);
     cfsetospeed(&port_settings, speed);
     cfmakeraw(&port_settings);
+    port_settings.c_cflag |= CREAD | CLOCAL;
     tcsetattr(fd, TCSANOW, &port_settings);
     tcflush(fd, TCIOFLUSH);
 
