@@ -390,6 +390,7 @@ int comm_open(struct comm_t *state)
 
     struct termios port_settings;
     memset(&port_settings, 0, sizeof(port_settings));
+    tcgetattr(fd, &port_settings);
     speed_t speed = get_baudrate(state->_baudrate);
     cfsetispeed(&port_settings, speed);
     cfsetospeed(&port_settings, speed);
