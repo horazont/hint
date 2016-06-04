@@ -86,6 +86,9 @@ class ForecastDataPoint:
         instance.humidity = get_float(api_datapoint,
                                       "humidity",
                                       default=0.0) * 100.
+        instance.nearest_storm_distance = get_float(api_datapoint,
+                                                    "nearestStormDistance",
+                                                    default=0.)
 
         return instance
 
@@ -197,7 +200,8 @@ class ForecastIO:
             stanza.Humidity: self._dp_humidity,
             stanza.WindDirection: self._dp_winddirection,
             stanza.WindSpeed: self._dp_windspeed,
-            stanza.Precipitation: self._dp_precipitation
+            stanza.Precipitation: self._dp_precipitation,
+            stanza.NearestStormDistance: self._dp_nearest_storm_distance,
         }
 
     def _populate_request_with_default(self, request, interval=True):
@@ -212,6 +216,7 @@ class ForecastIO:
         request.append(stanza.CloudCoverage(
             level=stanza.CloudCoverage.Level.Overall))
         request["precipitation"]
+        request["nearest_storm_distance"]
 
     def _dp_temperature(self, datapoint, node):
         value = {
@@ -240,6 +245,9 @@ class ForecastIO:
 
     def _dp_precipitation(self, datapoint, node):
         node.aggregate_value(datapoint.precipitation_intensity)
+
+    def _dp_nearest_storm_distance(self, datapoint, node):
+        node.aggregate_value(datapoint.nearest_storm_distance)
 
     def _initialize_result_nodes(self, request):
         for node in hintmodules.utils.iter_all_plugins(request):

@@ -250,6 +250,12 @@ class Precipitation(AggregatedValuesMixin, SingleValueMixin, ElementBase):
     plugin_attrib = "precipitation"
     interfaces = set(("aggregated_values", "value",))
 
+class NearestStormDistance(AggregatedValuesMixin, SingleValueMixin, ElementBase):
+    namespace = xmlns
+    name = "nsd"
+    plugin_attrib = "nearest_storm_distance"
+    interfaces = set(("aggregated_values", "value",))
+
 register_stanza_plugin(Iq, Data)
 register_stanza_plugin(Iq, Sources)
 
@@ -267,3 +273,4 @@ register_stanza_plugin(AttributeContainer, WindSpeed)
 register_stanza_plugin(AttributeContainer, Fog)
 register_stanza_plugin(AttributeContainer, Precipitation)
 register_stanza_plugin(AttributeContainer, Humidity)
+register_stanza_plugin(AttributeContainer, NearestStormDistance)
