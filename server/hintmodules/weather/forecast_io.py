@@ -201,6 +201,7 @@ class ForecastIO:
             stanza.WindDirection: self._dp_winddirection,
             stanza.WindSpeed: self._dp_windspeed,
             stanza.Precipitation: self._dp_precipitation,
+            stanza.PrecipitationProbability: self._dp_precipitation_probability,
             stanza.NearestStormDistance: self._dp_nearest_storm_distance,
         }
 
@@ -216,6 +217,7 @@ class ForecastIO:
         request.append(stanza.CloudCoverage(
             level=stanza.CloudCoverage.Level.Overall))
         request["precipitation"]
+        request["precipitation_probability"]
         request["nearest_storm_distance"]
 
     def _dp_temperature(self, datapoint, node):
@@ -245,6 +247,9 @@ class ForecastIO:
 
     def _dp_precipitation(self, datapoint, node):
         node.aggregate_value(datapoint.precipitation_intensity)
+
+    def _dp_precipitation_probability(self, datapoint, node):
+        node.aggregate_value(datapoint.precipitation_probability)
 
     def _dp_nearest_storm_distance(self, datapoint, node):
         node.aggregate_value(datapoint.nearest_storm_distance)
