@@ -15,14 +15,17 @@ import hintmodules.caching_requester
 
 logger = logging.getLogger()
 
+
 def get_timestamp():
     import calendar
     return calendar.timegm(datetime.utcnow().utctimetuple())
+
 
 class StopFilter(object, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def filter_departures(self, input):
         return input
+
 
 class StopFilterFunc(StopFilter):
     def __init__(self, filter_func):
@@ -33,6 +36,7 @@ class StopFilterFunc(StopFilter):
 
     def filter_departures(self, input):
         return list(filter(self._filter_departure, input))
+
 
 class DVBRequester(hintmodules.caching_requester.AdvancedRequester):
     URL = "http://widgets.vvo-online.de/abfahrtsmonitor/Abfahrten.do?ort=Dresden&hst={}"
@@ -109,6 +113,7 @@ class DVBRequester(hintmodules.caching_requester.AdvancedRequester):
     def _get_backing_off_result(self, expired_cache_entry, stop_name):
         cache_entry = expired_cache_entry
         return cache_entry
+
 
 class Departure(object):
     MAX_AGE = timedelta(seconds=30)

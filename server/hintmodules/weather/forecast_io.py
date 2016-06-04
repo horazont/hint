@@ -16,17 +16,20 @@ import hintmodules.caching_requester
 
 from . import utils
 
+
 def get_temperature(mapping, key, default=None):
     try:
         return utils.celsius_to_kelvin(mapping[key])
     except KeyError:
         return default
 
+
 def get_float(mapping, key, default=None):
     try:
         return float(mapping[key])
     except KeyError:
         return default
+
 
 class ForecastData:
     def __init__(self):
@@ -41,6 +44,7 @@ class ForecastData:
 
     def sort(self):
         self.datapoints.sort(key=lambda x: x.at)
+
 
 class ForecastDataPoint:
     at = None
@@ -178,6 +182,7 @@ class ForecastIORequester(hintmodules.caching_requester.AdvancedRequester):
         result.sort()
 
         return result
+
 
 class ForecastIO:
     LICENSE = "CC-BY-SA"
