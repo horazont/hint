@@ -1,13 +1,7 @@
-__version__ = "0.2"
-
 import urllib.error
-import runpy
 import logging
-import copy
 
-from sleekxmpp.exceptions import IqError, IqTimeout
-from sleekxmpp.xmlstream import ET, JID
-from sleekxmpp import Iq, Message, ClientXMPP
+from sleekxmpp import ClientXMPP
 from sleekxmpp.xmlstream.handler import Callback
 from sleekxmpp.xmlstream.matcher import StanzaPath
 
@@ -16,8 +10,12 @@ import hintmodules.departure.stanza as departure_stanza
 import hintmodules.sensor.stanza as sensor_stanza
 import hintmodules.errors
 
+__version__ = "0.2"
+
+
 class ConfigError(Exception):
     pass
+
 
 class Config:
     @staticmethod
@@ -39,9 +37,9 @@ class Config:
         self.reload()
 
     def _validate_credentials(self, credentials):
-        if not "jid" in credentials:
+        if "jid" not in credentials:
             raise ConfigError("jid not in credentials")
-        if not "password" in credentials:
+        if "password" not in credentials:
             raise ConfigError("password not in credentials")
 
     def _update(self,
@@ -52,7 +50,7 @@ class Config:
                 start):
         self._validate_credentials(credentials)
         if (self.credentials is not None and
-            credentials != self.credentials):
+               credentials != self.credentials):
             # FIXME: run reconnect
             pass
 
@@ -98,6 +96,7 @@ class Config:
             departure,
             sensor_sinks,
             start)
+
 
 class HintBot:
     def __init__(self, config):
