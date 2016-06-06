@@ -296,7 +296,7 @@ class HintBot:
         for key, sourcecls in self._config.weather_sources.items():
             try:
                 sourcecls, _ = sourcecls
-            except ValueError:
+            except (ValueError, TypeError):
                 pass
 
             source = weather_stanza.Source()
