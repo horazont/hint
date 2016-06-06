@@ -294,6 +294,11 @@ class HintBot:
     def get_weather_sources(self, orig_iq):
         response = weather_stanza.Sources()
         for key, sourcecls in self._config.weather_sources.items():
+            try:
+                sourcecls, _ = sourcecls
+            except ValueError:
+                pass
+
             source = weather_stanza.Source()
             source["uri"] = key
             source["license"] = sourcecls.LICENSE
