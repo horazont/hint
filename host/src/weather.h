@@ -9,6 +9,7 @@ struct weather_interval_t {
     float windspeed_meter_per_second;
     float cloudiness_percent;
     float precipitation_millimeter;
+    float precipitation_probability;
 };
 
 #endif

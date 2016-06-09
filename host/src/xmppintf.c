@@ -211,6 +211,7 @@ const char *xml_meteo_humidity = "h";
 const char *xml_meteo_wind_direction = "wd";
 const char *xml_meteo_wind_speed = "ws";
 const char *xml_meteo_precipitation = "prec";
+const char *xml_meteo_precipitation_probability = "precp";
 const char *xml_meteo_attr_value = "v";
 const char *xml_meteo_attr_min = "min";
 const char *xml_meteo_attr_max = "max";
@@ -1013,6 +1014,7 @@ void xmppintf_handle_weather_reply(
         dest->cloudiness_percent = NAN;
         dest->humidity_percent = NAN;
         dest->windspeed_meter_per_second = NAN;
+        dest->precipitation_probability = NAN;
 
         for (xmpp_stanza_t *attr_stanza =
                  xmpp_stanza_get_children(interval_stanza);
@@ -1087,6 +1089,18 @@ void xmppintf_handle_weather_reply(
                 {
                     fprintf(stderr,
                             "xmpp: weather_reply: failed to parse precipitation\n");
+                    goto respond_with_error;
+                }
+
+            } else if (strcmp(attr_name, xml_meteo_precipitation_probability) == 0) {
+                if (!parse_float(
+                        xmpp_stanza_get_attribute(
+                            attr_stanza,
+                            xml_meteo_attr_max),
+                        &dest->precipitation_probability))
+                {
+                    fprintf(stderr,
+                            "xmpp: weather_reply: failed to parse precipitation probability\n");
                     goto respond_with_error;
                 }
 
@@ -1499,6 +1513,11 @@ static inline void add_request_tags(
 
     stanza = xmpp_stanza_new(ctx);
     xmpp_stanza_set_name(stanza, xml_meteo_humidity);
+    xmpp_stanza_add_child(interval, stanza);
+    xmpp_stanza_release(stanza);
+
+    stanza = xmpp_stanza_new(ctx);
+    xmpp_stanza_set_name(stanza, xml_meteo_precipitation_probability);
     xmpp_stanza_add_child(interval, stanza);
     xmpp_stanza_release(stanza);
 

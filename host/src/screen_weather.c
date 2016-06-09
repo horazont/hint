@@ -133,7 +133,7 @@ static colour_t cloudcolour(
 {
     precipitation /= 5.0f;
     cloudiness = clamp(cloudiness/1.5f, 0.0f, 0.6667f);
-    precipitation = fmaxf(precipitation, 0.0);
+    precipitation = fmaxf(precipitation, 0.0) * 6.f;
 
     return hsv_to_rgb(
         (fminf(fmaxf(precipitation - 1.0, 0.0) / 3.0f,
@@ -316,7 +316,7 @@ static void draw_weather_bar(
 
         colour = cloudcolour(
             curr_interval->interval.cloudiness_percent / 100.,
-            curr_interval->interval.precipitation_millimeter);
+            curr_interval->interval.precipitation_probability);
         text_colour = 0x0000;
 
         if (luminance(colour) <= 127) {
