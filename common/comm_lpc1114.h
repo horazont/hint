@@ -58,6 +58,11 @@ struct __attribute__((packed)) lpc_cmd_table_row_t {
     uint8_t contents[0];
 };
 
+struct __attribute__((packed)) lpc_cmd_table_row_ex_t {
+    uint8_t font;
+    struct table_column_ex_t contents[0];
+};
+
 struct __attribute__((packed)) lpc_cmd_set_brightness_t {
     uint16_t brightness;
 };
@@ -66,16 +71,15 @@ struct __attribute__((packed)) lpc_cmd_set_brightness_t {
 #define LPC_CMD_DRAW_RECT               (0x02)
 #define LPC_CMD_DRAW_IMAGE_START        (0x03)
 #define LPC_CMD_DRAW_IMAGE_DATA         (0x04)
-#define LPC_CMD_DRAW_IMAGE_END          (0x05)
 #define LPC_CMD_RESET_STATE             (0x06)
 #define LPC_CMD_DRAW_TEXT               (0x07)
 #define LPC_CMD_TABLE_START             (0x08)
 #define LPC_CMD_TABLE_ROW               (0x09)
-#define LPC_CMD_TABLE_END               (0x0A)
 #define LPC_CMD_DRAW_LINE               (0x0B)
 #define LPC_CMD_SET_BRIGHTNESS          (0x0C)
 #define LPC_CMD_LULLABY                 (0x0D)
 #define LPC_CMD_WAKE_UP                 (0x0E)
+#define LPC_CMD_TABLE_ROW_EX            (0x0F)
 
 #define LPC_FONT_DEJAVU_SANS_9PX        (0x10)
 #define LPC_FONT_DEJAVU_SANS_12PX       (0x20)
@@ -93,6 +97,7 @@ struct __attribute__((packed)) lpc_cmd_t {
         struct lpc_cmd_draw_text draw_text;
         struct lpc_cmd_table_start_t table_start;
         struct lpc_cmd_table_row_t table_row;
+        struct lpc_cmd_table_row_ex_t table_row_ex;
         struct lpc_cmd_set_brightness_t set_brightness;
         uint8_t raw[MSG_MAX_PAYLOAD-sizeof(lpc_cmd_id_t)];
     } args;

@@ -82,6 +82,7 @@ void screen_create(
     screen->hide = NULL;
     screen->free = NULL;
     screen->repaint = NULL;
+    screen->touch = NULL;
     screen->broker = broker;
     screen->comm = broker->comm;
     screen->private = NULL;

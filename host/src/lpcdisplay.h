@@ -29,6 +29,18 @@ void lpcd_draw_text(
     const colour_t colour,
     const char *text);
 
+void lpcd_image_start(
+    struct comm_t *comm,
+    const coord_int_t x0,
+    const coord_int_t y0,
+    const coord_int_t x1,
+    const coord_int_t y1);
+
+void lpcd_image_data(
+    struct comm_t *comm,
+    const void *buffer,
+    const size_t length);
+
 void lpcd_fill_rectangle(
     struct comm_t *comm,
     const coord_int_t x0,
@@ -40,15 +52,18 @@ void lpcd_fill_rectangle(
 void lpcd_lullaby(
     struct comm_t *comm);
 
-void lpcd_table_end(
-    struct comm_t *comm);
-
 void lpcd_table_row(
     struct comm_t *comm,
     const int font,
     const colour_t fgcolour,
     const colour_t bgcolour,
     const char *columns,
+    const int columns_len);
+
+void lpcd_table_row_ex(
+    struct comm_t *comm,
+    const int font,
+    const struct table_column_ex_t *columns,
     const int columns_len);
 
 void lpcd_table_start(

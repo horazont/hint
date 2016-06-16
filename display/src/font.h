@@ -34,6 +34,7 @@ utf8_cstr_t font_draw_text(
     const coord_int_t y0,
     const colour_t colour,
     utf8_cstr_t text);
+
 utf8_cstr_t font_draw_text_ellipsis(
     const struct font_t *font,
     const coord_int_t x0,
@@ -41,6 +42,18 @@ utf8_cstr_t font_draw_text_ellipsis(
     const colour_t colour,
     utf8_cstr_t text,
     const coord_int_t width);
+
+utf8_cstr_t font_draw_text_rect(
+    const struct font_t *font,
+    const coord_int_t x0,
+    const coord_int_t y0,
+    const coord_int_t width,
+    const coord_int_t height,
+    const colour_t bgcolour,
+    const colour_t fgcolour,
+    const table_column_alignment_t alignment,
+    utf8_cstr_t text
+    );
 
 void font_text_metrics(
     const struct font_t *font,

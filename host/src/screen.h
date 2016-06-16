@@ -18,6 +18,8 @@
 #define SCREEN_CLIENT_AREA_RIGHT            ((LCD_WIDTH-1)-64)
 #define SCREEN_CLIENT_AREA_BOTTOM           ((LCD_HEIGHT-1)-2)
 
+#define SCREEN_CLIENT_AREA_WIDTH            (SCREEN_CLIENT_AREA_RIGHT-SCREEN_CLIENT_AREA_LEFT-1)
+
 #define SCREEN_HEADER_MARGIN_TOP            (0)
 #define SCREEN_HEADER_MARGIN_LEFT           (8)
 #define SCREEN_HEADER_MARGIN_RIGHT          (72)
@@ -36,9 +38,14 @@ struct screen_t;
 struct broker_t;
 
 typedef void (*screen_func)(struct screen_t *screen);
+typedef void (*screen_touch_func)(struct screen_t *screen,
+                                  coord_int_t xc,
+                                  coord_int_t yc,
+                                  coord_int_t z);
 
 struct screen_t {
     screen_func show, hide, free, repaint;
+    screen_touch_func touch;
 
     struct broker_t *broker;
     struct comm_t *comm;

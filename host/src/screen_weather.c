@@ -8,11 +8,14 @@
 
 #include "lpcdisplay.h"
 #include "theme.h"
+#include "screen_utils.h"
 
 /* utilities */
 
 static const coord_int_t interval_width_with_space = 125+2;
 static const coord_int_t interval_height_with_space = 56+2;
+
+#define SCALEBAR_HEIGHT (2)
 
 static inline float clamp(const float v, const float minv, const float maxv)
 {
@@ -133,7 +136,7 @@ static colour_t cloudcolour(
 {
     precipitation /= 5.0f;
     cloudiness = clamp(cloudiness/1.5f, 0.0f, 0.6667f);
-    precipitation = fmaxf(precipitation, 0.0) * 6.f;
+    precipitation = fmaxf(precipitation, 0.0);
 
     return hsv_to_rgb(
         (fminf(fmaxf(precipitation - 1.0, 0.0) / 3.0f,
@@ -222,6 +225,32 @@ static inline int format_number_with_unit(
     return total;
 }
 
+static inline void format_dynamic_number(
+    struct table_row_formatter_t *dest,
+    float value,
+    const colour_t fgcolour,
+    const colour_t bgcolour,
+    const table_column_alignment_t alignment
+    )
+{
+    const char *fmt = NULL;
+    if (value < 0) {
+        fmt = (fabs(value) > 9.5 ? "–%.0f" : "–%.1f");
+    } else {
+        fmt = (fabs(value) > 9.5 ? "%.0f" : "%.1f");
+    }
+
+    table_row_formatter_append_ex(
+        dest,
+        fgcolour,
+        bgcolour,
+        alignment,
+        fmt,
+        fabs(value)
+        );
+}
+
+
 static void draw_weather_bar(
     struct screen_t *screen,
     coord_int_t x0,
@@ -241,18 +270,96 @@ static void draw_weather_bar(
 
     char textbuffer[128];
 
-    static struct table_column_t columns[2];
-    columns[0].width = 21;
-    columns[0].alignment = TABLE_ALIGN_RIGHT;
-    columns[1].width = 21;
-    columns[1].alignment = TABLE_ALIGN_LEFT;
+    struct table_row_formatter_t time_row;
+    struct table_row_formatter_t temp_row;
+    struct table_row_formatter_t cloud_row;
+    // 40 >= 6*(len("XX:XX")+1)
+    table_row_formatter_init_dynamic(&time_row, 40);
+
+    // 120 >= 12*(2+2+3+1)  (2 times colour, three characters avg., 1 null byte)
+    table_row_formatter_init_dynamic(&temp_row, 120);
+    table_row_formatter_init_dynamic(&cloud_row, 120);
+
+    static struct table_column_t time_columns[6] = {
+        {
+            .width = 42,
+            .alignment = TABLE_ALIGN_LEFT,
+        },
+        {
+            .width = 42,
+            .alignment = TABLE_ALIGN_LEFT,
+        },
+        {
+            .width = 42,
+            .alignment = TABLE_ALIGN_LEFT,
+        },
+        {
+            .width = 42,
+            .alignment = TABLE_ALIGN_LEFT,
+        },
+        {
+            .width = 42,
+            .alignment = TABLE_ALIGN_LEFT,
+        },
+        {
+            .width = 42,
+            .alignment = TABLE_ALIGN_LEFT,
+        },
+    };
+
+    static struct table_column_t weather_columns[12] = {
+        {
+            .width = 21,
+            .alignment = TABLE_ALIGN_RIGHT,
+        },
+        {
+            .width = 21,
+            .alignment = TABLE_ALIGN_LEFT,
+        },
+        {
+            .width = 21,
+            .alignment = TABLE_ALIGN_RIGHT,
+        },
+        {
+            .width = 21,
+            .alignment = TABLE_ALIGN_LEFT,
+        },
+        {
+            .width = 21,
+            .alignment = TABLE_ALIGN_RIGHT,
+        },
+        {
+            .width = 21,
+            .alignment = TABLE_ALIGN_LEFT,
+        },
+        {
+            .width = 21,
+            .alignment = TABLE_ALIGN_RIGHT,
+        },
+        {
+            .width = 21,
+            .alignment = TABLE_ALIGN_LEFT,
+        },
+        {
+            .width = 21,
+            .alignment = TABLE_ALIGN_RIGHT,
+        },
+        {
+            .width = 21,
+            .alignment = TABLE_ALIGN_LEFT,
+        },
+        {
+            .width = 21,
+            .alignment = TABLE_ALIGN_RIGHT,
+        },
+        {
+            .width = 21,
+            .alignment = TABLE_ALIGN_LEFT,
+        },
+    };
 
     for (size_t hour_offset = 0; hour_offset < 6; hour_offset++)
     {
-        const coord_int_t x = x0 + hour_offset*interval_width;
-
-        coord_int_t y = y0;
-
         struct tm this_time;
         memcpy(&this_time,
                localtime(&curr_interval->interval.start),
@@ -270,33 +377,10 @@ static void draw_weather_bar(
                  textfmt,
                  &this_time);
 
-        lpcd_fill_rectangle(
-            screen->comm,
-            x, y,
-            x+interval_width, y+text_height,
-            THEME_CLIENT_AREA_BACKGROUND_COLOUR);
-
-        lpcd_draw_text(
-            screen->comm,
-            x, y+9,
-            LPC_FONT_DEJAVU_SANS_9PX,
-            THEME_CLIENT_AREA_COLOUR,
-            textbuffer);
-
-        y += text_height;
-
-        intptr_t total_length;
-
-        total_length = format_number_with_unit(
-            textbuffer, sizeof(textbuffer),
-            "°C",
-            curr_interval->interval.temperature_celsius);
-
-        lpcd_table_start(
-            screen->comm,
-            x, y+9,
-            block_height,
-            columns, 2);
+        table_row_formatter_append(
+            &time_row,
+            "%s", textbuffer
+            );
 
         colour_t colour = tempcolour(
             temp_min,
@@ -308,39 +392,138 @@ static void draw_weather_bar(
             text_colour = 0xffff;
         }
 
-        lpcd_table_row(
-            screen->comm,
-            LPC_FONT_DEJAVU_SANS_9PX,
-            text_colour, colour,
-            textbuffer, total_length);
+        format_dynamic_number(
+            &temp_row,
+            curr_interval->interval.temperature_celsius,
+            text_colour,
+            colour,
+            TABLE_ALIGN_RIGHT
+            );
+
+        table_row_formatter_append_ex(
+            &temp_row,
+            text_colour,
+            colour,
+            TABLE_ALIGN_LEFT,
+            "%s",
+            "°C"
+            );
 
         colour = cloudcolour(
             curr_interval->interval.cloudiness_percent / 100.,
-            curr_interval->interval.precipitation_probability);
+            0);
         text_colour = 0x0000;
 
         if (luminance(colour) <= 127) {
             text_colour = 0xffff;
         }
 
-        total_length = format_number_with_unit(
-            textbuffer, sizeof(textbuffer),
-            "mm",
+        table_row_formatter_append_ex(
+            &cloud_row,
+            text_colour,
+            colour,
+            TABLE_ALIGN_CENTER,
+            "%.0f",
+            curr_interval->interval.precipitation_probability*100.f
+            );
+
+        colour = cloudcolour(
+            0,
             curr_interval->interval.precipitation_millimeter);
+        text_colour = 0x0000;
 
-        lpcd_table_row(
-            screen->comm,
-            LPC_FONT_DEJAVU_SANS_9PX,
-            text_colour, colour,
-            textbuffer, total_length);
+        if (luminance(colour) <= 127) {
+            text_colour = 0xffff;
+        }
 
-        lpcd_table_end(screen->comm);
+        format_dynamic_number(
+            &cloud_row,
+            curr_interval->interval.precipitation_millimeter,
+            text_colour,
+            colour,
+            TABLE_ALIGN_CENTER
+            );
+
+        /* table_row_formatter_append_ex( */
+        /*     &cloud_row, */
+        /*     text_colour, */
+        /*     colour, */
+        /*     TABLE_ALIGN_LEFT, */
+        /*     "%.0f", */
+        /*     curr_interval->interval.precipitation_probability*100.f */
+        /*     ); */
 
         ++curr_interval;
         memcpy(prev_time, &this_time, sizeof(struct tm));
     }
 
+    lpcd_table_start(
+        screen->comm,
+        x0,
+        y0+9,
+        text_height,
+        time_columns,
+        6
+        );
+
+    size_t columns_len = 0;
+    char *columns = table_row_formatter_get(
+        &time_row,
+        &columns_len
+        );
+
+    lpcd_table_row(
+        screen->comm,
+        LPC_FONT_DEJAVU_SANS_9PX,
+        THEME_CLIENT_AREA_COLOUR,
+        THEME_CLIENT_AREA_BACKGROUND_COLOUR,
+        columns,
+        columns_len
+        );
+
+    y0 += text_height;
+
+    lpcd_table_start(
+        screen->comm,
+        x0,
+        y0+9,
+        block_height,
+        weather_columns,
+        12
+        );
+
+    columns = table_row_formatter_get(
+        &temp_row,
+        &columns_len
+        );
+
+    lpcd_table_row_ex(
+        screen->comm,
+        LPC_FONT_DEJAVU_SANS_9PX,
+        (const struct table_column_ex_t*)columns,
+        columns_len
+        );
+
+    columns = table_row_formatter_get(
+        &cloud_row,
+        &columns_len
+        );
+
+    lpcd_table_row_ex(
+        screen->comm,
+        LPC_FONT_DEJAVU_SANS_9PX,
+        (const struct table_column_ex_t*)columns,
+        columns_len
+        );
+
+    table_row_formatter_free(&time_row);
+    table_row_formatter_free(&temp_row);
+    table_row_formatter_free(&cloud_row);
     *interval = curr_interval;
+
+    (void)block_height;
+    (void)weather_columns;
+    (void)interval_width;
 }
 
 static void setup_interval(
@@ -367,6 +550,7 @@ void screen_weather_free(struct screen_t *screen)
 {
     struct screen_weather_t *weather = screen->private;
     array_free(&weather->request_array);
+    free(weather->scalebar);
     free(weather);
 }
 
@@ -417,6 +601,16 @@ void screen_weather_init(struct screen_t *screen)
 
     for (int i = 0; i < SENSOR_COUNT; i++) {
         weather->sensors[i].temperature = NAN;
+    }
+
+    weather->scalebar = malloc(sizeof(uint16_t)*SCALEBAR_HEIGHT*SCREEN_CLIENT_AREA_WIDTH);
+
+    uint16_t *dest = weather->scalebar;
+    for (coord_int_t x = 0; x < SCREEN_CLIENT_AREA_WIDTH; ++x) {
+        for (coord_int_t y = 0; y < SCALEBAR_HEIGHT; ++y) {
+            float prec = ((float)x)/(SCREEN_CLIENT_AREA_WIDTH-1);
+            *dest++ = cloudcolour(0, prec);
+        }
     }
 
     screen->private = weather;
@@ -501,6 +695,44 @@ void screen_weather_repaint(struct screen_t *screen)
         &prev_time,
         &curr_interval);
 
+    /* lpcd_image_start( */
+    /*     screen->comm, */
+    /*     SCREEN_CLIENT_AREA_LEFT, */
+    /*     SCREEN_CLIENT_AREA_BOTTOM-2, */
+    /*     SCREEN_CLIENT_AREA_RIGHT, */
+    /*     SCREEN_CLIENT_AREA_BOTTOM-1 */
+    /*     ); */
+
+    /* { */
+    /*     const uint16_t buffer_len = 100; */
+    /*     const uint16_t buffer_size = buffer_len * sizeof(uint16_t); */
+    /*     const uint16_t cols_per_message = buffer_size / SCALEBAR_HEIGHT; */
+    /*     uint16_t *buffer = malloc(buffer_size); */
+    /*     uint16_t *const buffer_end = &buffer[buffer_len]; */
+    /*     uint16_t *dest = buffer; */
+
+    /*     for (int prec = 0; prec < SCREEN_CLIENT_AREA_WIDTH; ++prec) { */
+    /*         float precf = ((float)prec) / SCREEN_CLIENT_AREA_WIDTH; */
+    /*         uint16_t colour = cloudcolour(0.f, precf); */
+
+    /*         for (int row = 0; row < cols_per_message; ++row) { */
+    /*             *dest++ = colour; */
+    /*         } */
+
+    /*         if (dest == buffer_end) { */
+    /*             lpcd_image_data(screen->comm, buffer, buffer_size); */
+    /*             dest = buffer; */
+    /*         } */
+    /*     } */
+
+    /*     if (dest != buffer) { */
+    /*         lpcd_image_data(screen->comm, buffer, (size_t)(dest - buffer)); */
+    /*     } */
+
+    /*     lpcd_image_end(screen->comm); */
+    /*     free(buffer); */
+    /* } */
+
     /* draw_weather_interval( */
     /*     screen, */
     /*     &weather->timeslots[0], */
@@ -541,6 +773,7 @@ void screen_weather_repaint(struct screen_t *screen)
 
 void screen_weather_update(struct screen_t *screen)
 {
+
 }
 
 void screen_weather_set_sensor(
@@ -556,4 +789,14 @@ void screen_weather_set_sensor(
     struct screen_weather_sensor_t *sensor = &weather->sensors[sensor_id];
     sensor->last_update = time(NULL);
     sensor->temperature = raw_value / 16.;
+}
+
+
+void screen_weathergraph_init_shared(
+    struct screen_t *weathergraph,
+    struct screen_t *existing_screen)
+{
+    memset(existing_screen, 0, sizeof(struct screen_t));
+
+    existing_screen->private = existing_screen->private;
 }

@@ -43,6 +43,7 @@ struct screen_weather_t {
     struct array_t request_array;
     struct weather_info_t timeslots[WEATHER_INTERVALS];
     struct screen_weather_sensor_t sensors[SENSOR_COUNT];
+    uint16_t *scalebar;
 };
 
 void screen_weather_free(struct screen_t *screen);

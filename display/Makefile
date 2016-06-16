@@ -102,8 +102,10 @@ src/generated_font_data.inc: $(GENFONT)
 		"DejaVu Sans" 12 dejavu_sans_12px_bf >> $@
 	$(GENFONT) --no-flip --bfseries \
 		-r "'0'" "'9'" \
-		-c "':'" "'°'" "'C'" \
+		-c "':'" \
+	  --space-width 6 \
 		-c 0xfffd \
+		-l "data/glyphs/Cantarell/20px/0x0000003a.glyph" \
 		-- \
 		"Cantarell" 20 cantarell_20px_bf >> $@
 	$(GENFONT) --no-flip \
@@ -112,11 +114,13 @@ src/generated_font_data.inc: $(GENFONT)
 		-r "'0'" "'9'" \
 		-c "'.'" "':'" "'°'" \
 		-c "'ä'" "'ö'" "'ü'" \
+	  -c "'%'" \
 		-c 0xfffd \
 		-c 0x2026 \
 		-c 0x202f \
 		-c 0x2013 \
-		-l data/0x00000033.glyph \
+		-l "data/glyphs/DejaVu Sans/9px/0x00000033.glyph" \
+		-l "data/glyphs/DejaVu Sans/9px/0x000000b0.glyph" \
 		--\
 		"DejaVu Sans" 9 dejavu_sans_9px >> $@
 

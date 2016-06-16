@@ -184,6 +184,77 @@ utf8_cstr_t font_draw_text_ellipsis(
     return utf8_get_ptr(&ctx);
 }
 
+utf8_cstr_t font_draw_text_rect(
+    const struct font_t *font,
+    const coord_int_t x0,
+    const coord_int_t y0,
+    const coord_int_t width,
+    const coord_int_t height,
+    const colour_t bgcolour,
+    const colour_t fgcolour,
+    const table_column_alignment_t alignment,
+    utf8_cstr_t text
+    )
+{
+    const coord_int_t yrect = y0;
+    const coord_int_t yfont = yrect+(font->height-1);
+    fill_rectangle(
+        x0, yrect,
+        x0+width-1, yrect+height-1,
+        bgcolour);
+
+    coord_int_t text_width, text_height, text_depth;
+    font_text_metrics(
+        font,
+        text,
+        &text_width, &text_height, &text_depth);
+
+    coord_int_t y = yfont;
+    coord_int_t x = x0;
+    y += (height - font->height - 1) / 2;
+
+    switch (alignment){
+    case TEXT_ALIGN_RIGHT:
+    {
+        if (text_width < width) {
+            // text will fit, so we can do right alignment
+            x += (width - text_width);
+            return font_draw_text(
+                font,
+                x, y,
+                fgcolour,
+                text);
+        }
+        break;
+    }
+    case TEXT_ALIGN_CENTER:
+    {
+        if (text_width < width) {
+            // text will fit, so we can do center alignment
+            x += (width - text_width) / 2;
+            return font_draw_text(
+                font,
+                x, y,
+                fgcolour,
+                text);
+        }
+        break;
+    }
+    default:
+    case TEXT_ALIGN_LEFT:
+    {
+        // drawing happens at the end
+        break;
+    }
+    }
+    return font_draw_text_ellipsis(
+        font,
+        x, y,
+        fgcolour,
+        text,
+        width);
+}
+
 inline coord_int_t max(const coord_int_t a, const coord_int_t b)
 {
     return (a > b ? a : b);

@@ -73,6 +73,47 @@ void lpcd_draw_text(
     comm_enqueue_msg(comm, msg);
 }
 
+void lpcd_image_start(
+    struct comm_t *comm,
+    const coord_int_t x0,
+    const coord_int_t y0,
+    const coord_int_t x1,
+    const coord_int_t y1)
+{
+    const int payload_length = sizeof(lpc_cmd_id_t) +
+        sizeof(struct lpc_cmd_draw_image_start_t);
+
+    struct lpc_cmd_msg_t *msg = comm_alloc_message(
+        MSG_ADDRESS_LPC1114, payload_length);
+
+    msg->payload.cmd = htole16(LPC_CMD_DRAW_IMAGE_START);
+    msg->payload.args.draw_image_start.x0 = htole16(x0);
+    msg->payload.args.draw_image_start.x1 = htole16(x1);
+    msg->payload.args.draw_image_start.y0 = htole16(y0);
+    msg->payload.args.draw_image_start.y1 = htole16(y1);
+
+    comm_enqueue_msg(comm, msg);
+}
+
+void lpcd_image_data(
+    struct comm_t *comm,
+    const void *buffer,
+    const size_t length)
+{
+    const int payload_length = sizeof(lpc_cmd_id_t) +
+        length;
+
+    struct lpc_cmd_msg_t *msg = comm_alloc_message(
+        MSG_ADDRESS_LPC1114, payload_length);
+
+    msg->payload.cmd = htole16(LPC_CMD_DRAW_IMAGE_DATA);
+    memcpy(&msg->payload.args.draw_image_data.pixels[0],
+           buffer,
+           length);
+
+    comm_enqueue_msg(comm, msg);
+}
+
 void lpcd_fill_rectangle(
     struct comm_t *comm,
     const coord_int_t x0,
@@ -106,17 +147,6 @@ void lpcd_lullaby(
     comm_enqueue_msg(comm, msg);
 }
 
-void lpcd_table_end(
-    struct comm_t *comm)
-{
-    const int payload_length = sizeof(lpc_cmd_id_t);
-    struct lpc_cmd_msg_t *msg = comm_alloc_message(
-        MSG_ADDRESS_LPC1114, payload_length);
-    msg->payload.cmd = htole16(LPC_CMD_TABLE_END);
-
-    comm_enqueue_msg(comm, msg);
-}
-
 void lpcd_table_row(
     struct comm_t *comm,
     const int font,
@@ -137,6 +167,28 @@ void lpcd_table_row(
     msg->payload.args.table_row.bgcolour = htole16(bgcolour);
     memcpy(
         &msg->payload.args.table_row.contents[0],
+        columns,
+        columns_len);
+
+    comm_enqueue_msg(comm, msg);
+}
+
+void lpcd_table_row_ex(
+    struct comm_t *comm,
+    const int font,
+    const struct table_column_ex_t *columns,
+    const int columns_len)
+{
+    const int payload_length =
+        sizeof(lpc_cmd_id_t) +
+        sizeof(struct lpc_cmd_table_row_t) +
+        columns_len;
+    struct lpc_cmd_msg_t *msg = comm_alloc_message(
+        MSG_ADDRESS_LPC1114, payload_length);
+    msg->payload.cmd = htole16(LPC_CMD_TABLE_ROW_EX);
+    msg->payload.args.table_row_ex.font = font;
+    memcpy(
+        &msg->payload.args.table_row_ex.contents[0],
         columns,
         columns_len);
 

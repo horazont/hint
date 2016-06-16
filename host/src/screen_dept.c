@@ -187,8 +187,6 @@ static inline void departure_paint(
             THEME_CLIENT_AREA_BACKGROUND_COLOUR,
             empty, 4);
     }
-
-    lpcd_table_end(screen->comm);
 }
 
 /* implementation */

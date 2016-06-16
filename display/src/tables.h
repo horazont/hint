@@ -59,6 +59,18 @@ void table_row(
     const colour_t bgcolour);
 
 /**
+ * Draw a table row with individual cell colours.
+ *
+ * @param ctx Table context to use
+ * @param font Font to use
+ * @param columns one struct table_column_ex_t for each column.
+ */
+void table_row_onebuffer_ex(
+    struct table_t *ctx,
+    const struct font_t *font,
+    const struct table_column_ex_t *columns);
+
+/**
  * Draw a table row
  *
  * @param ctx table context to use
@@ -74,5 +86,6 @@ void table_row_onebuffer(
     utf8_cstr_t columns,
     const colour_t fgcolour,
     const colour_t bgcolour);
+
 
 #endif

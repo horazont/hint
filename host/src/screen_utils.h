@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
+#include <common/types.h>
+
 struct table_row_formatter_t
 {
     char *buffer;
@@ -29,5 +31,12 @@ void table_row_formatter_init_dynamic(
     size_t initial_size);
 void table_row_formatter_reset(
     struct table_row_formatter_t *const this);
+
+bool table_row_formatter_append_ex(
+    struct table_row_formatter_t *const this,
+    const colour_t fgcolour,
+    const colour_t bgcolour,
+    const table_column_alignment_t alignment,
+    const char *fmt, ...);
 
 #endif

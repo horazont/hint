@@ -4,7 +4,7 @@
 #include <time.h>
 
 #define MAX_READOUTS_IN_BATCH (8)
-#define MAX_BATCHES           (32)
+#define MAX_BATCHES           (256)
 
 struct sensor_readout_t {
     time_t readout_time;

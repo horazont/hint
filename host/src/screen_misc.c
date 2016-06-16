@@ -11,10 +11,18 @@
 #include "lpcdisplay.h"
 #include "screen_utils.h"
 
+#include "xmppintf.h"
+
 #define UPDATE_INTERVAL (3000)
 #define STAT_TABLE_FORMATTER_SIZE (128)
 #define STATUS_OK ("\xe2\x9c\x94")
 #define STATUS_FAIL ("\xe2\x9c\x98")
+
+
+struct screen_misc_t {
+    struct xmpp_t *xmpp;
+};
+
 
 /* utilities */
 
@@ -88,9 +96,6 @@ static void status_table(
 
 
     table_row_formatter_free(&formatter);
-
-    lpcd_table_end(
-        comm);
 
 }
 
@@ -240,8 +245,6 @@ static void sysstat_table(
 
     table_row_formatter_free(&formatter);
 
-    lpcd_table_end(comm);
-
 }
 
 /* implementation */
@@ -256,14 +259,18 @@ void screen_misc_hide(struct screen_t *screen)
     broker_remove_task_func(screen->broker, &regular_update);
 }
 
-void screen_misc_init(struct screen_t *screen)
+void screen_misc_init(struct screen_t *screen, struct xmpp_t *xmpp)
 {
     screen->show = &screen_misc_show;
     screen->hide = &screen_misc_hide;
     screen->repaint = &screen_misc_repaint;
     screen->free = &screen_misc_free;
+    screen->touch = &screen_misc_touch;
 
-    screen->private = NULL;
+    struct screen_misc_t *misc = malloc(sizeof(struct screen_misc_t));
+    misc->xmpp = xmpp;
+
+    screen->private = misc;
 }
 
 void screen_misc_repaint(struct screen_t *screen)
@@ -277,6 +284,14 @@ void screen_misc_repaint(struct screen_t *screen)
         screen->broker,
         SCREEN_CLIENT_AREA_LEFT,
         SCREEN_CLIENT_AREA_TOP+6*14+4);
+}
+
+void screen_misc_touch(struct screen_t *screen,
+                       coord_int_t xc,
+                       coord_int_t yc,
+                       coord_int_t z)
+{
+
 }
 
 void screen_misc_show(struct screen_t *screen)

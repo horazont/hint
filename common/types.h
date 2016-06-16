@@ -13,9 +13,20 @@ typedef uint8_t table_column_alignment_t;
 #define TABLE_ALIGN_RIGHT (1)
 #define TABLE_ALIGN_CENTER (2)
 
+#define TEXT_ALIGN_LEFT (TABLE_ALIGN_LEFT)
+#define TEXT_ALIGN_RIGHT (TABLE_ALIGN_RIGHT)
+#define TEXT_ALIGN_CENTER (TABLE_ALIGN_CENTER)
+
 struct __attribute__((packed)) table_column_t {
     coord_int_t width;
     table_column_alignment_t alignment;
+};
+
+struct __attribute__((packed)) table_column_ex_t {
+    colour_t bgcolour;
+    colour_t fgcolour;
+    table_column_alignment_t alignment;
+    unsigned char text[0];
 };
 
 #endif

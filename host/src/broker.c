@@ -293,6 +293,14 @@ void broker_handle_touch_down(
     if ((new_screen != -1) && (new_screen != broker->active_screen)) {
         broker_switch_screen(broker, new_screen);
     }
+
+    struct screen_t *active_screen = &broker->screens[broker->active_screen];
+    if (active_screen->touch) {
+        active_screen->touch(
+            active_screen,
+            x, y, 2);
+    }
+
     broker_reset_sleepout_timer(broker);
 }
 
@@ -300,15 +308,26 @@ void broker_handle_touch_move(
     struct broker_t *broker,
     coord_int_t x, coord_int_t y)
 {
-
+    struct screen_t *active_screen = &broker->screens[broker->active_screen];
+    if (active_screen->touch) {
+        active_screen->touch(
+            active_screen,
+            x, y, 1);
+    }
 }
 
 void broker_handle_touch_up(
     struct broker_t *broker,
     coord_int_t x, coord_int_t y)
 {
-    broker->touch_is_up = true;
+    struct screen_t *active_screen = &broker->screens[broker->active_screen];
+    if (active_screen->touch) {
+        active_screen->touch(
+            active_screen,
+            x, y, 0);
+    }
     broker_reset_sleepout_timer(broker);
+    broker->touch_is_up = true;
 }
 
 void broker_init(
@@ -351,7 +370,7 @@ void broker_init(
         broker,
         "Systeminformationen",
         "Misc");
-    screen_misc_init(&broker->screens[SCREEN_MISC]);
+    screen_misc_init(&broker->screens[SCREEN_MISC], xmpp);
 
     array_init(&broker->sensor.all_batches, MAX_BATCHES);
     array_init(&broker->sensor.free_batches, MAX_BATCHES / 2);
@@ -676,9 +695,13 @@ void broker_submit_sensor_data(
     }
 
     while (heap_length(&broker->sensor.full_batches) > 0) {
+        struct sensor_readout_batch_t *entry = heap_pop_min(
+            &broker->sensor.full_batches);
+        fprintf(stderr, "debug: submitting data with ts %ld\n",
+                entry->data[0].readout_time);
         xmppintf_submit_sensor_data(
             broker->xmpp,
-            heap_pop_min(&broker->sensor.full_batches),
+            entry,
             &broker_sensor_submission_response,
             broker);
     }

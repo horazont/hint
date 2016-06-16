@@ -302,9 +302,7 @@ static inline void handle_idle_command()
         break;
     }
     case LPC_CMD_DRAW_IMAGE_DATA:
-    case LPC_CMD_DRAW_IMAGE_END:
     case LPC_CMD_TABLE_ROW:
-    case LPC_CMD_TABLE_END:
     {
         comm_tx_nak(MSG_ADDRESS_HOST, MSG_FLAG_NAK_CODE_ORDER);
         break;
@@ -331,15 +329,11 @@ static inline void handle_draw_image_command()
         }
         break;
     }
-    case LPC_CMD_DRAW_IMAGE_END:
+    default:
     {
         lcd_disable();
         cmd_state = STATE_IDLE;
-        break;
-    }
-    default:
-    {
-        comm_tx_nak(MSG_ADDRESS_HOST, MSG_FLAG_NAK_CODE_ORDER);
+        handle_idle_command();
         break;
     }
     }
@@ -360,15 +354,21 @@ static inline void handle_table_command()
         lcd_disable();
         break;
     }
-    case LPC_CMD_TABLE_END:
+    case LPC_CMD_TABLE_ROW_EX:
     {
-        buffer_release_all();
-        cmd_state = STATE_IDLE;
+        lcd_enable();
+        table_row_onebuffer_ex(
+            table_ctx,
+            get_font(msg_cmd.args.table_row_ex.font),
+            &msg_cmd.args.table_row_ex.contents[0]);
+        lcd_disable();
         break;
     }
     default:
     {
-        comm_tx_nak(MSG_ADDRESS_HOST, MSG_FLAG_NAK_CODE_ORDER);
+        buffer_release_all();
+        cmd_state = STATE_IDLE;
+        handle_idle_command();
         break;
     }
     }
@@ -522,14 +522,13 @@ int main(void)
         case EV_COMM:
         {
             struct msg_buffer_t *msg = comm_get_rx_message();
-            msg_cmd_length = HDR_GET_PAYLOAD_LENGTH(msg->msg.header);
-            memcpy(&msg_cmd, &msg->msg.data[0], HDR_GET_PAYLOAD_LENGTH(msg->msg.header));
-            bool send_ack = (HDR_GET_SENDER(msg->msg.header) == MSG_ADDRESS_HOST);
-            comm_release_rx_message();
-
-            if (send_ack) {
+            if (HDR_GET_SENDER(msg->msg.header) == MSG_ADDRESS_HOST) {
                 comm_tx_ack(MSG_ADDRESS_HOST);
             }
+
+            msg_cmd_length = HDR_GET_PAYLOAD_LENGTH(msg->msg.header);
+            memcpy(&msg_cmd, &msg->msg.data[0], HDR_GET_PAYLOAD_LENGTH(msg->msg.header));
+            comm_release_rx_message();
 
             handle_command();
             break;
