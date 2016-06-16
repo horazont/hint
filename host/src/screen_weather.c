@@ -12,8 +12,8 @@
 
 /* utilities */
 
-static const coord_int_t interval_width_with_space = 125+2;
-static const coord_int_t interval_height_with_space = 56+2;
+/* static const coord_int_t interval_width_with_space = 125+2; */
+/* static const coord_int_t interval_height_with_space = 56+2; */
 
 #define SCALEBAR_HEIGHT (2)
 
