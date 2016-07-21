@@ -1,0 +1,208 @@
+EESchema Schematic File Version 2
+LIBS:power
+LIBS:device
+LIBS:transistors
+LIBS:conn
+LIBS:linear
+LIBS:regul
+LIBS:74xx
+LIBS:cmos4000
+LIBS:adc-dac
+LIBS:memory
+LIBS:xilinx
+LIBS:microcontrollers
+LIBS:dsp
+LIBS:microchip
+LIBS:analog_switches
+LIBS:motorola
+LIBS:texas
+LIBS:intel
+LIBS:audio
+LIBS:interface
+LIBS:digital-audio
+LIBS:philips
+LIBS:display
+LIBS:cypress
+LIBS:siliconi
+LIBS:opto
+LIBS:atmel
+LIBS:contrib
+LIBS:valves
+EELAYER 25 0
+EELAYER END
+$Descr A4 11693 8268
+encoding utf-8
+Sheet 1 1
+Title ""
+Date ""
+Rev ""
+Comp ""
+Comment1 ""
+Comment2 ""
+Comment3 ""
+Comment4 ""
+$EndDescr
+$Comp
+L CONN_01X08 TCS1
+U 1 1 57811E41
+P 3050 3100
+F 0 "TCS1" H 3050 3550 50  0000 C CNN
+F 1 "CONN_01X08" V 3150 3100 50  0000 C CNN
+F 2 "Socket_Strips:Socket_Strip_Angled_1x08" H 3050 3100 50  0001 C CNN
+F 3 "" H 3050 3100 50  0000 C CNN
+	1    3050 3100
+	1    0    0    -1  
+$EndComp
+$Comp
+L +3.3V #PWR01
+U 1 1 57811E8A
+P 2850 2750
+F 0 "#PWR01" H 2850 2600 50  0001 C CNN
+F 1 "+3.3V" H 2850 2890 50  0000 C CNN
+F 2 "" H 2850 2750 50  0000 C CNN
+F 3 "" H 2850 2750 50  0000 C CNN
+	1    2850 2750
+	0    -1   -1   0   
+$EndComp
+$Comp
+L GND #PWR02
+U 1 1 57811EA2
+P 2850 2850
+F 0 "#PWR02" H 2850 2600 50  0001 C CNN
+F 1 "GND" H 2850 2700 50  0000 C CNN
+F 2 "" H 2850 2850 50  0000 C CNN
+F 3 "" H 2850 2850 50  0000 C CNN
+	1    2850 2850
+	0    1    1    0   
+$EndComp
+$Comp
+L R R1
+U 1 1 57811EC1
+P 2450 2950
+F 0 "R1" V 2530 2950 50  0000 C CNN
+F 1 "4.7k" V 2450 2950 50  0000 C CNN
+F 2 "Resistors_ThroughHole:Resistor_Horizontal_RM10mm" V 2380 2950 50  0001 C CNN
+F 3 "" H 2450 2950 50  0000 C CNN
+	1    2450 2950
+	0    1    1    0   
+$EndComp
+$Comp
+L R R2
+U 1 1 57811F27
+P 2450 3050
+F 0 "R2" V 2530 3050 50  0000 C CNN
+F 1 "4.7k" V 2450 3050 50  0000 C CNN
+F 2 "Resistors_ThroughHole:Resistor_Horizontal_RM10mm" V 2380 3050 50  0001 C CNN
+F 3 "" H 2450 3050 50  0000 C CNN
+	1    2450 3050
+	0    1    1    0   
+$EndComp
+Wire Wire Line
+	2600 2950 2850 2950
+Wire Wire Line
+	2850 3050 2600 3050
+$Comp
+L +3.3V #PWR03
+U 1 1 57811F60
+P 2300 2950
+F 0 "#PWR03" H 2300 2800 50  0001 C CNN
+F 1 "+3.3V" H 2300 3090 50  0000 C CNN
+F 2 "" H 2300 2950 50  0000 C CNN
+F 3 "" H 2300 2950 50  0000 C CNN
+	1    2300 2950
+	0    -1   -1   0   
+$EndComp
+$Comp
+L +3.3V #PWR04
+U 1 1 57811F91
+P 2300 3050
+F 0 "#PWR04" H 2300 2900 50  0001 C CNN
+F 1 "+3.3V" H 2300 3190 50  0000 C CNN
+F 2 "" H 2300 3050 50  0000 C CNN
+F 3 "" H 2300 3050 50  0000 C CNN
+	1    2300 3050
+	0    -1   -1   0   
+$EndComp
+$Comp
+L DB9 J1
+U 1 1 57811FB4
+P 4600 2450
+F 0 "J1" H 4600 3000 50  0000 C CNN
+F 1 "DB9" H 4600 1900 50  0000 C CNN
+F 2 "Connect:DB9MC" H 4600 2450 50  0001 C CNN
+F 3 "" H 4600 2450 50  0000 C CNN
+	1    4600 2450
+	1    0    0    -1  
+$EndComp
+$Comp
+L GND #PWR05
+U 1 1 57812023
+P 4150 2850
+F 0 "#PWR05" H 4150 2600 50  0001 C CNN
+F 1 "GND" H 4150 2700 50  0000 C CNN
+F 2 "" H 4150 2850 50  0000 C CNN
+F 3 "" H 4150 2850 50  0000 C CNN
+	1    4150 2850
+	0    1    1    0   
+$EndComp
+$Comp
+L +3.3V #PWR06
+U 1 1 5781203F
+P 4150 2350
+F 0 "#PWR06" H 4150 2200 50  0001 C CNN
+F 1 "+3.3V" H 4150 2490 50  0000 C CNN
+F 2 "" H 4150 2350 50  0000 C CNN
+F 3 "" H 4150 2350 50  0000 C CNN
+	1    4150 2350
+	0    -1   -1   0   
+$EndComp
+Text Label 4150 2450 2    60   ~ 0
+EN
+Text Label 2850 3350 2    60   ~ 0
+EN
+Text Label 2850 3450 2    60   ~ 0
+OUT
+Text Label 4150 2150 2    60   ~ 0
+OUT
+Text Label 4150 2050 2    60   ~ 0
+S3
+Text Label 4150 2250 2    60   ~ 0
+S2
+Text Label 2850 3150 2    60   ~ 0
+S2
+Text Label 2850 3250 2    60   ~ 0
+S3
+$Comp
+L CP C1
+U 1 1 5781218C
+P 3700 2200
+F 0 "C1" H 3725 2300 50  0000 L CNN
+F 1 "1u" H 3725 2100 50  0000 L CNN
+F 2 "Capacitors_ThroughHole:C_Radial_D5_L11_P2.5" H 3738 2050 50  0001 C CNN
+F 3 "" H 3700 2200 50  0000 C CNN
+	1    3700 2200
+	1    0    0    -1  
+$EndComp
+$Comp
+L +3.3V #PWR07
+U 1 1 578121FF
+P 3700 2050
+F 0 "#PWR07" H 3700 1900 50  0001 C CNN
+F 1 "+3.3V" H 3700 2190 50  0000 C CNN
+F 2 "" H 3700 2050 50  0000 C CNN
+F 3 "" H 3700 2050 50  0000 C CNN
+	1    3700 2050
+	1    0    0    -1  
+$EndComp
+$Comp
+L GND #PWR08
+U 1 1 5781221D
+P 3700 2350
+F 0 "#PWR08" H 3700 2100 50  0001 C CNN
+F 1 "GND" H 3700 2200 50  0000 C CNN
+F 2 "" H 3700 2350 50  0000 C CNN
+F 3 "" H 3700 2350 50  0000 C CNN
+	1    3700 2350
+	1    0    0    -1  
+$EndComp
+$EndSCHEMATC

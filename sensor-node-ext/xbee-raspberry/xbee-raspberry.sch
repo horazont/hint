@@ -1,0 +1,375 @@
+EESchema Schematic File Version 2
+LIBS:power
+LIBS:device
+LIBS:transistors
+LIBS:conn
+LIBS:linear
+LIBS:regul
+LIBS:74xx
+LIBS:cmos4000
+LIBS:adc-dac
+LIBS:memory
+LIBS:xilinx
+LIBS:microcontrollers
+LIBS:dsp
+LIBS:microchip
+LIBS:analog_switches
+LIBS:motorola
+LIBS:texas
+LIBS:intel
+LIBS:audio
+LIBS:interface
+LIBS:digital-audio
+LIBS:philips
+LIBS:display
+LIBS:cypress
+LIBS:siliconi
+LIBS:opto
+LIBS:atmel
+LIBS:contrib
+LIBS:valves
+EELAYER 25 0
+EELAYER END
+$Descr A4 11693 8268
+encoding utf-8
+Sheet 1 1
+Title ""
+Date ""
+Rev ""
+Comp ""
+Comment1 ""
+Comment2 ""
+Comment3 ""
+Comment4 ""
+$EndDescr
+$Comp
+L CONN_01X10 P1
+U 1 1 57810F56
+P 5400 3350
+F 0 "P1" H 5400 3900 50  0000 C CNN
+F 1 "CONN_01X10" V 5500 3350 50  0000 C CNN
+F 2 "w_pin_strip:pin_socket_2mm_10" H 5400 3350 50  0001 C CNN
+F 3 "" H 5400 3350 50  0000 C CNN
+	1    5400 3350
+	1    0    0    -1  
+$EndComp
+$Comp
+L CONN_01X10 P2
+U 1 1 57810FDF
+P 6450 3350
+F 0 "P2" H 6450 3900 50  0000 C CNN
+F 1 "CONN_01X10" V 6550 3350 50  0000 C CNN
+F 2 "w_pin_strip:pin_socket_2mm_10" H 6450 3350 50  0001 C CNN
+F 3 "" H 6450 3350 50  0000 C CNN
+	1    6450 3350
+	-1   0    0    1   
+$EndComp
+$Comp
+L CONN_01X06 FTDI1
+U 1 1 57811042
+P 5850 4600
+F 0 "FTDI1" H 5850 4950 50  0000 C CNN
+F 1 "CONN_01X06" V 5950 4600 50  0000 C CNN
+F 2 "Pin_Headers:Pin_Header_Straight_1x06" H 5850 4600 50  0001 C CNN
+F 3 "" H 5850 4600 50  0000 C CNN
+	1    5850 4600
+	0    1    1    0   
+$EndComp
+$Comp
+L GND #PWR01
+U 1 1 57811127
+P 6100 4400
+F 0 "#PWR01" H 6100 4150 50  0001 C CNN
+F 1 "GND" H 6100 4250 50  0000 C CNN
+F 2 "" H 6100 4400 50  0000 C CNN
+F 3 "" H 6100 4400 50  0000 C CNN
+	1    6100 4400
+	-1   0    0    1   
+$EndComp
+Text Label 6000 4400 1    60   ~ 0
+CTS
+$Comp
+L +3.3V #PWR02
+U 1 1 57811163
+P 5900 4400
+F 0 "#PWR02" H 5900 4250 50  0001 C CNN
+F 1 "+3.3V" H 5900 4540 50  0000 C CNN
+F 2 "" H 5900 4400 50  0000 C CNN
+F 3 "" H 5900 4400 50  0000 C CNN
+	1    5900 4400
+	1    0    0    -1  
+$EndComp
+Text Label 5800 4400 1    60   ~ 0
+TX
+Text Label 5700 4400 1    60   ~ 0
+RX
+Text Label 5600 4400 1    60   ~ 0
+DTR
+$Comp
+L +3.3V #PWR03
+U 1 1 578112C9
+P 5200 2900
+F 0 "#PWR03" H 5200 2750 50  0001 C CNN
+F 1 "+3.3V" H 5200 3040 50  0000 C CNN
+F 2 "" H 5200 2900 50  0000 C CNN
+F 3 "" H 5200 2900 50  0000 C CNN
+	1    5200 2900
+	0    -1   -1   0   
+$EndComp
+$Comp
+L GND #PWR04
+U 1 1 578112EC
+P 5200 3800
+F 0 "#PWR04" H 5200 3550 50  0001 C CNN
+F 1 "GND" H 5200 3650 50  0000 C CNN
+F 2 "" H 5200 3800 50  0000 C CNN
+F 3 "" H 5200 3800 50  0000 C CNN
+	1    5200 3800
+	0    1    1    0   
+$EndComp
+Text Label 5200 3100 2    60   ~ 0
+TX
+Text Label 5200 3000 2    60   ~ 0
+RX
+Text Label 6650 3700 0    60   ~ 0
+CTS
+Text Label 5200 3700 2    60   ~ 0
+DTR
+Text Label 5200 3300 2    60   ~ 0
+RESET
+$Comp
+L CONN_02X08 P3
+U 1 1 57811400
+P 8150 3350
+F 0 "P3" H 8150 3800 50  0000 C CNN
+F 1 "CONN_02X08" V 8150 3350 50  0000 C CNN
+F 2 "Connect:IDC_Header_Straight_16pins" H 8150 2150 50  0001 C CNN
+F 3 "" H 8150 2150 50  0000 C CNN
+	1    8150 3350
+	1    0    0    -1  
+$EndComp
+$Comp
+L SW_PUSH SW1
+U 1 1 5781153F
+P 3650 2650
+F 0 "SW1" H 3800 2760 50  0000 C CNN
+F 1 "SW_PUSH" H 3650 2570 50  0000 C CNN
+F 2 "Buttons_Switches_ThroughHole:SW_PUSH_SMALL" H 3650 2650 50  0001 C CNN
+F 3 "" H 3650 2650 50  0000 C CNN
+	1    3650 2650
+	1    0    0    -1  
+$EndComp
+$Comp
+L GND #PWR05
+U 1 1 578116B0
+P 3350 2650
+F 0 "#PWR05" H 3350 2400 50  0001 C CNN
+F 1 "GND" H 3350 2500 50  0000 C CNN
+F 2 "" H 3350 2650 50  0000 C CNN
+F 3 "" H 3350 2650 50  0000 C CNN
+	1    3350 2650
+	1    0    0    -1  
+$EndComp
+Text Label 3950 2650 0    60   ~ 0
+RESET
+$Comp
+L R R1
+U 1 1 578116DD
+P 3950 2500
+F 0 "R1" V 4030 2500 50  0000 C CNN
+F 1 "4.7k" V 3950 2500 50  0000 C CNN
+F 2 "Resistors_ThroughHole:Resistor_Horizontal_RM10mm" V 3880 2500 50  0001 C CNN
+F 3 "" H 3950 2500 50  0000 C CNN
+	1    3950 2500
+	1    0    0    -1  
+$EndComp
+$Comp
+L +3.3V #PWR06
+U 1 1 57811726
+P 3950 2350
+F 0 "#PWR06" H 3950 2200 50  0001 C CNN
+F 1 "+3.3V" H 3950 2490 50  0000 C CNN
+F 2 "" H 3950 2350 50  0000 C CNN
+F 3 "" H 3950 2350 50  0000 C CNN
+	1    3950 2350
+	1    0    0    -1  
+$EndComp
+$Comp
+L C C1
+U 1 1 57811748
+P 3950 2800
+F 0 "C1" H 3975 2900 50  0000 L CNN
+F 1 "220n" H 3975 2700 50  0000 L CNN
+F 2 "Capacitors_ThroughHole:C_Disc_D6_P5" H 3988 2650 50  0001 C CNN
+F 3 "" H 3950 2800 50  0000 C CNN
+	1    3950 2800
+	1    0    0    -1  
+$EndComp
+$Comp
+L GND #PWR07
+U 1 1 578117A3
+P 3950 2950
+F 0 "#PWR07" H 3950 2700 50  0001 C CNN
+F 1 "GND" H 3950 2800 50  0000 C CNN
+F 2 "" H 3950 2950 50  0000 C CNN
+F 3 "" H 3950 2950 50  0000 C CNN
+	1    3950 2950
+	1    0    0    -1  
+$EndComp
+$Comp
+L CP C2
+U 1 1 5781186F
+P 5000 2050
+F 0 "C2" H 5025 2150 50  0000 L CNN
+F 1 "1u" H 5025 1950 50  0000 L CNN
+F 2 "Capacitors_ThroughHole:C_Radial_D5_L11_P2.5" H 5038 1900 50  0001 C CNN
+F 3 "" H 5000 2050 50  0000 C CNN
+	1    5000 2050
+	1    0    0    -1  
+$EndComp
+$Comp
+L C C3
+U 1 1 578118DF
+P 5600 2050
+F 0 "C3" H 5625 2150 50  0000 L CNN
+F 1 "8.2p" H 5625 1950 50  0000 L CNN
+F 2 "Capacitors_ThroughHole:C_Disc_D6_P5" H 5638 1900 50  0001 C CNN
+F 3 "" H 5600 2050 50  0000 C CNN
+	1    5600 2050
+	1    0    0    -1  
+$EndComp
+$Comp
+L +3.3V #PWR08
+U 1 1 5781195D
+P 5600 1900
+F 0 "#PWR08" H 5600 1750 50  0001 C CNN
+F 1 "+3.3V" H 5600 2040 50  0000 C CNN
+F 2 "" H 5600 1900 50  0000 C CNN
+F 3 "" H 5600 1900 50  0000 C CNN
+	1    5600 1900
+	1    0    0    -1  
+$EndComp
+$Comp
+L +3.3V #PWR09
+U 1 1 57811985
+P 5000 1900
+F 0 "#PWR09" H 5000 1750 50  0001 C CNN
+F 1 "+3.3V" H 5000 2040 50  0000 C CNN
+F 2 "" H 5000 1900 50  0000 C CNN
+F 3 "" H 5000 1900 50  0000 C CNN
+	1    5000 1900
+	1    0    0    -1  
+$EndComp
+$Comp
+L GND #PWR010
+U 1 1 578119AD
+P 5000 2200
+F 0 "#PWR010" H 5000 1950 50  0001 C CNN
+F 1 "GND" H 5000 2050 50  0000 C CNN
+F 2 "" H 5000 2200 50  0000 C CNN
+F 3 "" H 5000 2200 50  0000 C CNN
+	1    5000 2200
+	1    0    0    -1  
+$EndComp
+$Comp
+L GND #PWR011
+U 1 1 578119D5
+P 5600 2200
+F 0 "#PWR011" H 5600 1950 50  0001 C CNN
+F 1 "GND" H 5600 2050 50  0000 C CNN
+F 2 "" H 5600 2200 50  0000 C CNN
+F 3 "" H 5600 2200 50  0000 C CNN
+	1    5600 2200
+	1    0    0    -1  
+$EndComp
+$Comp
+L GND #PWR012
+U 1 1 57811AD3
+P 7900 3000
+F 0 "#PWR012" H 7900 2750 50  0001 C CNN
+F 1 "GND" H 7900 2850 50  0000 C CNN
+F 2 "" H 7900 3000 50  0000 C CNN
+F 3 "" H 7900 3000 50  0000 C CNN
+	1    7900 3000
+	0    1    1    0   
+$EndComp
+$Comp
+L GND #PWR013
+U 1 1 57811AF9
+P 8400 3000
+F 0 "#PWR013" H 8400 2750 50  0001 C CNN
+F 1 "GND" H 8400 2850 50  0000 C CNN
+F 2 "" H 8400 3000 50  0000 C CNN
+F 3 "" H 8400 3000 50  0000 C CNN
+	1    8400 3000
+	0    -1   -1   0   
+$EndComp
+Text Label 5200 3200 2    60   ~ 0
+DIO12
+Text Label 5200 3400 2    60   ~ 0
+RSSIPWM_DIO10
+Text Label 5200 3500 2    60   ~ 0
+DIO11
+Text Label 6650 3800 0    60   ~ 0
+DIO4
+Text Label 6650 3600 0    60   ~ 0
+ON
+Text Label 6650 3500 0    60   ~ 0
+VREF
+Text Label 6650 3400 0    60   ~ 0
+DIO5
+Text Label 6650 3200 0    60   ~ 0
+AD3_DIO3
+Text Label 6650 3100 0    60   ~ 0
+AD2_DIO2
+Text Label 6650 3000 0    60   ~ 0
+AD1_DIO1
+Text Label 6650 2900 0    60   ~ 0
+AD0_DIO0
+Text Label 6650 3300 0    60   ~ 0
+RTS
+Text Label 8400 3400 0    60   ~ 0
+RSSIPWM_DIO10
+Text Label 8400 3300 0    60   ~ 0
+DIO11
+Text Label 8400 3500 0    60   ~ 0
+DIO12
+Text Label 7900 3500 2    60   ~ 0
+AD3_DIO3
+Text Label 7900 3400 2    60   ~ 0
+AD2_DIO2
+Text Label 7900 3300 2    60   ~ 0
+AD1_DIO1
+Text Label 7900 3200 2    60   ~ 0
+AD0_DIO0
+Text Label 8400 3700 0    60   ~ 0
+ON
+Text Label 7900 3700 2    60   ~ 0
+VREF
+Text Label 7900 3600 2    60   ~ 0
+DIO5
+Text Label 8400 3600 0    60   ~ 0
+DIO4
+$Comp
+L +3.3V #PWR014
+U 1 1 57812404
+P 7900 3100
+F 0 "#PWR014" H 7900 2950 50  0001 C CNN
+F 1 "+3.3V" H 7900 3240 50  0000 C CNN
+F 2 "" H 7900 3100 50  0000 C CNN
+F 3 "" H 7900 3100 50  0000 C CNN
+	1    7900 3100
+	0    -1   -1   0   
+$EndComp
+$Comp
+L +3.3V #PWR?
+U 1 1 57812D46
+P 8400 3100
+F 0 "#PWR?" H 8400 2950 50  0001 C CNN
+F 1 "+3.3V" H 8400 3240 50  0000 C CNN
+F 2 "" H 8400 3100 50  0000 C CNN
+F 3 "" H 8400 3100 50  0000 C CNN
+	1    8400 3100
+	0    1    1    0   
+$EndComp
+$EndSCHEMATC
