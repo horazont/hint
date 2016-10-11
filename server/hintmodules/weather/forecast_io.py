@@ -307,17 +307,18 @@ class ForecastIO:
         self._aggregate_datapoints_for_request(
             request, data.datapoints, start, end)
 
-        minv, avgv, maxv, std = request["precipitation"].get_aggregated_values()
+        if "precipitation" in request:
+            minv, avgv, maxv, std = request["precipitation"].get_aggregated_values()
 
-        # total duration in hours
-        duration = (end - start).total_seconds() / 3600.
+            # total duration in hours
+            duration = (end - start).total_seconds() / 3600.
 
-        # precipitation intensity to total precipitation
-        minv *= duration
-        avgv *= duration
-        maxv *= duration
-        std *= duration
+            # precipitation intensity to total precipitation
+            minv *= duration
+            avgv *= duration
+            maxv *= duration
+            std *= duration
 
-        request["precipitation"].set_aggregated_values(minv, avgv, maxv, std)
+            request["precipitation"].set_aggregated_values(minv, avgv, maxv, std)
 
         return request

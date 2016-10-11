@@ -60,7 +60,7 @@ class DVBRequester(hintmodules.caching_requester.AdvancedRequester):
 
     def _parse_data(self, contents):
         struct = ast.literal_eval(contents)
-        return [(route, dest, (int(time) if len(time) else 0))
+        return [(route, dest, (int(time) if len(time) else 0), None)
                 for route, dest, time
                 in struct]
 

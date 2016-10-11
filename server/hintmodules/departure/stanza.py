@@ -3,11 +3,13 @@ from sleekxmpp.xmlstream import register_stanza_plugin, ElementBase, ET, JID
 
 xmlns = "https://xmlns.zombofant.net/xmpp/public-transport"
 
+
 class Departure(ElementBase):
     namespace = xmlns
     name = "departure"
     plugin_attrib = name
     interfaces = set()
+
 
 class Data(ElementBase):
     namespace = xmlns
@@ -15,14 +17,18 @@ class Data(ElementBase):
     plugin_attrib = name
     interfaces = set()
 
+
 class DepartureTime(ElementBase):
     namespace = xmlns
     name = "dt"
     plugin_attrib = name
-    interfaces = set(("eta", "destination", "lane", "timestamp"))
+    interfaces = set(("eta", "destination", "lane", "timestamp", "dir"))
 
     def get_destination(self):
         return self._get_attr("d")
+
+    def get_dir(self):
+        return self._get_attr("dir")
 
     def get_eta(self):
         return float(self._get_attr("e"))
@@ -35,6 +41,9 @@ class DepartureTime(ElementBase):
 
     def set_destination(self, value):
         self._set_attr("d", value)
+
+    def set_dir(self, value):
+        self._set_attr("dir", value)
 
     def set_eta(self, value):
         self._set_attr("e", "{:d}".format(value))

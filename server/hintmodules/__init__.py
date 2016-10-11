@@ -186,12 +186,13 @@ class HintBot:
             response.send()
             return
 
-        for lane, dest, remaining_time, timestamp in departures:
+        for lane, dest, remaining_time, dir_, timestamp in departures:
             dt = departure_stanza.DepartureTime()
             dt["eta"] = int(remaining_time)
             dt["destination"] = dest
             dt["lane"] = lane
             dt["timestamp"] = timestamp
+            dt["dir"] = dir_
             response["departure"]["data"].append(dt)
 
         response["type"] = "result"
