@@ -228,6 +228,7 @@ const char *xml_pt_attr_departure_time_eta = "e";
 const char *xml_pt_attr_departure_time_destination = "d";
 const char *xml_pt_attr_departure_time_lane = "l";
 const char *xml_pt_attr_departure_time_timestamp = "ts";
+const char *xml_pt_attr_departure_time_dir = "dir";
 const char *xml_sensor_data = "data";
 const char *xml_sensor_point = "p";
 const char *xml_sensor_attr_sensortype = "st";
@@ -700,6 +701,9 @@ void xmppintf_handle_departure_reply(
         char *timestamp = xmpp_stanza_get_attribute(
             dt_stanza,
             xml_pt_attr_departure_time_timestamp);
+        char *dir = xmpp_stanza_get_attribute(
+            dt_stanza,
+            xml_pt_attr_departure_time_dir);
         if (!eta || !dest || !lane) {
             fprintf(stderr,
                 "xmpp: departure_reply: missing "
@@ -747,7 +751,18 @@ void xmppintf_handle_departure_reply(
             row->timestamp = strtoll(timestamp, &endptr, 10);
             if (*endptr != '\0') {
                 fprintf(stderr,
-                        "xmpp: departure_reply: @age is not integer "
+                        "xmpp: departure_reply: @ts is not integer "
+                        "-- ignoring trailing data \n");
+            }
+        }
+
+        if (!dir || *dir == '\0') {
+            row->dir = DEPARTURE_DIR_UNKNOWN;
+        } else {
+            row->dir = strtoll(dir, &endptr, 10);
+            if (*endptr != '\0') {
+                fprintf(stderr,
+                        "xmpp: departure_reply: @dir is not integer "
                         "-- ignoring trailing data \n");
             }
         }

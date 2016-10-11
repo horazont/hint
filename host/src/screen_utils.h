@@ -39,4 +39,14 @@ bool table_row_formatter_append_ex(
     const table_column_alignment_t alignment,
     const char *fmt, ...);
 
+colour_t hsv_to_rgb(
+    float h,
+    const float s,
+    const float v);
+
+/* calculate luminance in fixed-point 0.8 format */
+uint8_t luminance(const colour_t colour);
+
+colour_t get_text_colour(const colour_t background);
+
 #endif

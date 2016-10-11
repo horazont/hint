@@ -3,6 +3,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
 
 #include "utils.h"
 
@@ -148,4 +149,114 @@ bool table_row_formatter_append_ex(
     va_end(args);
 
     return result;
+}
+
+
+#ifdef MISSING_FMAXF_FMINF
+
+inline float fmaxf(const float a, const float b)
+{
+    return (a > b ? a : b);
+}
+
+inline float fminf(const float a, const float b)
+{
+    return (a < b ? a : b);
+}
+
+#endif
+
+
+static inline float mywrapf(float a, float b)
+{
+    float result = fmodf(a, b);
+    if (result < 0) {
+        result = b + result;
+    }
+    return result;
+}
+
+
+static colour_t rgbf_to_rgb16(const float rf, const float gf, const float bf)
+{
+    const colour_t r = ((colour_t)(rf*31)) & (0x1f);
+    const colour_t g = ((colour_t)(gf*63)) & (0x3f);
+    const colour_t b = ((colour_t)(bf*31)) & (0x1f);
+
+    return (r << 11) | (g << 5) | b;
+}
+
+
+colour_t hsv_to_rgb(
+    float h,
+    const float s,
+    const float v)
+{
+    if (s == 0) {
+        const colour_t r_b = (colour_t)(v*31);
+        const colour_t g = (colour_t)(v*63);
+        return (r_b << 11) | (g << 5) | r_b;
+    }
+
+    h = mywrapf(h, M_PI*2.);
+    float indexf;
+    const float fractional = modff(h / (M_PI*2.f/6.f), &indexf);
+
+    const int index = (int)indexf;
+
+    const float p = v * (1.0f - s);
+    const float q = v * (1.0f - (s * fractional));
+    const float t = v * (1.0f - (s * (1.0f - fractional)));
+
+    switch (index) {
+    case 0:
+    {
+        return rgbf_to_rgb16(v, t, p);
+    }
+    case 1:
+    {
+        return rgbf_to_rgb16(q, v, p);
+    }
+    case 2:
+    {
+        return rgbf_to_rgb16(p, v, t);
+    }
+    case 3:
+    {
+        return rgbf_to_rgb16(p, q, v);
+    }
+    case 4:
+    {
+        return rgbf_to_rgb16(t, p, v);
+    }
+    case 5:
+    {
+        return rgbf_to_rgb16(v, p, q);
+    }
+    }
+
+    return 0x0000;
+}
+
+uint8_t luminance(const colour_t colour)
+{
+    static const uint32_t rfactor = 0x1322d0e;
+    static const uint32_t gfactor = 0x2591686;
+    static const uint32_t bfactor = 0x74bc6a;
+
+    uint32_t r = ((colour & 0xf800) >> 10) | 1;
+    uint32_t g = ((colour & 0x07e0) >> 5);
+    uint32_t b = ((colour & 0x001f) << 1) | 1;
+
+    return ((r*rfactor + g*gfactor + b*bfactor) & 0xff000000) >> 24;
+}
+
+
+colour_t get_text_colour(const colour_t background)
+{
+    if (luminance(background) <= 175) {
+        return 0xffff;
+    } else {
+        return 0x0000;
+    }
 }

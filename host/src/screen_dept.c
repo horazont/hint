@@ -3,13 +3,17 @@
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <math.h>
 
 #include "common/comm_lpc1114.h"
+
+#include "private_config.h"
 
 #include "theme.h"
 #include "departure.h"
 #include "lpcdisplay.h"
 #include "utils.h"
+#include "screen_utils.h"
 
 static const char *age_chars[] = {
     "█",
@@ -21,6 +25,15 @@ static const char *age_chars[] = {
     "▎",
     "▏"
 };
+
+struct lane_colourmap_entry_t {
+    const char *lane;
+    int dir;
+    colour_t bg;
+};
+
+static const struct lane_colourmap_entry_t lane_colourmap[] = CONFIG_DEPARTURE_COLOURMAP;
+static const size_t lane_colourmap_length = sizeof(lane_colourmap) / sizeof(struct lane_colourmap_entry_t);
 
 /* utilities */
 
@@ -40,6 +53,27 @@ static const char *get_quality_char(int age)
     }
 
     return age_chars[char_index];
+}
+
+static colour_t get_entry_colour(
+    const struct dept_row_t *row)
+{
+    if (row->dir == DEPARTURE_DIR_UNKNOWN) {
+        return 0xffff;
+    }
+
+    for (unsigned int i = 0; i < lane_colourmap_length; ++i) {
+        const struct lane_colourmap_entry_t *mapitem = &lane_colourmap[i];
+        if (mapitem->dir != row->dir) {
+            continue;
+        }
+        if (strcmp(mapitem->lane, row->lane) != 0) {
+            continue;
+        }
+
+        return mapitem->bg;
+    }
+    return 0xffff;
 }
 
 static inline void departure_paint(
@@ -156,17 +190,14 @@ static inline void departure_paint(
         assert(written < remlength);
         total_length += written;
 
-        const bool even = (i % 2 == 0);
+        const colour_t background = get_entry_colour(row);
+        const colour_t foreground = get_text_colour(background);
 
         lpcd_table_row(
             screen->comm,
             LPC_FONT_DEJAVU_SANS_12PX,
-            (even
-             ? THEME_TR_EVEN_COLOUR
-             : THEME_TR_ODD_COLOUR),
-            (even
-             ? THEME_TR_EVEN_BACKGROUND_COLOUR
-             : THEME_TR_ODD_BACKGROUND_COLOUR),
+            foreground,
+            background,
             buffer, total_length);
 
         painted_rows += 1;
