@@ -122,12 +122,13 @@ void table_row_formatter_reset(
     this->offset = 0;
 }
 
-bool table_row_formatter_append_ex(
+bool table_row_formatter_append_exv(
     struct table_row_formatter_t *const this,
     const colour_t fgcolour,
     const colour_t bgcolour,
     const table_column_alignment_t alignment,
-    const char *fmt, ...)
+    const char *fmt,
+    va_list args)
 {
     const size_t min_additional = sizeof(colour_t)*2+sizeof(table_column_alignment_t)+1;
     if (this->offset + min_additional > this->buflen) {
@@ -143,11 +144,27 @@ bool table_row_formatter_append_ex(
     memcpy(&this->buffer[this->offset], &alignment, sizeof(table_column_alignment_t));
     this->offset += sizeof(table_column_alignment_t);
 
+    return table_row_formatter_appendv(this, fmt, args);
+}
+
+bool table_row_formatter_append_ex(
+    struct table_row_formatter_t *const this,
+    const colour_t fgcolour,
+    const colour_t bgcolour,
+    const table_column_alignment_t alignment,
+    const char *fmt, ...)
+{
     va_list args;
     va_start(args, fmt);
-    bool result = table_row_formatter_appendv(this, fmt, args);
+    const bool result = table_row_formatter_append_exv(
+        this,
+        fgcolour,
+        bgcolour,
+        alignment,
+        fmt,
+        args
+        );
     va_end(args);
-
     return result;
 }
 

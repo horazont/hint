@@ -186,16 +186,20 @@ static void draw_weather_bar(
     struct weather_info_t *curr_interval = *interval;
 
     char textbuffer[128];
+    memset(&textbuffer[0], 0, sizeof(textbuffer));
 
     struct table_row_formatter_t time_row;
+    memset(&time_row, 0, sizeof(struct table_row_formatter_t));
     struct table_row_formatter_t temp_row;
+    memset(&temp_row, 0, sizeof(struct table_row_formatter_t));
     struct table_row_formatter_t cloud_row;
+    memset(&cloud_row, 0, sizeof(struct table_row_formatter_t));
     // 40 >= 6*(len("XX:XX")+1)
-    table_row_formatter_init_dynamic(&time_row, 40);
+    table_row_formatter_init_dynamic(&time_row, 80);
 
     // 120 >= 12*(2+2+3+1)  (2 times colour, three characters avg., 1 null byte)
-    table_row_formatter_init_dynamic(&temp_row, 120);
-    table_row_formatter_init_dynamic(&cloud_row, 120);
+    table_row_formatter_init_dynamic(&temp_row, 200);
+    table_row_formatter_init_dynamic(&cloud_row, 200);
 
     static struct table_column_t time_columns[6] = {
         {
@@ -339,7 +343,7 @@ static void draw_weather_bar(
         colour = cloudcolour(
             0,
             curr_interval->interval.precipitation_millimeter);
-        text_colour = get_text_colour(colour);;
+        text_colour = get_text_colour(colour);
 
         format_dynamic_number(
             &cloud_row,
@@ -348,15 +352,6 @@ static void draw_weather_bar(
             colour,
             TABLE_ALIGN_CENTER
             );
-
-        /* table_row_formatter_append_ex( */
-        /*     &cloud_row, */
-        /*     text_colour, */
-        /*     colour, */
-        /*     TABLE_ALIGN_LEFT, */
-        /*     "%.0f", */
-        /*     curr_interval->interval.precipitation_probability*100.f */
-        /*     ); */
 
         ++curr_interval;
         memcpy(prev_time, &this_time, sizeof(struct tm));
@@ -496,11 +491,14 @@ void screen_weather_init(struct screen_t *screen)
 
         struct weather_interval_t *const interval =
             &weather->timeslots[i].interval;
+        interval->start = 0;
+        interval->end = 0;
         interval->temperature_celsius = NAN;
         interval->humidity_percent = NAN;
         interval->windspeed_meter_per_second = NAN;
         interval->cloudiness_percent = NAN;
         interval->precipitation_millimeter = NAN;
+        interval->precipitation_probability = NAN;
         weather->timeslots[i].type = 0;
     }
 
