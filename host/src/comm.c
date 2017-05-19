@@ -492,7 +492,8 @@ enum comm_status_t comm_recv(int fd, struct msg_header_t *hdr, uint8_t **payload
         return COMM_ERR_CHECKSUM_ERROR;
     }
 
-    if (HDR_GET_FLAGS(*hdr) != 0) {
+    if ((HDR_GET_FLAGS(*hdr) & 0xF0) != 0) {
+        fprintf(stderr, "unexpected flags: %02x\n", HDR_GET_FLAGS(*hdr));
         return COMM_ERR_FLAGS;
     }
 
