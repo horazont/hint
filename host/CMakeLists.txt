@@ -10,7 +10,10 @@ include(ExternalProject)
 set(COUPLET_CONFIGURE ./configure)
 
 set(LIBS
-    ${CMAKE_BINARY_DIR}/libcouplet/src/libcouplet/.libs/libcouplet.a)
+    ${CMAKE_BINARY_DIR}/libstrophe/src/libstrophe/.libs/libstrophe.a
+    ssl
+    crypto
+)
 
 if (DEFINED PLATFORM)
 if (PLATFORM STREQUAL "mips-linux-uclibc")
@@ -43,9 +46,9 @@ else (DEFINED PLATFORM)
 set(LIBS pthread ${LIBS} ssl resolv expat m)
 endif (DEFINED PLATFORM)
 
-ExternalProject_Add(libcouplet
-    PREFIX libcouplet
-    GIT_REPOSITORY https://github.com/pasis/libcouplet
+ExternalProject_Add(libstrophe
+    PREFIX libstrophe
+    GIT_REPOSITORY https://github.com/strophe/libstrophe
     BUILD_IN_SOURCE 1
     CONFIGURE_COMMAND ./bootstrap.sh && ${COUPLET_CONFIGURE}
     BUILD_COMMAND make
@@ -72,9 +75,9 @@ set(SOURCES
 
 include_directories("../")
 include_directories(".")
-include_directories(${CMAKE_BINARY_DIR}/libcouplet/src/libcouplet/include)
+include_directories(${CMAKE_BINARY_DIR}/libstrophe/src/)
 
 add_executable(hintd
     ${SOURCES})
-add_dependencies(hintd libcouplet)
+#add_dependencies(hintd libstrophe)
 target_link_libraries(hintd ${LIBS})

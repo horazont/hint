@@ -500,6 +500,7 @@ void xmppintf_conn_state_change(xmpp_conn_t * const conn,
         xmpp_stop(xmpp->ctx);
         break;
     }
+    case XMPP_CONN_RAW_CONNECT:;
     }
 }
 
@@ -689,19 +690,19 @@ void xmppintf_handle_departure_reply(
             continue;
         }
 
-        char *eta = xmpp_stanza_get_attribute(
+        const char *eta = xmpp_stanza_get_attribute(
             dt_stanza,
             xml_pt_attr_departure_time_eta);
-        char *dest = xmpp_stanza_get_attribute(
+        const char *dest = xmpp_stanza_get_attribute(
             dt_stanza,
             xml_pt_attr_departure_time_destination);
-        char *lane = xmpp_stanza_get_attribute(
+        const char *lane = xmpp_stanza_get_attribute(
             dt_stanza,
             xml_pt_attr_departure_time_lane);
-        char *timestamp = xmpp_stanza_get_attribute(
+        const char *timestamp = xmpp_stanza_get_attribute(
             dt_stanza,
             xml_pt_attr_departure_time_timestamp);
-        char *dir = xmpp_stanza_get_attribute(
+        const char *dir = xmpp_stanza_get_attribute(
             dt_stanza,
             xml_pt_attr_departure_time_dir);
         if (!eta || !dest || !lane) {
@@ -869,7 +870,7 @@ int xmppintf_handle_last_activity_request(
 
     query = xmpp_stanza_new(ctx);
     xmpp_stanza_set_name(query, "query");
-    char *ns = xmpp_stanza_get_ns(xmpp_stanza_get_children(stanza));
+    const char *ns = xmpp_stanza_get_ns(xmpp_stanza_get_children(stanza));
     if (ns) {
         xmpp_stanza_set_ns(query, ns);
     }
@@ -1270,7 +1271,7 @@ int xmppintf_handle_time_request(
 
     timestanza = xmpp_stanza_new(ctx);
     xmpp_stanza_set_name(timestanza, "time");
-    char *ns = xmpp_stanza_get_ns(xmpp_stanza_get_children(stanza));
+    const char *ns = xmpp_stanza_get_ns(xmpp_stanza_get_children(stanza));
     if (ns) {
         xmpp_stanza_set_ns(timestanza, ns);
     }
@@ -1315,7 +1316,7 @@ int xmppintf_handle_version_request(
 
     query = xmpp_stanza_new(ctx);
     xmpp_stanza_set_name(query, "query");
-    char *ns = xmpp_stanza_get_ns(xmpp_stanza_get_children(stanza));
+    const char *ns = xmpp_stanza_get_ns(xmpp_stanza_get_children(stanza));
     if (ns) {
         xmpp_stanza_set_ns(query, ns);
     }
@@ -1706,7 +1707,7 @@ void *xmppintf_thread(struct xmpp_t *xmpp)
             continue;
         }
         pthread_mutex_unlock(&xmpp->conn_mutex);
-        xmpp_resume(xmpp->ctx);
+        xmpp_run(xmpp->ctx);
         pthread_mutex_lock(&xmpp->conn_mutex);
         pthread_mutex_lock(&xmpp->status_mutex);
         xmppintf_clear_iq_heap(xmpp);

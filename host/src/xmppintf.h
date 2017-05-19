@@ -2,7 +2,7 @@
 #define _XMPP_H
 
 #include <pthread.h>
-#include <libcouplet/couplet.h>
+#include <libstrophe/strophe.h>
 
 #include "queue.h"
 #include "array.h"
