@@ -505,8 +505,8 @@ Text Notes 4800 2700 0    60   ~ 0
 Mic Preamp and Rectifier
 Text Notes 7250 2850 0    60   ~ 0
 Amp x2
-Text Notes 8500 3200 0    60   ~ 0
-Moving Average
+Text Notes 8650 3200 0    60   ~ 0
+Lowpass
 $Comp
 L CONN_01X03 P1
 U 1 1 577BFC64

@@ -33,6 +33,11 @@ This section describes the pinout required for each sensor type. *n* is always t
 
 * Light: 3+n pins: Vcc, GND, Select (*n* digital out), Read (1 digital timer in)
 
+  NOTE: maximum frequency is about 800 kHz (tested with LED lights, increase of
+  intensity did not yield increase of frequency)
+
+  minimum frequency goes down to a few Hz -> we need to be overflow-safe
+
 * DHT (humidity): 3+n pins: Vcc, GND, Data (*n* digital inout)
 
 * Noise: 4+n pins: AVcc, AGND, Vcc, GND, Level (*n* analogue in)

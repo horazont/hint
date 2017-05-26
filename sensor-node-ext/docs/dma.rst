@@ -30,5 +30,5 @@ Channel 2: USART3_TX -> XBEE_TX
 Channel 3: USART3_RX -> XBEE_RX
 Channel 4: USART1_TX -> host TX
 Channel 5: USART1_RX -> host RX
-Channel 6: TIM3_CH1
+Channel 6: I2C1_TX -> IMU_TX
 Channel 7: I2C1_RX -> IMU_RX
