@@ -681,7 +681,8 @@ void comm_thread_state_established(
     if (datafd->revents & POLLIN) {
         struct msg_header_t hdr;
         uint8_t *payload = NULL;
-        switch (comm_recv(comm->_fd, &hdr, &payload)) {
+        enum comm_status_t status = comm_recv(comm->_fd, &hdr, &payload);
+        switch (status) {
         case COMM_ERR_NONE:
         {
             comm_thread_handle_packet(comm, &hdr, payload);
@@ -717,7 +718,8 @@ void comm_thread_state_established(
         }
         default:
         {
-            panicf("comm[established]: unhandled recv status\n");
+            panicf("comm[established]: unhandled recv status: %d\n",
+                   status);
         }
         }
     }
