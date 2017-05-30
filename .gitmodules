@@ -6,8 +6,8 @@
 	url = https://github.com/sudar/Arduino-Makefile/
 	branch = master
 [submodule "sensor-node-ext/sensor-block/firmware"]
-	path = sensor-node-ext/sensor-block/firmware
+	path = sensor-node-2.0/sensor-block/firmware
 	url = git@pubgit.sotecware.net:jonas.wielicki/sensor-node-ext-firmware-prototype
 [submodule "sensor-node-ext/gateway"]
-	path = sensor-node-ext/gateway
+	path = sensor-node-2.0/gateway
 	url = git@pubgit.sotecware.net:jonas.wielicki/hint-sensor-gateway-firmware
