@@ -1,3 +1,4 @@
-src/private_config.h
-local
-fritzbox
+/src/private_config.h
+/local
+/fritzbox
+/fritzbox-static
