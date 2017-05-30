@@ -19,10 +19,10 @@
 *                     the USI module as basis. The implementation assumes the AVR to
 *                     be the only TWI master in the system and can therefore not be
 *                     used in a multi-master system.
-* Usage             : Initialize the USI module by calling the USI_TWI_Master_Initialise() 
+* Usage             : Initialize the USI module by calling the USI_TWI_Master_Initialise()
 *                     function. Hence messages/data are transceived on the bus using
-*                     the USI_TWI_Transceive() function. The transceive function 
-*                     returns a status byte, which can be used to evaluate the 
+*                     the USI_TWI_Transceive() function. The transceive function
+*                     returns a status byte, which can be used to evaluate the
 *                     success of the transmission.
 *
 ****************************************************************************/
@@ -41,7 +41,7 @@ union  USI_TWI_state
     unsigned char addressMode         : 1;
     unsigned char masterWriteDataMode : 1;
     unsigned char unused              : 6;
-  }; 
+  };
 }   USI_TWI_state;
 
 /*---------------------------------------------------------------
@@ -51,10 +51,10 @@ void USI_TWI_Master_Initialise( void )
 {
   PORT_USI |= (1<<PIN_USI_SDA);           // Enable pullup on SDA, to set high as released state.
   PORT_USI |= (1<<PIN_USI_SCL);           // Enable pullup on SCL, to set high as released state.
-  
+
   DDR_USI  |= (1<<PIN_USI_SCL);           // Enable SCL as output.
   DDR_USI  |= (1<<PIN_USI_SDA);           // Enable SDA as output.
-  
+
   USIDR    =  0xFF;                       // Preload dataregister with "released level" data.
   USICR    =  (0<<USISIE)|(0<<USIOIE)|                            // Disable Interrupts.
               (1<<USIWM1)|(0<<USIWM0)|                            // Set USI in Two-wire mode.
@@ -73,14 +73,14 @@ unsigned char USI_TWI_Get_State_Info( void )
 }
 
 /*---------------------------------------------------------------
- USI Transmit and receive function. LSB of first byte in data 
+ USI Transmit and receive function. LSB of first byte in data
  indicates if a read or write cycles is performed. If set a read
  operation is performed.
 
  Function generates (Repeated) Start Condition, sends address and
  R/W, Reads/Writes Data, and verifies/sends ACK.
- 
- Success or error code is returned. Error codes are defined in 
+
+ Success or error code is returned. Error codes are defined in
  USI_TWI_Master.h
 ---------------------------------------------------------------*/
 unsigned char USI_TWI_Start_Transceiver_With_Data( unsigned char *msg, unsigned char msgSize)
@@ -140,14 +140,14 @@ unsigned char USI_TWI_Start_Transceiver_With_Data( unsigned char *msg, unsigned 
 
 /* Generate Start Condition */
   PORT_USI &= ~(1<<PIN_USI_SDA);                    // Force SDA LOW.
-  _delay_us( T4_TWI/4 );                         
+  _delay_us( T4_TWI/4 );
   PORT_USI &= ~(1<<PIN_USI_SCL);                    // Pull SCL LOW.
   PORT_USI |= (1<<PIN_USI_SDA);                     // Release SDA.
 
 #ifdef SIGNAL_VERIFY
   if( !(USISR & (1<<USISIF)) )
   {
-    USI_TWI_state.errorState = USI_TWI_MISSING_START_CON;  
+    USI_TWI_state.errorState = USI_TWI_MISSING_START_CON;
     return (FALSE);
   }
 #endif
@@ -162,10 +162,10 @@ unsigned char USI_TWI_Start_Transceiver_With_Data( unsigned char *msg, unsigned 
       PORT_USI &= ~(1<<PIN_USI_SCL);                // Pull SCL LOW.
       USIDR     = *(msg++);                        // Setup data.
       USI_TWI_Master_Transfer( tempUSISR_8bit );    // Send 8 bits on bus.
-      
+
       /* Clock and verify (N)ACK from slave */
       DDR_USI  &= ~(1<<PIN_USI_SDA);                // Enable SDA as input.
-      if( USI_TWI_Master_Transfer( tempUSISR_1bit ) & (1<<TWI_NACK_BIT) ) 
+      if( USI_TWI_Master_Transfer( tempUSISR_1bit ) & (1<<TWI_NACK_BIT) )
       {
         if ( USI_TWI_state.addressMode )
           USI_TWI_state.errorState = USI_TWI_NO_ACK_ON_ADDRESS;
@@ -194,7 +194,7 @@ unsigned char USI_TWI_Start_Transceiver_With_Data( unsigned char *msg, unsigned 
       USI_TWI_Master_Transfer( tempUSISR_1bit );   // Generate ACK/NACK.
     }
   }while( --msgSize) ;                             // Until all data sent/received.
-  
+
   USI_TWI_Master_Stop();                           // Send a STOP condition on the TWI bus.
 
 /* Transmission successfully completed*/
@@ -216,14 +216,14 @@ unsigned char USI_TWI_Master_Transfer( unsigned char temp )
            (1<<USITC);                              // Toggle Clock Port.
   do
   {
-    _delay_us( T2_TWI/4 );              
+    _delay_us( T2_TWI/4 );
     USICR = temp;                          // Generate positve SCL edge.
     while( !(PIN_USI & (1<<PIN_USI_SCL)) );// Wait for SCL to go high.
-    _delay_us( T4_TWI/4 );              
+    _delay_us( T4_TWI/4 );
     USICR = temp;                          // Generate negative SCL edge.
   }while( !(USISR & (1<<USIOIF)) );        // Check for transfer complete.
-  
-  _delay_us( T2_TWI/4 );                
+
+  _delay_us( T2_TWI/4 );
   temp  = USIDR;                           // Read out data.
   USIDR = 0xFF;                            // Release SDA.
   DDR_USI |= (1<<PIN_USI_SDA);             // Enable SDA as output.
@@ -232,7 +232,7 @@ unsigned char USI_TWI_Master_Transfer( unsigned char temp )
 }
 
 /*---------------------------------------------------------------
- Function for generating a TWI Stop Condition. Used to release 
+ Function for generating a TWI Stop Condition. Used to release
  the TWI bus.
 ---------------------------------------------------------------*/
 unsigned char USI_TWI_Master_Stop( void )
@@ -240,14 +240,14 @@ unsigned char USI_TWI_Master_Stop( void )
   PORT_USI &= ~(1<<PIN_USI_SDA);           // Pull SDA low.
   PORT_USI |= (1<<PIN_USI_SCL);            // Release SCL.
   while( !(PIN_USI & (1<<PIN_USI_SCL)) );  // Wait for SCL to go high.
-  _delay_us( T4_TWI/4 );               
+  _delay_us( T4_TWI/4 );
   PORT_USI |= (1<<PIN_USI_SDA);            // Release SDA.
-  _delay_us( T2_TWI/4 );                
-  
+  _delay_us( T2_TWI/4 );
+
 #ifdef SIGNAL_VERIFY
   if( !(USISR & (1<<USIPF)) )
   {
-    USI_TWI_state.errorState = USI_TWI_MISSING_STOP_CON;    
+    USI_TWI_state.errorState = USI_TWI_MISSING_STOP_CON;
     return (FALSE);
   }
 #endif
