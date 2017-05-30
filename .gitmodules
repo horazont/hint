@@ -7,7 +7,7 @@
 	branch = master
 [submodule "sensor-node-ext/sensor-block/firmware"]
 	path = sensor-node-2.0/sensor-block/firmware
-	url = git@pubgit.sotecware.net:jonas.wielicki/sensor-node-ext-firmware-prototype
+	url = https://pubgit.sotecware.net/jonas.wielicki/hint-sensor-node-2.0-controller-firmware.git
 [submodule "sensor-node-ext/gateway"]
 	path = sensor-node-2.0/gateway
-	url = git@pubgit.sotecware.net:jonas.wielicki/hint-sensor-gateway-firmware
+	url = https://pubgit.sotecware.net/jonas.wielicki/hint-sensor-node-2.0-gateway-firmware.git
