@@ -1,4 +1,5 @@
-inc/
-bin/
-src/generated_font_data.inc
-.local
+/inc
+/bin
+/src/generated_font_data.inc
+/.local
+/tests
