@@ -1,8 +1,11 @@
 #!/usr/bin/python3
 import argparse
-import configparser
+import asyncio
 import logging
 import logging.config
+import signal
+
+import toml
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -12,20 +15,16 @@ parser.add_argument(
 )
 
 args = parser.parse_args()
-config = configparser.ConfigParser(delimiters=("=", ))
-config.read(args.config)
+with open(args.config, "r") as f:
+    config = toml.load(f)
 
 logging.basicConfig(
     level=logging.INFO
 )
 
-file_config = config.get("logging", "file_config", fallback=None)
+file_config = config.get("logging", {}).get("file_config")
 if file_config is not None:
     logging.config.fileConfig(file_config)
-
-
-import asyncio
-import signal
 
 import hintmodules.main
 

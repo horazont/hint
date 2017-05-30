@@ -164,6 +164,9 @@ class Service(hintmodules.service.HintService):
 
         return answer
 
+    def get_plugin_by_uri(self, uri):
+        return self._plugins[uri]
+
     async def _get_weather_info(self, request):
         try:
             requests = [

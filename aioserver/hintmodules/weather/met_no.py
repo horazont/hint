@@ -242,8 +242,8 @@ class Requester(hintmodules.cache.AdvancedRequester):
             response = None
             try:
                 async with session.get(self.URL,
-                                       params={"lat": lat,
-                                               "lon": lon},
+                                       params={"lat": str(lat),
+                                               "lon": str(lon)},
                                        headers=headers) as response:
                     self.logger.debug(
                         "response: '%d: %s' (headers=%r)",
@@ -297,11 +297,12 @@ class Requester(hintmodules.cache.AdvancedRequester):
 
 class Service:
     DESCRIPTION = (
-        "api.met.no/weatherapi is an interface to a selection of data produced by MET Norway"
+        "api.met.no/weatherapi is an interface to a selection of data "
+        "produced by MET Norway"
     )
     DEFAULT_LICENSE = "CC BY 3.0"
 
-    def __init__(self, service, section):
+    def __init__(self, service, config):
         super().__init__()
         self.service = service
         self.logger = service.logger.getChild("metno")
@@ -309,15 +310,19 @@ class Service:
         self._cache = {}
 
         mock_data = None
-        if section.get("mock_data", fallback=None):
-            with open(section.get("mock_data"), "rb") as f:
+        try:
+            mock_data_file = config["mock_data"]
+        except KeyError:
+            pass
+        else:
+            with open(mock_data_file, "rb") as f:
                 mock_data = f.read()
 
         self.requester = Requester(
             self.logger,
             service.http_session_factory,
             mock_data=mock_data,
-            dump=section.get("dump", fallback=None)
+            dump=config.get("dump")
         )
 
     async def get_data(self, lat, lon):

@@ -1,8 +1,8 @@
 import asyncio
 
-import importlib
-
 import aioxmpp.service
+
+import hintmodules.utils
 
 
 class HintService(aioxmpp.service.Service):
@@ -13,31 +13,18 @@ class HintService(aioxmpp.service.Service):
         self.ratelimit = None
         self.http_session_factory = None
 
-    def load_plugin(self, section):
-        path = section.get("plugin")
-        module_name, class_ = path.rsplit(".", 1)
-        try:
-            module = importlib.import_module(module_name)
-        except ImportError:
-            self.logger.error("failed to import plugin module %r",
-                              module_name,
-                              exc_info=True)
-            raise ValueError("invalid plugin class: {!r}".format(path))
+    async def configure(self, config):
+        for plugin_def in config.get("plugins", []):
+            self.load_plugin(plugin_def)
 
-        try:
-            class_ = getattr(module, class_)
-        except AttributeError:
-            self.logger.error(
-                "failed to find class %r in plugin module %r",
-                class_,
-                module_name,
-                exc_info=True,
-            )
-            raise ValueError("invalid plugin class: {!r}".format(path))
-
-        id_ = section.name.split(":", 1)[1]
-
-        instance = class_(self, section)
+    def load_plugin(self, defn):
+        id_ = defn["uri"]
+        path = defn["plugin"]
+        class_ = hintmodules.utils.get_class_by_path(
+            path,
+            logger=self.logger
+        )
+        instance = class_(self, defn)
         self._plugins[id_] = instance
 
         return instance

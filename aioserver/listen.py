@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 import asyncio
 import functools
+import hashlib
 import json
 import textwrap
 
@@ -18,7 +19,10 @@ import aioxmpp.stanza
 import aioxmpp.structs
 
 import hintmodules.warnings.xso as warnings_xso
+import hintmodules.warnings.cap as cap_xso
 import hintmodules.weather.xso as weather_xso
+
+from hintmodules.warnings.dwd import point_in_poly
 
 
 def get_pkfprint_store_verifier_factory(store_path):
@@ -26,105 +30,104 @@ def get_pkfprint_store_verifier_factory(store_path):
         with open(store_path, "r") as f:
             data = json.load(f)
     else:
-        data = {}
+        data = None
 
-    store = aioxmpp.security_layer.PublicKeyPinStore()
-    store.import_from_json(data)
-    del data
-
-    @asyncio.coroutine
-    def fail_always(*args, **kwargs):
-        return False
-
-    def verifier_factory():
-        return aioxmpp.security_layer.PinningPKIXCertificateVerifier(
-            store.query,
-            fail_always
-        )
-
-    return verifier_factory
+    return data
 
 
 async def main(config):
-    recipient = aioxmpp.structs.JID.fromstr(config.get("xmpp", "jid"))
-    password = config.get("xmpp", "password")
+    recipient = aioxmpp.structs.JID.fromstr(config["xmpp"]["jid"])
+    password = config["xmpp"]["password"]
     jid = recipient.replace(resource=recipient.resource+"-client")
-
-    @asyncio.coroutine
-    def get_password(client_jid, nattempt):
-        if nattempt > 1:
-            return None
-        return password
 
     client = aioxmpp.node.PresenceManagedClient(
         jid,
-        aioxmpp.security_layer.security_layer(
-            aioxmpp.security_layer.STARTTLSProvider(
-                aioxmpp.security_layer.default_ssl_context,
-                get_pkfprint_store_verifier_factory(
-                    config.get("xmpp", "tls_pk_pinstore", fallback=None),
-                ),
+        aioxmpp.make_security_layer(
+            password,
+            pin_store=get_pkfprint_store_verifier_factory(
+                config["xmpp"].get("tls_pk_pinstore"),
             ),
-            [
-                aioxmpp.security_layer.PasswordSASLProvider(
-                    get_password
-                )
-            ]
+            pin_type=aioxmpp.security_layer.PinType.PUBLIC_KEY,
         ),
     )
 
-    pubsub_svc = client.summon(aioxmpp.pubsub.Service)
+    pubsub_svc = client.summon(aioxmpp.PubSubClient)
+
+    live = set()
 
     async with aioxmpp.node.UseConnected(
             client,
             presence=aioxmpp.structs.PresenceState(False),
             timeout=timedelta(seconds=30)) as stream:
 
-        iq = aioxmpp.stanza.IQ(
-            to=recipient,
-            type_="get",
-        )
-        iq.payload = warnings_xso.LookupGeoCoord()
-        iq.payload.lon = 51.0492
-        iq.payload.lat = 13.7381
+        lon = 51.0492
+        lat = 13.7381
 
         async def print_item(jid, node, item, **kwargs):
-            warning = item.registered_payload
-            if warning is None:
-                warning = (await pubsub_svc.get_items_by_id(
-                    jid, node, [item.id_]
-                )).payload.items[0].registered_payload
+            alert = item.registered_payload
 
-            print("ID: {}".format(item.id_))
-            print("Subject: {}".format(warning.headline))
-            print("Event: {}".format(warning.event))
-            print("Is-Preliminary: {}".format(
-                warning.is_preliminary
-            ))
-            print("Type: {}".format(warning.type_))
-            print("Level: {}".format(warning.level))
-            print("Start: {}".format(warning.start))
-            print("End: {}".format(warning.end))
-            if warning.altitude_start is not None:
-                print("Altitude-Start: {}".format(warning.altitude_start))
-            if warning.altitude_end is not None:
-                print("Altitude-End: {}".format(warning.altitude_end))
-            if warning.description:
+            # print("Pubsub-ID: {}".format(item.id_))
+
+            if alert is None:
+                print("No alert payload!")
+                return
+
+            info = alert.infos[0]
+
+            area_with_poly = info.get_area_with_polygon()
+            if area_with_poly is None or not point_in_poly(
+                    lon, lat, area_with_poly.polygon):
+                return
+            else:
+                try:
+                    if any(point_in_poly(lon, lat, excluded_polygon)
+                           for excluded_polygon in cap_xso.PolygonType.parse(
+                                   area_with_poly.geocodes["EXCLUDED_POLYGON"]
+                           )):
+                        return
+                except KeyError:
+                    pass
+
+            live.add(item.id_)
+
+            print("ID: {}".format(alert.identifier))
+            print("Subject: {}".format(info.headline))
+            print("Category: {}".format(info.category))
+            print("Event: {}".format(info.event))
+            if info.response_type is not None:
+                print("Response-Type: {}".format(info.response_type))
+            print("Urgency: {}".format(info.urgency))
+            print("Severity: {}".format(info.severity))
+            print("Certainty: {}".format(info.certainty))
+            for key, value in info.parameters.items():
+                print("Parameter-{}: {}".format(key, value))
+            print("Effective: {}".format(info.effective))
+            print("Onset: {}".format(info.onset))
+            if info.expires is not None:
+                print("Expires: {}".format(info.expires))
+            for key, value in info.event_codes.items():
+                print("Event-{}: {}".format(key, value))
+            if info.description:
                 print("Description:")
                 print(
                     textwrap.indent(
-                        textwrap.fill(warning.description, width=76),
+                        textwrap.fill(info.description, width=76),
                         "  "
                     )
                 )
-            if warning.instruction:
+            if info.instruction:
                 print("Instruction:")
                 print(
                     textwrap.indent(
-                        textwrap.fill(warning.instruction, width=76),
+                        textwrap.fill(info.instruction, width=76),
                         "  "
                     )
                 )
+            hf = hashlib.sha1()
+            hf.update(str(area_with_poly.polygon).encode("utf-8"))
+            print("Polygon-Hash: {}".format(
+                hf.hexdigest()
+            ))
             print()
 
         pubsub_svc.on_item_published.connect(
@@ -133,33 +136,42 @@ async def main(config):
         )
 
         def print_retracted(jid, node, id_, **kwargs):
-            print("ID: {}".format(id_))
-            print("Retracted: True")
-            print()
+            try:
+                live.remove(id_)
+            except KeyError:
+                pass
+            else:
+                print("ID: {}".format(id_))
+                print("Retracted: True")
+                print()
 
         pubsub_svc.on_item_retracted.connect(
             print_retracted,
         )
 
-        response = await stream.send_iq_and_wait_for_reply(iq)
-        for item in response.items:
-            await pubsub_svc.subscribe(
-                item.jid,
-                item.node,
-                subscription_jid=client.local_jid,
-            )
+        await pubsub_svc.subscribe(
+            aioxmpp.structs.JID.fromstr(
+                config["warnings"]["plugins"][0]["pubsub_jid"]
+            ),
+            config["warnings"]["plugins"][0]["pubsub_node"],
+            subscription_jid=client.local_jid,
+        )
 
         while True:
             await asyncio.sleep(1)
 
 
 if __name__ == "__main__":
-    import configparser
+    import toml
 
-    cfg = configparser.ConfigParser(delimiters=("=",))
-    cfg.read("config.ini")
+    with open("config.toml") as f:
+        cfg = toml.load(f)
 
     import logging.config
     logging.config.fileConfig("logging.ini")
 
-    asyncio.get_event_loop().run_until_complete(main(cfg))
+    loop = asyncio.get_event_loop()
+    try:
+        loop.run_until_complete(main(cfg))
+    finally:
+        loop.close()

@@ -25,54 +25,26 @@ def get_pkfprint_store_verifier_factory(store_path):
         with open(store_path, "r") as f:
             data = json.load(f)
     else:
-        data = {}
+        data = None
 
-    store = aioxmpp.security_layer.PublicKeyPinStore()
-    store.import_from_json(data)
-    del data
-
-    @asyncio.coroutine
-    def fail_always(*args, **kwargs):
-        return False
-
-    def verifier_factory():
-        return aioxmpp.security_layer.PinningPKIXCertificateVerifier(
-            store.query,
-            fail_always
-        )
-
-    return verifier_factory
+    return data
 
 
 async def main(config):
-    recipient = aioxmpp.structs.JID.fromstr(config.get("xmpp", "jid"))
-    password = config.get("xmpp", "password")
+    recipient = aioxmpp.structs.JID.fromstr(config["xmpp"]["jid"])
+    password = config["xmpp"]["password"]
     jid = recipient.replace(resource=recipient.resource+"-client")
-
-    @asyncio.coroutine
-    def get_password(client_jid, nattempt):
-        if nattempt > 1:
-            return None
-        return password
 
     client = aioxmpp.node.PresenceManagedClient(
         jid,
-        aioxmpp.security_layer.security_layer(
-            aioxmpp.security_layer.STARTTLSProvider(
-                aioxmpp.security_layer.default_ssl_context,
-                get_pkfprint_store_verifier_factory(
-                    config.get("xmpp", "tls_pk_pinstore", fallback=None),
-                ),
+        aioxmpp.make_security_layer(
+            password,
+            pin_store=get_pkfprint_store_verifier_factory(
+                config["xmpp"].get("tls_pk_pinstore"),
             ),
-            [
-                aioxmpp.security_layer.PasswordSASLProvider(
-                    get_password
-                )
-            ]
+            pin_type=aioxmpp.security_layer.PinType.PUBLIC_KEY,
         ),
     )
-
-    pubsub_svc = client.summon(aioxmpp.pubsub.Service)
 
     async with aioxmpp.node.UseConnected(
             client,
@@ -83,50 +55,51 @@ async def main(config):
             to=recipient,
             type_="get",
         )
-        iq.payload = warnings_xso.LookupGeoCoord()
+        #  51.0492, 13.7381 -- Dresden
+        #  52.3744779, 9.7385532 -- Hannover
+        iq.payload = warnings_xso.SearchAlerts()
+        # iq.payload.lon = 52.3744779
+        # iq.payload.lat = 9.7385532
         iq.payload.lon = 51.0492
         iq.payload.lat = 13.7381
 
         response = await stream.send_iq_and_wait_for_reply(iq)
-        for item in response.items:
-            response = await pubsub_svc.get_items(
-                item.jid,
-                item.node,
-            )
-
-            for item in response.payload.items:
-                warning = item.registered_payload
-                print("ID: {}".format(item.id_))
-                print("Subject: {}".format(warning.headline))
-                print("Event: {}".format(warning.event))
-                print("Is-Preliminary: {}".format(
-                    warning.is_preliminary
-                ))
-                print("Type: {}".format(warning.type_))
-                print("Level: {}".format(warning.level))
-                print("Start: {}".format(warning.start))
-                print("End: {}".format(warning.end))
-                if warning.altitude_start is not None:
-                    print("Altitude-Start: {}".format(warning.altitude_start))
-                if warning.altitude_end is not None:
-                    print("Altitude-End: {}".format(warning.altitude_end))
-                if warning.description:
-                    print("Description:")
-                    print(
-                        textwrap.indent(
-                            textwrap.fill(warning.description, width=76),
-                            "  "
-                        )
+        for alert in response.items:
+            info = alert.infos[0]
+            print("ID: {}".format(alert.identifier))
+            print("Subject: {}".format(info.headline))
+            print("Category: {}".format(info.category))
+            print("Event: {}".format(info.event))
+            if info.response_type is not None:
+                print("Response-Type: {}".format(info.response_type))
+            print("Urgency: {}".format(info.urgency))
+            print("Severity: {}".format(info.severity))
+            print("Certainty: {}".format(info.certainty))
+            for key, value in info.parameters.items():
+                print("Parameter-{}: {}".format(key, value))
+            print("Effective: {}".format(info.effective))
+            print("Onset: {}".format(info.onset))
+            if info.expires is not None:
+                print("Expires: {}".format(info.expires))
+            for key, value in info.event_codes.items():
+                print("Event-{}: {}".format(key, value))
+            if info.description:
+                print("Description:")
+                print(
+                    textwrap.indent(
+                        textwrap.fill(info.description, width=76),
+                        "  "
                     )
-                if warning.instruction:
-                    print("Instruction:")
-                    print(
-                        textwrap.indent(
-                            textwrap.fill(warning.instruction, width=76),
-                            "  "
-                        )
+                )
+            if info.instruction:
+                print("Instruction:")
+                print(
+                    textwrap.indent(
+                        textwrap.fill(info.instruction, width=76),
+                        "  "
                     )
-                print()
+                )
+            print()
 
         # iq = aioxmpp.stanza.IQ(
         #     to=recipient,
@@ -169,10 +142,10 @@ async def main(config):
         #     print()
 
 if __name__ == "__main__":
-    import configparser
+    import toml
 
-    cfg = configparser.ConfigParser(delimiters=("=",))
-    cfg.read("config.ini")
+    with open("config.toml") as f:
+        cfg = toml.load(f)
 
     import logging.config
     logging.config.fileConfig("logging.ini")

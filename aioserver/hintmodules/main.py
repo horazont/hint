@@ -1,5 +1,4 @@
 import asyncio
-import functools
 import json
 import logging
 
@@ -10,6 +9,7 @@ import aioxmpp.security_layer
 import aioxmpp.structs
 
 import hintmodules.ratelimit
+import hintmodules.sensors
 import hintmodules.warnings
 import hintmodules.weather
 
@@ -26,23 +26,9 @@ def get_pkfprint_store_verifier_factory(store_path):
         with open(store_path, "r") as f:
             data = json.load(f)
     else:
-        data = {}
+        data = None
 
-    store = aioxmpp.security_layer.PublicKeyPinStore()
-    store.import_from_json(data)
-    del data
-
-    @asyncio.coroutine
-    def fail_always(*args, **kwargs):
-        return False
-
-    def verifier_factory():
-        return aioxmpp.security_layer.PinningPKIXCertificateVerifier(
-            store.query,
-            fail_always
-        )
-
-    return verifier_factory
+    return data
 
 
 class HintBot:
@@ -50,60 +36,45 @@ class HintBot:
         super().__init__()
 
         jid = aioxmpp.structs.JID.fromstr(
-            config.get("xmpp", "jid")
+            config["xmpp"]["jid"]
         )
 
         self._client = aioxmpp.node.PresenceManagedClient(
             jid,
-            aioxmpp.security_layer.security_layer(
-                aioxmpp.security_layer.STARTTLSProvider(
-                    aioxmpp.security_layer.default_ssl_context,
-                    get_pkfprint_store_verifier_factory(
-                        config.get("xmpp", "tls_pk_pinstore", fallback=None),
-                    ),
+            aioxmpp.make_security_layer(
+                config["xmpp"]["password"],
+                pin_store=get_pkfprint_store_verifier_factory(
+                    config["xmpp"].get("tls_pk_pinstore"),
                 ),
-                [
-                    aioxmpp.security_layer.PasswordSASLProvider(
-                        functools.partial(
-                            password_provider,
-                            config.get("xmpp", "password"),
-                        )
-                    )
-                ]
+                pin_type=aioxmpp.security_layer.PinType.PUBLIC_KEY,
             ),
             logger=logging.getLogger(__name__ + ".client")
         )
 
         self._ratelimiting = hintmodules.ratelimit.Service(
-            config,
+            config.get("rate_limit", {}),
             logging.getLogger("ratelimit")
         )
 
         self._warnings_svc = self.summon(
-            hintmodules.warnings.Service
+            hintmodules.warnings.Service,
         )
 
         self._weather_svc = self.summon(
-            hintmodules.weather.Service
+            hintmodules.weather.Service,
         )
+
+        self._sensors_svc = self.summon(
+            hintmodules.sensors.Service,
+        )
+        self._sensors_svc.weather_svc = self._weather_svc
 
         self._http_headers = [
             ("User-Agent",
-             config.get(
-                 "http-client",
-                 "user_agent",
-                 fallback="aiohintbot/1.0")),
+             config.get("http-client", {}).get("user_agent", "aiohintbot/1.0"))
         ]
 
-        for section in config.sections():
-            if section.startswith("warnings:"):
-                self._warnings_svc.load_plugin(
-                    config[section],
-                )
-            elif section.startswith("weather:"):
-                self._weather_svc.load_plugin(
-                    config[section],
-                )
+        self._config = config
 
     def summon(self, hint_service):
         svc = self._client.summon(hint_service)
@@ -119,10 +90,21 @@ class HintBot:
         )
 
     async def run(self):
-        # FIXME: use PEP 492 as soon as we have it
+        await self._warnings_svc.configure(
+            self._config.get("warnings", {})
+        )
 
-        async with self._client.connected():
-            while True:
-                await asyncio.sleep(1)
+        await self._weather_svc.configure(
+            self._config.get("weather", {})
+        )
 
-        await self._ratelimiting.close()
+        await self._sensors_svc.configure(
+            self._config.get("sensors", {})
+        )
+
+        try:
+            async with self._client.connected():
+                while True:
+                    await asyncio.sleep(1)
+        finally:
+            await self._ratelimiting.close()

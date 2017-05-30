@@ -217,69 +217,59 @@ class Service:
 
         self._matches = []
 
-        for section in config.sections():
-            if not section.startswith("rate_limit"):
-                continue
-
-            path = section[len("rate_limit"):]
-            path = tuple(part for part in path.split(":") if part)
-            section = config[section]
-
-            filters = []
-            set_limits = []
-
-            for bin_action, limit in section.items():
-                bin_, action = bin_action.split(":", 1)
-                if not bin_:
-                    # this is a filter
-                    try:
-                        filter_factory = self.FILTERS[action]
-                    except KeyError:
-                        self.logger.error(
-                            "no such filter (%r); section ignored",
-                            action
-                        )
-                        break  # this will cause the for-else to be skipped
-                    else:
-                        filters.append(filter_factory(limit))
-                    continue
-
-                action = tuple(part for part in action.split(":") if part)
-                try:
-                    bin_ = self._bins[bin_]
-                except KeyError:
-                    self.logger.warning(
-                        "no such bin (%r); directive ignored",
-                        bin_
-                    )
-                    continue
-
-                limit = limit.strip()
-                try:
-                    if not limit:
-                        limit = None
-                    else:
-                        limit = int(limit)
-                        if limit < 0:
-                            raise ValueError("invalid limit: {}".format(limit))
-                except (TypeError, ValueError):
-                    self.logger.warning(
-                        "invalid limit: %r; directive ignored",
-                        limit
-                    )
-                    continue
-
-                set_limits.append((bin_, path, action, limit))
-            else:
-                # everything is fine
-                for bin_, path, action, limit in set_limits:
-                    bin_.set_limit(path, action, limit)
-                self._matches.append(
-                    (filters, path)
-                )
+        self._load_recursive((), config)
 
         self._matches.sort(key=lambda x: (len(x[1]), len(x[0])),
                            reverse=True)
+
+    def _load_recursive(self, path, defn):
+        defn = dict(defn)
+        children = defn.pop("child", [])
+        bins = defn.pop("bin", [])
+
+        filters = []
+        for filter_type, filter_arg in defn.items():
+            try:
+                filter_factory = self.FILTERS[filter_type]
+            except KeyError:
+                self.logger.error(
+                    "no such filter (%r); "
+                    "section and its children ignored"
+                )
+                return
+            else:
+                filters.append(filter_factory(filter_arg))
+
+        self._matches.append((filters, path))
+
+        for i, bin_def in enumerate(bins, 1):
+            try:
+                action = bin_def["action"]
+                bin_ = bin_def["interval"]
+                limit = bin_def["size"]
+            except KeyError as exc:
+                self.logger.error(
+                    "bin definition number %d (1-based) at %s is "
+                    "missing required attribute %s",
+                    i,
+                    path,
+                    exc,
+                )
+
+            try:
+                bin_ = self._bins[bin_]
+            except KeyError:
+                self.logger.warning(
+                    "no such bin (%r): directive ignored",
+                    bin_,
+                )
+                continue
+
+            bin_.set_limit(path, action, limit)
+
+        for i, child in enumerate(children, 1):
+            key = child.get("id", str(i))
+            self._load_recursive(path + (key,), child)
 
     def check_limit(self, stanza, actions, register=True):
         actions = [
