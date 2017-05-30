@@ -6,6 +6,8 @@
 
 #define LPC_SUBJECT_TOUCH_EVENT (1)
 
+#define CFFI_DOTDOTDOT
+
 struct __attribute__((packed)) lpc_msg_t {
     uint8_t subject;
     union {
@@ -34,6 +36,7 @@ struct __attribute__((packed)) lpc_cmd_draw_image_start_t {
 #define TEXT_LENGTH (MSG_MAX_PAYLOAD-(sizeof(lpc_cmd_id_t)+sizeof(uint16_t)*3+sizeof(uint8_t)))
 
 struct __attribute__((packed)) lpc_cmd_draw_image_data_t {
+    uint16_t dummy;
     uint16_t pixels[0];
 };
 

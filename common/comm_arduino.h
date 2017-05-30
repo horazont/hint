@@ -14,8 +14,8 @@ struct __attribute__((packed)) ard_msg_t {
     union {
         struct ard_ev_sensor_readout_t sensor_readout;
         // 27 is the maximum payload size we can achieve with the standard
-        // arduino i2c library
-        uint8_t raw[27-sizeof(uint8_t)];
+        // arduino i2c library, need to subtract one uint8_t
+        uint8_t raw[26];
     } data;
 };
 
