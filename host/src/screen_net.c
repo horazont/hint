@@ -217,6 +217,8 @@ void screen_net_init(struct screen_t *screen)
 
 void screen_net_repaint(struct screen_t *screen)
 {
+    screen_draw_background(screen);
+
     struct screen_net_t *const net = screen->private;
 
     static struct table_column_t columns[5];

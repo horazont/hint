@@ -526,6 +526,8 @@ void screen_weather_show(struct screen_t *screen)
 
 void screen_weather_repaint(struct screen_t *screen)
 {
+    screen_draw_background(screen);
+
     struct screen_weather_t *weather = screen->private;
 
     static const coord_int_t x0 = SCREEN_CLIENT_AREA_LEFT;

@@ -12,7 +12,8 @@
 #define SCREEN_COUNT                    (4)
 #define SCREEN_BUS_MONITOR              (0)
 #define SCREEN_WEATHER_INFO             (1)
-#define SCREEN_NET                      (2)
+#define SCREEN_NET                      (-1)
+#define SCREEN_PIC                      (2)
 #define SCREEN_MISC                     (3)
 
 #define CLOCK_UPDATE_INTERVAL           (1000)

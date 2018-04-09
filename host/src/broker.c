@@ -19,7 +19,7 @@
 
 #include "screen_dept.h"
 #include "screen_weather.h"
-#include "screen_net.h"
+#include "screen_pic.h"
 #include "screen_misc.h"
 
 #define TABBAR_LEFT ((LCD_WIDTH-1)-SCREEN_MARGIN_RIGHT)
@@ -358,12 +358,19 @@ void broker_init(
         "Enviro");
     screen_weather_init(&broker->screens[SCREEN_WEATHER_INFO]);
 
-    screen_create(
+    /* screen_create(
         &broker->screens[SCREEN_NET],
         broker,
         "Netzwerk",
         "Net");
-    screen_net_init(&broker->screens[SCREEN_NET]);
+    screen_net_init(&broker->screens[SCREEN_NET]); */
+
+    screen_create(
+        &broker->screens[SCREEN_PIC],
+        broker,
+        "Guten Morgen Bild",
+        "Pic");
+    screen_pic_init(&broker->screens[SCREEN_PIC]);
 
     screen_create(
         &broker->screens[SCREEN_MISC],
@@ -524,7 +531,6 @@ static inline void broker_repaint_screen_nolock(
     if (broker->active_screen >= 0) {
         struct screen_t *screen = &broker->screens[broker->active_screen];
         screen_draw_header(screen);
-        screen_draw_background(screen);
         screen_repaint(screen);
     }
 }

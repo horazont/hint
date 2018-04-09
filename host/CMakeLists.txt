@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.6)
 
-set(SHARED_FLAGS "-g -Wall -Wextra -Werror -Wno-unused-parameter -Wno-unused-function")
+set(SHARED_FLAGS "-ggdb -Wall -Wextra -Werror -Wno-unused-parameter -Wno-unused-function -Wno-implicit-fallthrough -fno-stack-protector")
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99 ${SHARED_FLAGS}")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_GNU_SOURCE")
@@ -65,6 +65,7 @@ set(SOURCES
     "src/screen_weather.c"
     "src/screen_misc.c"
     "src/screen_net.c"
+    "src/screen_pic.c"
     "src/timestamp.c"
     "src/array.c"
     "src/heap.c"
@@ -73,8 +74,8 @@ set(SOURCES
     "src/departure.c"
     "src/utils.c")
 
-include_directories("../")
-include_directories(".")
+include_directories(${CMAKE_SOURCE_DIR}/../)
+include_directories(${CMAKE_SOURCE_DIR})
 include_directories(${CMAKE_BINARY_DIR}/libstrophe/src/)
 
 add_executable(hintd

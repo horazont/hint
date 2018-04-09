@@ -275,6 +275,8 @@ void screen_misc_init(struct screen_t *screen, struct xmpp_t *xmpp)
 
 void screen_misc_repaint(struct screen_t *screen)
 {
+    screen_draw_background(screen);
+
     sysstat_table(
         screen->comm,
         SCREEN_CLIENT_AREA_LEFT,

@@ -262,6 +262,8 @@ void screen_dept_init(struct screen_t *screen)
 
 void screen_dept_repaint(struct screen_t *screen)
 {
+    screen_draw_background(screen);
+
     struct screen_dept_t *dept = screen->private;
 
     if (array_length(&dept->rows) > 0) {

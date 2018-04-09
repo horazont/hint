@@ -101,7 +101,7 @@ void lpcd_image_data(
     const size_t length)
 {
     const int payload_length = sizeof(lpc_cmd_id_t) +
-        length;
+        length + 2;
 
     struct lpc_cmd_msg_t *msg = comm_alloc_message(
         MSG_ADDRESS_LPC1114, payload_length);
