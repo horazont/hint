@@ -331,27 +331,47 @@ static void draw_weather_bar(
             0);
         text_colour = get_text_colour(colour);
 
-        table_row_formatter_append_ex(
-            &cloud_row,
-            text_colour,
-            colour,
-            TABLE_ALIGN_CENTER,
-            "%.0f",
-            curr_interval->interval.precipitation_probability*100.f
-            );
+        if (curr_interval->interval.precipitation_probability >= 0.5) {
+            table_row_formatter_append_ex(
+                &cloud_row,
+                text_colour,
+                colour,
+                TABLE_ALIGN_CENTER,
+                "%.0f",
+                curr_interval->interval.precipitation_probability*100.f
+                );
+        } else {
+            table_row_formatter_append_ex(
+                &cloud_row,
+                text_colour,
+                colour,
+                TABLE_ALIGN_CENTER,
+                ""
+                );
+        }
 
         colour = cloudcolour(
             0,
             curr_interval->interval.precipitation_millimeter);
         text_colour = get_text_colour(colour);
 
-        format_dynamic_number(
-            &cloud_row,
-            curr_interval->interval.precipitation_millimeter,
-            text_colour,
-            colour,
-            TABLE_ALIGN_CENTER
-            );
+        if (curr_interval->interval.precipitation_millimeter >= 0.05) {
+            format_dynamic_number(
+                &cloud_row,
+                curr_interval->interval.precipitation_millimeter,
+                text_colour,
+                colour,
+                TABLE_ALIGN_CENTER
+                );
+        } else {
+            table_row_formatter_append_ex(
+                &cloud_row,
+                text_colour,
+                colour,
+                TABLE_ALIGN_CENTER,
+                ""
+                );
+        }
 
         ++curr_interval;
         memcpy(prev_time, &this_time, sizeof(struct tm));
