@@ -331,7 +331,7 @@ static void draw_weather_bar(
             0);
         text_colour = get_text_colour(colour);
 
-        if (curr_interval->interval.precipitation_probability >= 0.5) {
+        if (curr_interval->interval.precipitation_probability >= 0.005) {
             table_row_formatter_append_ex(
                 &cloud_row,
                 text_colour,

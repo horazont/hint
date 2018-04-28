@@ -507,9 +507,9 @@ enum comm_status_t comm_send(int fd, const struct msg_header_t *hdr, const uint8
 
     struct msg_encoded_header_t hdr_encoded = raw_to_wire(hdr);
 
-    //~ fprintf(stderr, "== sending ==\n");
-    //~ comm_dump_message(hdr);
-    //~ comm_dump_checksum(hdr, cs);
+    /* fprintf(stderr, "== sending ==\n"); */
+    /* comm_dump_message(hdr); */
+    /* comm_dump_checksum(hdr, cs); */
 
     result = comm_write_checked(fd, &hdr_encoded, sizeof(struct msg_encoded_header_t));
     if (result != COMM_ERR_NONE) {
