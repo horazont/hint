@@ -17,3 +17,6 @@
 [submodule "metric-collector"]
 	path = metric-collector
 	url = https://pubgit.sotecware.net/jonas.wielicki/hint-metric-collector
+[submodule "hintlib"]
+	path = hintlib
+	url = https://github.com/horazont/hint-lib
