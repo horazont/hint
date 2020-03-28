@@ -335,7 +335,8 @@ class Protocol(asyncio.Protocol):
                 return
 
         self._logger.debug(
-            "processing raw message: sender=%r, recipient=%r, payload=%r, flags=%r",
+            "processing raw message: "
+            "sender=%r, recipient=%r, payload=%r, flags=%r",
             sender, recipient, payload, flags,
         )
 
@@ -364,7 +365,7 @@ class Protocol(asyncio.Protocol):
             )
 
         if (self._send_acks is True or
-            (self._send_acks is not False and sender in self._send_acks)):
+                (self._send_acks is not False and sender in self._send_acks)):
             self._logger.debug("sending ack")
             self._send_raw(recipient, sender, {Flag.ACK}, b"",
                            message_id=message_id)
