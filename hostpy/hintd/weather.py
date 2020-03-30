@@ -87,9 +87,9 @@ def tempcolour(minT, maxT, T):
     return cubehelix(normT, math.pi / 12., -1.0, 2.0)
 
 
-def hsv_to_rgb(h, s, v):
+def hsv_to_rgb24(h, s, v):
     if s == 0:
-        return v, v, v
+        return (round(v*255),)*3
 
     h = h % (math.pi*2)
 
@@ -101,14 +101,14 @@ def hsv_to_rgb(h, s, v):
     q = v * (1.0 - (s * fractional))
     t = v * (1.0 - (s * (1.0 - fractional)))
 
-    return [
+    return tuple(round(v*255) for v in [
         (v, t, p),
         (q, v, p),
         (p, v, t),
         (p, q, v),
         (t, p, v),
         (v, p, q)
-    ][index]
+    ][index])
 
 
 def luminance(r, g, b):
@@ -131,14 +131,11 @@ def cloudcolour(cloudiness, precipitation):
     cloudiness = clamp(cloudiness/1.5, 0.0, 0.6667)
     precipitation = max(precipitation, 0)
 
-    return [
-        round(v*255)
-        for v in hsv_to_rgb(
-            (min(max(precipitation - 1.0, 0.0)/ 3.0, 1.0/3.0) + 2/3) * math.pi + 2,
-            min(precipitation, 1.0),
-            1.0 - cloudiness,
-        )
-    ]
+    return hsv_to_rgb24(
+        (min(max(precipitation - 1.0, 0.0)/ 3.0, 1.0/3.0) + 2/3) * math.pi + 2,
+        min(precipitation, 1.0),
+        1.0 - cloudiness,
+    )
 
 
 class DirtKind(enum.Enum):
@@ -542,16 +539,26 @@ def humidity_render_func(
     label = format_dynamic_number(value)
     unit = "%"
 
+    if value >= 50:
+        hue = 240 / 180 * math.pi
+        saturation = (value - 50) / 50
+    else:
+        hue = 36 / 180 * math.pi
+        saturation = 1 - value / 50
+
+    bgcolour = hsv_to_rgb24(hue, saturation, 1.0)
+    fgcolour = get_text_colour(*bgcolour)
+
     return (
         TableColumnEx(
-            bgcolour=metrics.THEME_CLIENT_AREA_BACKGROUND_COLOUR,
-            fgcolour=metrics.THEME_CLIENT_AREA_COLOUR,
+            bgcolour=bgcolour,
+            fgcolour=fgcolour,
             text=label,
             alignment=LPCTableAlignment.RIGHT,
         ),
         TableColumnEx(
-            bgcolour=metrics.THEME_CLIENT_AREA_BACKGROUND_COLOUR,
-            fgcolour=metrics.THEME_CLIENT_AREA_COLOUR,
+            bgcolour=bgcolour,
+            fgcolour=fgcolour,
             text=unit,
             alignment=LPCTableAlignment.LEFT,
         )
