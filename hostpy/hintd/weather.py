@@ -295,18 +295,18 @@ class WeatherScreen(hintd.ui.Screen):
         if really:
             ui.fill_rect(
                 x0, y0,
-                x0, y0 + self.TEXT_HEIGHT,
+                x0, y0 + self.SENSOR_TEXT_HEIGHT,
                 metrics.THEME_CLIENT_AREA_BACKGROUND_COLOUR,
             )
 
             ui.draw_text(
-                x0, y0 + self.TEXT_BASELINE,
-                LPCFont.DEJAVU_SANS_9PX,
+                x0, y0 + self.SENSOR_TEXT_BASELINE,
+                LPCFont.DEJAVU_SANS_12PX,
                 metrics.THEME_CLIENT_AREA_COLOUR,
                 group.label,
             )
 
-        y0 += self.TEXT_HEIGHT
+        y0 += self.SENSOR_TEXT_HEIGHT
 
         if really:
             ui.table_start(
