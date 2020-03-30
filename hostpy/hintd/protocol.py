@@ -201,6 +201,8 @@ class Protocol(asyncio.Protocol):
             self._logger.error(
                 "message was not acked at all! data was lost!"
             )
+            # assume the stream is dead and disconnect.
+            self._transport.abort()
 
     async def _tx_impl(self):
         ctr = 0
