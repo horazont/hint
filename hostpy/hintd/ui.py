@@ -283,9 +283,15 @@ class UI:
         if not self._dirt:
             return
 
-        print(self._dirt)
-
         all_dirty = DirtMarker.display() in self._dirt
+        if all_dirty:
+            self.fill_rect(
+                0,
+                0,
+                (metrics.LCD_WIDTH-1),
+                (metrics.LCD_HEIGHT-1),
+                metrics.THEME_BACKDROP_BACKGROUND_COLOUR,
+            )
 
         try:
             self._draw_screen_background()
