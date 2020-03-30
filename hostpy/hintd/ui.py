@@ -335,6 +335,7 @@ class UI:
         cmd = ffi.cast("struct lpc_cmd_t*", ffi.from_buffer(buf))
         cmd.cmd = LPCCommand.WAKE_UP.value
         self._main.send_message(Address.LPC1114, bytes(buf))
+        self.set_brightness(0x0fff)
         self.invalidate(DirtMarker(DirtKind.DISPLAY))
 
     def _draw_screen_clock(self):
