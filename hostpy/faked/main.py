@@ -1,3 +1,4 @@
+import array
 import asyncio
 import binascii
 import ctypes
@@ -118,6 +119,27 @@ async def handle_client(protocol):
         protocol.close()
 
 
+class ImageDrawCtx:
+    def __init__(self, x0, y0, x1, y1):
+        super().__init__()
+        self.x0 = x0
+        self.y0 = y0
+        self.x1 = x1
+        self.y1 = y1
+        self.curr = x0, y0
+
+    def get_and_advance(self):
+        x, y = self.curr
+        result = x, y
+        if y == self.y1:
+            y = self.y0
+            x += 1
+        else:
+            y += 1
+        self.curr = x, y
+        return result
+
+
 class MainWindow(Qt.QMainWindow):
     def __init__(self, loop, args, parent=None):
         super().__init__(parent)
@@ -142,6 +164,8 @@ class MainWindow(Qt.QMainWindow):
 
         self._clients = []
         self._tty_transport = None
+
+        self._image_draw_ctx = None
 
     def _client_disconnected(self, client):
         self._clients.remove(client)
@@ -350,15 +374,49 @@ class MainWindow(Qt.QMainWindow):
 
             self._table_y0 += self._table_row_height
 
+        elif cmd_enum == LPCCommand.DRAW_IMAGE_START:
+            args = cmd.args.draw_image_start
+            self._image_draw_ctx = ImageDrawCtx(
+                args.x0,
+                args.y0,
+                args.x1,
+                args.y1,
+            )
+            print((self._image_draw_ctx.y1 - self._image_draw_ctx.y0) + 1)
+
+        elif cmd_enum == LPCCommand.DRAW_IMAGE_DATA:
+            args = cmd.args.draw_image_data
+            max_len = (len(cmd) -
+                       ffi.sizeof("lpc_cmd_id_t") -
+                       ffi.sizeof("uint16_t"))
+            buf = bytes(ffi.cast("uint8_t*", args.pixels)[0:max_len])
+            pixels = array.array('H')
+            pixels.frombytes(buf)
+
+            if self._image_draw_ctx is not None:
+                for pixel in pixels:
+                    colour = Qt.QColor(*rgb16_to_rgb24(pixel), 255)
+                    x, y = self._image_draw_ctx.get_and_advance()
+                    self._ui.display.set_pixel(
+                        colour,
+                        x, y,
+                    )
+
         else:
             self._logger.warning(
                 "ignoring command id %s",
                 cmd_enum,
             )
 
-    def on_message_received(self, sender, recipient, payload):
+    def on_message_received(self, sender, recipient, payload, ack_fn):
         if sender == Address.HOST and recipient == Address.LPC1114:
-            self.on_command_received(payload)
+            asyncio.get_event_loop().call_later(
+                0.02, self.on_command_received,
+                payload
+            )
+            asyncio.get_event_loop().call_later(
+                0.02, ack_fn,
+            )
         else:
             self._logger.warning(
                 "ignoring message from %r to %r",

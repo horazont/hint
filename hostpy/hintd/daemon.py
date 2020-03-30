@@ -21,6 +21,7 @@ from hintd.cconstants import (
 )
 import hintd.protocol
 import hintd.departure
+import hintd.weather
 
 from .ui import UI
 
@@ -36,6 +37,7 @@ class HintDaemon:
             config["xmpp"],
             client_logger=self.logger.getChild("client"),
         )
+        pubsub_service = self._xmpp.client.summon(aioxmpp.PubSubClient)
 
         self._protocol = None
         self._comm = None
@@ -45,6 +47,19 @@ class HintDaemon:
         self._departure_service = hintd.departure.DepartureService()
         self._departure_service.configure(config["departure"])
         self._ui.add_screen(self._departure_service.screen)
+
+        weather_screen = hintd.weather.WeatherScreen()
+
+        self._forecast_service = hintd.weather.ForecastService(weather_screen)
+        self._forecast_service.configure(config["weather"]["forecast"])
+
+        self._weather_sensors_service = hintd.weather.SensorsService(
+            weather_screen,
+            pubsub_service,
+        )
+        self._weather_sensors_service.configure(config["weather"]["sensors"])
+
+        self._ui.add_screen(weather_screen)
 
         self._touch_down = False
 
@@ -93,7 +108,7 @@ class HintDaemon:
                 msg.subject
             )
 
-    def on_message_received(self, sender, recipient, payload):
+    def on_message_received(self, sender, recipient, payload, ack_fn):
         self.logger.debug(
             "message received: sender=%r, recipient=%r, payload=%r",
             sender,
@@ -113,6 +128,8 @@ class HintDaemon:
                 )
         except:  # NOQA
             self.logger.exception("failed to handle message")
+        finally:
+            ack_fn()
 
     def make_protocol(self):
         self._protocol = hintd.protocol.Protocol()
@@ -159,7 +176,6 @@ class HintDaemon:
                 self._reset_lpc()
                 self.logger.debug("waking up UI")
                 self._ui.wakeup()
-                self._ui.invalidate()
 
                 self.logger.debug("ready, watching connection")
                 disconnected = asyncio.Future()

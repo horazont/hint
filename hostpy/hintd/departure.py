@@ -17,7 +17,7 @@ from hintlib.services import PeerLockService, RestartingTask
 
 from .ui import Screen, metrics
 
-from hintd.cconstants import LPCFont, rgb24_to_rgb16
+from hintd.cconstants import LPCFont, rgb24_to_rgb16, LPCTableAlignment
 
 
 AGE_MAP = [
@@ -48,6 +48,8 @@ class StopConfig(typing.NamedTuple):
 
 
 class DepartureScreen(Screen):
+    ROW_HEIGHT = 14
+
     def __init__(self):
         super().__init__(
             "DVB",
@@ -69,15 +71,23 @@ class DepartureScreen(Screen):
         return AGE_MAP[qmin]
 
     def paint(self):
+        ntotalrows = metrics.SCREEN_CLIENT_AREA_HEIGHT // self.ROW_HEIGHT
+        ndatarows = ntotalrows - 1
+        table_height = ntotalrows * self.ROW_HEIGHT
+        table_width = 40+168+28+18
+
+        x0 = (metrics.SCREEN_CLIENT_AREA_WIDTH - table_width) // 2
+        y0 = (metrics.SCREEN_CLIENT_AREA_HEIGHT - table_height) // 2
+
         self._ui.table_start(
-            metrics.SCREEN_CLIENT_AREA_LEFT,
-            metrics.SCREEN_CLIENT_AREA_TOP+14,
-            14,
+            x0,
+            y0+self.ROW_HEIGHT,
+            self.ROW_HEIGHT,
             [
-                (40, 0),
-                (168, 0),
-                (28, 1),
-                (18, 2),
+                (40, LPCTableAlignment.LEFT),
+                (168, LPCTableAlignment.LEFT),
+                (28, LPCTableAlignment.RIGHT),
+                (18, LPCTableAlignment.CENTER),
             ]
         )
 
@@ -102,10 +112,9 @@ class DepartureScreen(Screen):
             if dt > -1.5
         ]
 
-        for row, dt in view_data[:metrics.MAX_DEPARTURE_ROWS]:
+        for row, dt in view_data[:ndatarows]:
             age = row.timestamp - now
             colour = row.colour or metrics.THEME_CLIENT_AREA_BACKGROUND_COLOUR
-            # print(f"{row.lane:>4s}  {row.destination:<60s}  {dt:>4.1f}")
             self._ui.table_row(
                 LPCFont.DEJAVU_SANS_12PX,
                 metrics.THEME_CLIENT_AREA_COLOUR,
@@ -118,7 +127,7 @@ class DepartureScreen(Screen):
                 ],
             )
 
-        for i in range(len(view_data), metrics.MAX_DEPARTURE_ROWS):
+        for i in range(len(view_data), ndatarows):
             self._ui.table_row(
                 LPCFont.DEJAVU_SANS_12PX,
                 metrics.THEME_CLIENT_AREA_COLOUR,

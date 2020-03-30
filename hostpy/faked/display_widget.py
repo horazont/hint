@@ -32,6 +32,9 @@ class DisplayWidget(Qt.QWidget):
 
         self.update()
 
+    def set_pixel(self, colour, x, y):
+        self._surface.setPixelColor(x, y, colour)
+
     def fill_rect(self, colour, x0, y0, x1, y1):
         p = Qt.QPainter(self._surface)
         p.setBrush(Qt.QBrush(colour))

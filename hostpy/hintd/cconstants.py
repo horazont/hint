@@ -1,5 +1,6 @@
 import functools
 import operator
+import typing
 
 from enum import Enum
 
@@ -48,6 +49,19 @@ class LPCFont(Enum):
     DEJAVU_SANS_12PX = 0x20
     DEJAVU_SANS_12PX_BF = 0x21
     CANTARELL_20PX_BF = 0x31
+
+
+class LPCTableAlignment(Enum):
+    LEFT = 0
+    RIGHT = 1
+    CENTER = 2
+
+
+class TableColumnEx(typing.NamedTuple):
+    bgcolour: typing.Tuple[int, int, int]
+    fgcolour: typing.Tuple[int, int, int]
+    alignment: LPCTableAlignment
+    text: str
 
 
 MAX_PAYLOAD_LENGTH = 0xfa

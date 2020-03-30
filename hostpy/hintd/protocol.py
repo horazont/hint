@@ -93,12 +93,12 @@ class Protocol(asyncio.Protocol):
         self._echo_event = asyncio.Event()
         self._echo_state = EchoState.IDLE
 
-    def on_message_received(self, sender, recipient, payload):
+    def on_message_received(self, sender, recipient, payload, ack_fn):
         self._logger.debug(
             "message received: sender=%r, recipient=%r, payload=%r",
             sender, recipient, payload,
         )
-        self.on_message(sender, recipient, payload)
+        self.on_message(sender, recipient, payload, ack_fn)
 
     def _critical_task_done(self, fut):
         if fut.exception() and not fut.cancelled():
@@ -367,12 +367,17 @@ class Protocol(asyncio.Protocol):
         if (self._send_acks is True or
                 (self._send_acks is not False and sender in self._send_acks)):
             self._logger.debug("sending ack")
-            self._send_raw(recipient, sender, {Flag.ACK}, b"",
-                           message_id=message_id)
+
+            def ack_fn():
+                self._send_raw(recipient, sender, {Flag.ACK}, b"",
+                               message_id=message_id)
+        else:
+            def ack_fn():
+                pass
 
         self._loop.call_soon(
             self.on_message_received,
-            sender, recipient, payload
+            sender, recipient, payload, ack_fn,
         )
 
     def _send_raw(self, sender, recipient, flags, payload, message_id=0):

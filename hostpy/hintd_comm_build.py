@@ -2,12 +2,15 @@ import re
 
 from cffi import FFI
 
-import hintd.protocol
+import runpy
+
+constants = runpy.run_path("hintd/cconstants.py")
 
 ffibuilder = FFI()
 ffibuilder.set_source(
     "_hintd_comm",
     """
+    #include "../common/comm.h"
     #include "../common/comm_lpc1114.h"
     #include "../common/comm_arduino.h"
     """
@@ -39,7 +42,7 @@ def extract_structs(fname):
         ).replace(
             "uint8_t raw[MSG_MAX_PAYLOAD-sizeof(lpc_cmd_id_t)];",
             "uint8_t raw[{}];".format(
-                hintd.cconstants.MAX_PAYLOAD_LENGTH-2
+                constants["MAX_PAYLOAD_LENGTH"]-2
             ),
         ).replace(
             "CFFI_DOTDOTDOT",
@@ -48,6 +51,7 @@ def extract_structs(fname):
 
 
 defs = []
+defs.extend(["struct msg_header_t { uint32_t data; };"]);
 defs.extend(extract_structs("../common/types.h"))
 defs.extend(extract_structs("../common/comm_lpc1114.h"))
 defs.extend(extract_structs("../common/comm_arduino.h"))
