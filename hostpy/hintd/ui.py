@@ -6,6 +6,8 @@ import typing
 
 from datetime import datetime, timedelta
 
+import pytz
+
 import aioxmpp.callbacks
 
 import hintlib.services
@@ -178,6 +180,10 @@ class UI:
         self._sleeping = True
         self._clock_task = hintlib.services.RestartingTask(self._clock_impl)
         self._sleep_handle = None
+        self._clock_tz = pytz.UTC
+
+    def configure_clock(self, clock_cfg):
+        self._clock_tz = pytz.timezone(clock_cfg.get("timezone", "Etc/UTC"))
 
     def _draw_clock(self, t):
         colon = ":" if t.second % 2 == 0 else " "
@@ -356,7 +362,8 @@ class UI:
                 metrics.THEME_BACKDROP_BACKGROUND_COLOUR
             )
 
-        self._draw_clock(datetime.now())
+        now = datetime.utcnow().replace(tzinfo=pytz.UTC)
+        self._draw_clock(self._clock_tz.normalize(now))
 
     def _draw_screen_title(self):
         all_dirty = DirtMarker.display() in self._dirt

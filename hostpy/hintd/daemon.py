@@ -43,6 +43,7 @@ class HintDaemon:
         self._comm = None
 
         self._ui = UI(self)
+        self._ui.configure_clock(config["clock"])
 
         self._departure_service = hintd.departure.DepartureService()
         self._departure_service.configure(config["departure"])
