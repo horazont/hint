@@ -93,8 +93,8 @@ class DepartureScreen(Screen):
 
         self._ui.table_row(
             LPCFont.DEJAVU_SANS_12PX_BF,
-            metrics.THEME_TH_COLOUR,
-            metrics.THEME_TH_BACKGROUND_COLOUR,
+            metrics.THEME_CLIENT_AREA_COLOUR,
+            metrics.THEME_CLIENT_AREA_BACKGROUND_COLOUR,
             [
                 "L#",
                 "Fahrtziel",
