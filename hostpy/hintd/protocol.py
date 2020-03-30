@@ -207,7 +207,7 @@ class Protocol(asyncio.Protocol):
         while True:
             message = await self._tx_queue.get()
             await self._tx_send_message(message, ctr)
-            ctr = (ctr + 1) % 16
+            ctr = (ctr + 1) % 1
 
     def _require_conn(self):
         if self._transport is None:
