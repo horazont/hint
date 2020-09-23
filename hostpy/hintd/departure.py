@@ -32,6 +32,22 @@ AGE_MAP = [
 ]
 
 
+DVB_DATE_RE = re.compile(
+    r"/Date\((?P<unixms>[0-9]+)-(?P<offset>[0-9]+)\)/",
+    re.I,
+)
+
+
+def parse_dvb_date(s: str) -> datetime:
+    match = DVB_DATE_RE.match(s)
+    if not match:
+        raise ValueError("not a valid DVB date: {!r}".format(s))
+    data = match.groupdict()
+    if data["offset"] != "0000":
+        raise ValueError("unexpected offset!")
+    return datetime.utcfromtimestamp(int(data["unixms"]) / 1000)
+
+
 class DepartureModelRow(typing.NamedTuple):
     lane: str
     destination: str
@@ -42,7 +58,7 @@ class DepartureModelRow(typing.NamedTuple):
 
 
 class StopConfig(typing.NamedTuple):
-    name: str
+    id_: str
     offset: float
     filter_func: typing.Callable
 
@@ -58,7 +74,7 @@ class DepartureScreen(Screen):
         self.data = []
 
     def quality_char(self, age):
-        qmin = round(age / 15)
+        qmin = round(age.total_seconds() / 15)
 
         if qmin <= 4:
             index = qmin
@@ -103,13 +119,13 @@ class DepartureScreen(Screen):
             ]
         )
 
-        now = time.monotonic()
+        now = datetime.utcnow()
         view_data = [
             (row, dt)
             for row, dt in (
-                (row, (row.eta - now) / 60) for row in self.data
+                (row, row.eta - now) for row in self.data
             )
-            if dt > -1.5
+            if dt > timedelta(minutes=-1.5)
         ]
 
         for row, dt in view_data[:ndatarows]:
@@ -122,7 +138,7 @@ class DepartureScreen(Screen):
                 [
                     row.lane,
                     row.destination,
-                    str(round(dt)),
+                    str(round(dt.total_seconds() / 60.0)),
                     self.quality_char(age),
                 ],
             )
@@ -137,7 +153,7 @@ class DepartureScreen(Screen):
 
 
 class DVBRequester(hintlib.cache.AdvancedHTTPRequester):
-    API_URL_TEMPLATE = "http://widgets.vvo-online.de/abfahrtsmonitor/Abfahrten.do?ort=Dresden&hst={stop}"
+    API_URL = "https://webapi.vvo-online.de/dm?format=json"
     CACHE_TTL = timedelta(seconds=15)
 
     def _create_session(self):
@@ -152,12 +168,30 @@ class DVBRequester(hintlib.cache.AdvancedHTTPRequester):
                                     session,
                                     expired_cache_entry=None,
                                     *,
-                                    stop=None):
-        now = time.monotonic()
+                                    stop_id=None):
+        now = datetime.utcnow()
+
+        request = {
+            "isarrival": True,
+            "limit": 60,
+            "mentzonly": False,
+            "mot": [
+                "Tram",
+                "CityBus",
+                "IntercityBus",
+                "SuburbanRailway",
+                "Train",
+                "Cableway",
+                "Ferry",
+                "HailedSharedTaxi",
+            ],
+            "shorttermchanges": True,
+            "stopid": stop_id,
+            "time": now.strftime("%Y-%m-%dT%H:%M:%S.000Z"),
+        }
 
         try:
-            async with session.get(
-                    self.API_URL_TEMPLATE.format(stop=stop)) as resp:
+            async with session.get(self.API_URL, json=request) as resp:
                 if resp.status != 200:
                     raise hintlib.cache.RequestError(
                         "Unexpected HTTP response: {} {}".format(resp.status,
@@ -175,14 +209,23 @@ class DVBRequester(hintlib.cache.AdvancedHTTPRequester):
             ) from exc
 
         cache_entry = expired_cache_entry or hintlib.cache.CacheEntry()
-        cache_entry.data = [
-            DepartureModelRow(
-                lane=lane,
-                destination=destination,
-                timestamp=now,
-                eta=now + float(eta or "0") * 60,
-            ) for lane, destination, eta in data
-        ]
+        try:
+            cache_entry.data = [
+                DepartureModelRow(
+                    lane=row["LineName"],
+                    destination=row["Direction"],
+                    timestamp=now,
+                    eta=parse_dvb_date(row.get("RealTime",
+                                               row["ScheduledTime"])),
+                ) for row in data["Departures"]
+            ]
+        except (ValueError, KeyError, TypeError) as exc:
+            self.logger.error("failed to parse response: %r", data)
+            raise hintlib.cache.RequestError(
+                "Failed to parse response",
+                back_off=True,
+                cache_entry=expired_cache_entry,
+            ) from exc
         cache_entry.expires = datetime.utcnow() + self.CACHE_TTL
         cache_entry.last_modified = None
         return cache_entry
@@ -211,16 +254,18 @@ def compile_filter(filter_cfg):
 
 
 def compile_stop_cfg(stop_cfg):
-    name = stop_cfg["name"]
+    stop_id = stop_cfg["id"]
     offset = stop_cfg.get("offset", 0)
     filters = stop_cfg.get("filters", [])
 
-    if not isinstance(name, str):
-        raise TypeError("stop name must be str")
+    if not isinstance(stop_id, str):
+        raise TypeError("stop id must be str")
     if not isinstance(offset, (int, float)):
         raise TypeError("stop offset must be numeric")
     if not isinstance(filters, list):
         raise TypeError("stop offset must be an array")
+
+    offset = timedelta(seconds=offset)
 
     filter_parts = []
     for filter_ in filters:
@@ -239,7 +284,7 @@ def compile_stop_cfg(stop_cfg):
             return True
 
     return StopConfig(
-        name=name,
+        id_=stop_id,
         offset=offset,
         filter_func=filter_func,
     )
@@ -347,7 +392,7 @@ class DepartureService:
         all_data = []
         parts = await asyncio.gather()
         for stop_cfg in self._stops:
-            raw_data = await self.requester.request(stop=stop_cfg.name)
+            raw_data = await self.requester.request(stop_id=stop_cfg.id_)
             all_data.extend(map(
                 functools.partial(self._process_stop_row, stop_cfg),
                 filter(stop_cfg.filter_func, raw_data)
