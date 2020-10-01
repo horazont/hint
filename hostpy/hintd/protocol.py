@@ -219,7 +219,7 @@ class Protocol(asyncio.Protocol):
         self._logger.debug("processing rx buffer. curr state: %r", state)
         if state == RecvState.HEADER:
             if len(self._rx_buf) < 4:
-                return RecvState.HEADER
+                return RecvState.HEADER, False
 
             self._rx_header_raw = self._rx_buf[:4]
             self._rx_header = decompose_message_header(
