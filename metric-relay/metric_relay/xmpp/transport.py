@@ -6,6 +6,8 @@ import schema
 
 import aioxmpp
 
+import hintlib.services
+
 from .. import interface
 from . import common
 
@@ -17,6 +19,7 @@ class XMPPConfig:
     host: typing.Optional[str]
     port: int
     public_key_pin: typing.Optional[typing.Mapping[str, typing.List[str]]]
+    buddies: typing.Mapping[aioxmpp.JID, typing.Set[str]]
 
 
 class Transport(interface.Transport[XMPPConfig]):
@@ -45,6 +48,8 @@ class Transport(interface.Transport[XMPPConfig]):
             override_peer=override_peer,
             logger=self.logger.getChild("client"),
         )
+        self.buddies = self.client.summon(hintlib.services.Buddies)
+        self.buddies.set_buddies(config.buddies)
 
     @classmethod
     def get_config_schema(cls) -> schema.Schema:
@@ -55,6 +60,9 @@ class Transport(interface.Transport[XMPPConfig]):
             schema.Optional("port", default=5222): int,
             schema.Optional("public_key_pin", default=None): {
                 schema.Optional(str): [str],
+            },
+            schema.Optional("buddies", default={}): {
+                common.jid: common.set_type(str),
             },
         })
 
