@@ -1,6 +1,7 @@
 import asyncio
 import dataclasses
 import logging
+import signal
 import typing
 
 import hintlib.services
@@ -94,7 +95,7 @@ class MetricRelay:
                 task.start()
 
             while True:
-                await asyncio.sleep(1)
+                await asyncio.sleep(3600)
         finally:
             for task in tasks:
                 task.stop()

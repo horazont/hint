@@ -92,7 +92,6 @@ class RandomSampleSource(metric_relay.interface.Source):
             part=part["part"],
             instance=part["instance"],
         )
-        bare_path = path.replace(instance=None)
         while True:
             timestamp = datetime.utcnow()
             samples = {}
@@ -103,7 +102,7 @@ class RandomSampleSource(metric_relay.interface.Source):
 
             sample = hintlib.sample.SampleBatch(
                 timestamp=timestamp,
-                bare_path=bare_path,
+                bare_path=path,
                 samples=samples,
             )
             self.logger.debug("generated sample: %r", sample)
@@ -125,7 +124,7 @@ class RandomSampleSource(metric_relay.interface.Source):
                 task.start()
 
             while True:
-                await asyncio.sleep(1)
+                await super().run()
         finally:
             for task in tasks:
                 task.stop()

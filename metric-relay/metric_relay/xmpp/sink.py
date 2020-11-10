@@ -26,6 +26,11 @@ class PubSubSink(interface.Sink[PubSubConfig]):
         self._service = config.service
         self._node_pattern = config.node_pattern
         self._id_pattern = config.id_pattern
+        self._configured_nodes = set()
+        self.transport.client.on_stream_destroyed.connect(self._drop_state)
+
+    def _drop_state(self):
+        self._configured_nodes.clear()
 
     @classmethod
     def get_config_schema(cls) -> schema.Schema:
@@ -49,7 +54,11 @@ class PubSubSink(interface.Sink[PubSubConfig]):
         return dataclass == interface.DataClass.SAMPLE_BATCH
 
     async def _ensure_node(self, node: str):
+        if node in self._configured_nodes:
+            return
+
         # TODO: do actual configuration here
+        self.logger.debug("creating node %r", node)
         try:
             await self._pubsub.create(
                 self._service,
@@ -58,6 +67,12 @@ class PubSubSink(interface.Sink[PubSubConfig]):
         except aioxmpp.errors.XMPPError as exc:
             if exc.condition != aioxmpp.ErrorCondition.CONFLICT:
                 raise
+            self.logger.debug("node %r exists already, moving on", node)
+        else:
+            self.logger.info("created pubsub node %r at service %s",
+                             node, self._service)
+
+        self._configured_nodes.add(node)
 
     async def submit(self, chunk: interface.DataChunk):
         assert chunk.class_ == interface.DataClass.SAMPLE_BATCH
@@ -81,9 +96,41 @@ class PubSubSink(interface.Sink[PubSubConfig]):
                 "with id %r",
                 batch, node, self._service, id_,
             )
-            await self._pubsub.publish(
-                self._service,
-                node,
-                data,
-                id_=id_,
-            )
+            try:
+                await self._pubsub.publish(
+                    self._service,
+                    node,
+                    data,
+                    id_=id_,
+                )
+            except aioxmpp.errors.XMPPError as exc:
+                self.logger.warning(
+                    "failed to publish to node %r at service %s (%s); trying "
+                    "reconfiguration",
+                    node, self._service, exc,
+                )
+                self._configured_nodes.discard(node)
+                try:
+                    await self._ensure_node(node)
+                except aioxmpp.errors.XMPPError as exc:
+                    self.logger.warning(
+                        "failed to (re-)create node %r at service %s after "
+                        "publish error; giving up on publish",
+                        node, self._service,
+                    )
+                    raise
+
+                try:
+                    await self._pubsub.publish(
+                        self._service,
+                        node,
+                        data,
+                        id_=id_,
+                    )
+                except aioxmpp.errors.XMPPError as exc:
+                    self.logger.error(
+                        "failed to publish to node %r at service %s (%s); "
+                        "ensuring presence of the node did not help. giving "
+                        "up and re-raising last error",
+                    )
+                    raise

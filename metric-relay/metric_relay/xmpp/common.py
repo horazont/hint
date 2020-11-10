@@ -1,3 +1,4 @@
+import enum
 import schema
 
 import aioxmpp
@@ -28,3 +29,12 @@ def wrap_batch(batch: hintlib.sample.SampleBatch):
         payload.samples.append(sample_xso)
 
     return payload
+
+
+def set_type(t):
+    s = schema.Schema(t)
+
+    def validate(v):
+        return frozenset(map(s.validate, v))
+
+    return validate

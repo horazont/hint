@@ -59,7 +59,7 @@ class Transport(Configurable[T], metaclass=abc.ABCMeta):
 
     async def run(self):
         while True:
-            await asyncio.sleep(1)
+            await asyncio.sleep(3600)
 
 
 class _SinkSourceBase(Configurable[T], metaclass=abc.ABCMeta):
@@ -70,7 +70,7 @@ class _SinkSourceBase(Configurable[T], metaclass=abc.ABCMeta):
 
     @classmethod
     def supports_transport(
-            self,
+            cls,
             transport_class: type,
             config: T) -> bool:
         return False

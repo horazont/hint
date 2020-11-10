@@ -1,4 +1,5 @@
 import asyncio
+import concurrent.futures
 import functools
 import itertools
 import numbers
@@ -30,7 +31,10 @@ class Transport(interface.Transport[smbus.SMBus]):
     def __init__(self, *, config: smbus.SMBus, **kwargs):
         super().__init__(config=config, **kwargs)
         self._bus = config
-        self._executor = None
+        self._executor = concurrent.futures.ThreadPoolExecutor(
+            max_workers=1,
+            thread_name_prefix="smbus-",
+        )
 
     @classmethod
     def get_config_schema(cls) -> schema.Schema:
@@ -190,7 +194,7 @@ class BME280(interface.Source[BME280Config]):
     async def configure(self):
         self.logger.debug("detecting presence")
         await self.detect()
-        self.logger.debug("configuration: %02x %02x %02x",
+        self.logger.debug("configuration: 0x%02x 0x%02x 0x%02x",
                           self._cfg, self._ctrl_meas, self._ctrl_hum)
         await self.transport.verified_write(
             self._address,
@@ -258,6 +262,17 @@ class BME280(interface.Source[BME280Config]):
             },
         )
 
+    async def sample_and_emit(self, calibration):
+        ts = datetime.utcnow()
+        raw_values = await self.read_raw_values()
+        self.logger.debug("raw values: %r", raw_values)
+        T, P, hum = self.apply_compensations(calibration, raw_values)
+        self.logger.debug("cooked values: %r %r %r", T, P, hum)
+        sample = self._pack_sample(ts, T, P, hum)
+        await self._emit(
+            interface.DataChunk.from_sample_batch(sample)
+        )
+
     async def run(self):
         tnext = time.monotonic()
         while True:
@@ -278,16 +293,7 @@ class BME280(interface.Source[BME280Config]):
                     await asyncio.sleep(tnext - tnow)
 
                 tnext += self._interval
-                ts = datetime.utcnow()
-                raw_values = await self.read_raw_values()
-                self.logger.debug("raw values: %r", raw_values)
-                T, P, hum = self.apply_compensations(calibration, raw_values)
-                self.logger.debug("cooked values: %r %r %r",
-                                  T, P, hum)
-                sample = self._pack_sample(ts, T, P, hum)
-                await self._emit(
-                    interface.DataChunk.from_sample_batch(sample)
-                )
+                await self.sample_and_emit(calibration)
 
             self.logger.debug(
                 "reconfiguration interval passed, reconfiguring"

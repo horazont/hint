@@ -3,6 +3,7 @@ import asyncio
 import collections
 import enum
 import typing
+import sys
 
 import hintlib.utils
 
@@ -74,8 +75,9 @@ class EphemeralQueue(Queue):
             try:
                 await self._sink(item)
             except Exception as exc:
+                last_err = sys.exc_info()
                 if first_err is None:
-                    first_err = exc
+                    first_err = last_err
                 will_retry = i < self._max_retries
                 if will_retry:
                     delay = next(self._retry_backoff)
@@ -88,13 +90,13 @@ class EphemeralQueue(Queue):
             else:
                 return
 
-        if first_err is not last_err:
+        if first_err != last_err:
             self.logger.error(
                 "failed to sink item %r multiple times. first error "
                 "was %s (%s)",
                 item,
-                first_err,
-                type(first_err).__name__,
+                first_err[1],
+                first_err[0].__name__,
                 exc_info=last_err,
             )
         else:
