@@ -156,6 +156,7 @@ class WeatherScreen(hintd.ui.Screen):
 
     SENSOR_TEXT_HEIGHT = 14
     SENSOR_TEXT_BASELINE = 12
+    SENSOR_DATA_COLUMN_WIDTH = 25
 
     PRECIPITATION_PROBABILITY_THRESHOLD = 0.005
     PRECIPITATION_AMOUNT_THRESHOLD = 0.05
@@ -290,8 +291,6 @@ class WeatherScreen(hintd.ui.Screen):
         return prev_time
 
     def _paint_sensor_group(self, ui, x0, y0, width, group, really):
-        col_width = width // 2
-
         if really:
             ui.fill_rect(
                 x0, y0,
@@ -313,8 +312,8 @@ class WeatherScreen(hintd.ui.Screen):
                 x0, y0 + self.SENSOR_TEXT_BASELINE,
                 self.SENSOR_TEXT_HEIGHT,
                 [
-                    (col_width, LPCTableAlignment.RIGHT),
-                    (col_width, LPCTableAlignment.LEFT),
+                    (self.SENSOR_DATA_COLUMN_WIDTH, LPCTableAlignment.RIGHT),
+                    (self.SENSOR_DATA_COLUMN_WIDTH, LPCTableAlignment.LEFT),
                 ],
             )
 
@@ -472,6 +471,7 @@ class ForecastService:
 
 class SensorRow(typing.NamedTuple):
     render_func: typing.Callable
+    label: str
     sensor: str
     value: str
 
@@ -568,6 +568,7 @@ def humidity_render_func(
 def compile_temperature_sensor_row(row_cfg):
     return SensorRow(
         render_func=temperature_render_func,
+        label=row_cfg.get("label"),
         sensor=row_cfg["sensor"],
         value=row_cfg["value"],
     )
@@ -576,6 +577,7 @@ def compile_temperature_sensor_row(row_cfg):
 def compile_humidity_sensor_row(row_cfg):
     return SensorRow(
         render_func=humidity_render_func,
+        label=row_cfg.get("label"),
         sensor=row_cfg["sensor"],
         value=row_cfg["value"],
     )

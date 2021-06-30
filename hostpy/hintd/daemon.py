@@ -22,6 +22,7 @@ from hintd.cconstants import (
 import hintd.protocol
 import hintd.departure
 import hintd.weather
+import hintd.covid
 
 from .ui import UI
 
@@ -61,6 +62,10 @@ class HintDaemon:
         self._weather_sensors_service.configure(config["weather"]["sensors"])
 
         self._ui.add_screen(weather_screen)
+
+        self._covid_service = hintd.covid.CovidService()
+        self._covid_service.configure(config.get("covid", {}))
+        self._ui.add_screen(self._covid_service.screen)
 
         self._touch_down = False
 
