@@ -73,7 +73,7 @@ class CovidScreen(Screen):
             [
                 (self.DATE_COLUMN_WIDTH, LPCTableAlignment.LEFT)
             ] + [
-                (self.DATA_COLUMN_WIDTH, LPCTableAlignment.RIGHT)
+                (self.DATA_COLUMN_WIDTH, LPCTableAlignment.LEFT)
             ] * ncolumns
         )
 
