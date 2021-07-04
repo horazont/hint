@@ -23,6 +23,7 @@ import hintd.protocol
 import hintd.departure
 import hintd.weather
 import hintd.covid
+import hintd.shia
 
 from .ui import UI
 
@@ -66,6 +67,9 @@ class HintDaemon:
         self._covid_service = hintd.covid.CovidService()
         self._covid_service.configure(config.get("covid", {}))
         self._ui.add_screen(self._covid_service.screen)
+
+        self._shia_service = hintd.shia.ShiaService()
+        self._ui.add_screen(self._shia_service.screen)
 
         self._touch_down = False
 
