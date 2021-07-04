@@ -2,6 +2,7 @@ import asyncio
 import functools
 import json
 import logging
+import math
 import re
 import time
 import typing
@@ -87,8 +88,6 @@ class CovidScreen(Screen):
         )
 
         for dt, *vals in sorted(self.data["rows"], key=lambda x: x[0], reverse=True):
-
-
             columns = [
                 TableColumnEx(
                     bgcolour=metrics.THEME_CLIENT_AREA_BACKGROUND_COLOUR,
@@ -126,7 +125,7 @@ class CovidScreen(Screen):
 
 class DoofesCovidRequester(hintlib.cache.AdvancedHTTPRequester):
     API_URL = "https://doofescovid.de/api/datasources/proxy/10/query"
-    CACHE_TTL = timedelta(hours=1)
+    CACHE_TTL = timedelta(minutes=15)
 
     def _create_session(self):
         return aiohttp.ClientSession(
@@ -253,7 +252,6 @@ class CovidService:
             (thresh["value"], thresh["colour"])
             for thresh in covid_cfg.get("thresholds", [])
         ), key=lambda x: x[0], reverse=True)
-
 
     async def _worker(self):
         while True:
