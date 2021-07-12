@@ -41,6 +41,34 @@ def get_text_colour(r, g, b):
         return (0, 0, 0)
 
 
+def nice_num(range_: float, rounded: bool) -> float:
+    exponent = math.floor(math.log10(range_))
+    next_pot = 10**exponent
+    fraction = range_ / next_pot
+
+    rounded_fraction = None
+    if rounded:
+        if fraction < 1.5:
+            rounded_fraction = 1
+        elif fraction < 3:
+            rounded_fraction = 2
+        elif fraction < 7:
+            rounded_fraction = 5
+        else:
+            rounded_fraction = 10
+    else:
+        if fraction <= 1:
+            rounded_fraction = 1
+        elif fraction <= 2:
+            rounded_fraction = 2
+        elif fraction <= 5:
+            rounded_fraction = 5
+        else:
+            rounded_fraction = 10
+
+    return rounded_fraction * next_pot
+
+
 class CovidScreen(Screen):
     ROW_HEIGHT = 14
     DATE_COLUMN_WIDTH = 56
@@ -55,72 +83,148 @@ class CovidScreen(Screen):
         self.default_colour = metrics.THEME_CLIENT_AREA_BACKGROUND_COLOUR
         self.thresholds = []
 
+    def make_axis(self, vmin, vmax, nticks):
+        # roughly taken from https://stackoverflow.com/a/16363437/1248008
+        range_ = nice_num(vmax - vmin, False)
+        tick_offset = nice_num(range_ / (nticks - 1), True)
+        base = math.floor(vmin / tick_offset) * tick_offset
+        return [
+            base + tick_offset * i
+            for i in range(nticks + 1)
+        ]
+
+    @staticmethod
+    def value_to_coord(graph_y0, graph_y1, vmin, vmax, v):
+        return round(graph_y1 - (v - vmin) / (vmax - vmin) *
+                     (graph_y1 - graph_y0))
+
     def paint(self):
         if not self.data:
             return
 
-        ntotalrows = metrics.SCREEN_CLIENT_AREA_HEIGHT // self.ROW_HEIGHT
-        ndatarows = len(self.data["rows"])
-        ncolumns = len(self.data["columns"])
-        table_height = ntotalrows * self.ROW_HEIGHT
-        table_width = ncolumns * self.DATA_COLUMN_WIDTH + self.DATE_COLUMN_WIDTH
-        x0 = (metrics.SCREEN_CLIENT_AREA_WIDTH - table_width) // 2
-        y0 = (metrics.SCREEN_CLIENT_AREA_HEIGHT - table_height) // 2
+        graph_x0 = metrics.SCREEN_CLIENT_AREA_LEFT + 32
+        graph_y0 = metrics.SCREEN_CLIENT_AREA_TOP + 16
+        graph_x1 = metrics.SCREEN_CLIENT_AREA_RIGHT - 2
+        graph_y1 = metrics.SCREEN_CLIENT_AREA_BOTTOM - 20
+        graph_h = graph_y1 - graph_y0
+        rows = self.data["rows"]
+        nrows = len(rows)
+
+        day_width = (graph_x1 - graph_x0) / (nrows - 1)
+
+        lines = {}
+        dt0 = min((dt for (dt, *_) in rows))
+
+        vmin = min(v for _, *vs in rows for v in vs)
+        vmin = 0
+        vmax = max(v for _, *vs in rows for v in vs)
+
+        for dt, *vals in rows:
+            for i, ((name, colour), v) in enumerate(zip(self.data["columns"], vals)):
+                lines.setdefault(i, (colour, []))[1].append(((dt - dt0).total_seconds() / 86400, v))
+
+        # and now some ticks
+        ticks = self.make_axis(vmin, vmax, 5)
+        # update range for nicer looking data
+        vmin, *_, vmax = ticks
+
+        # lets draw the configured thresholds first, so that any off by one is covered up by the axis drawing :-X
+        for cutoff, colour in self.thresholds:
+            if vmin < cutoff < vmax:
+                y = self.value_to_coord(graph_y0, graph_y1, vmin, vmax, cutoff)
+                self._ui.draw_line(
+                    graph_x0, y,
+                    graph_x1, y,
+                    colour,
+                )
+
+        # now the axes
+        self._ui.draw_line(
+            graph_x0, graph_y1,
+            graph_x0, graph_y0,
+            metrics.THEME_CLIENT_AREA_COLOUR,
+        )
+
+        self._ui.draw_line(
+            graph_x0, graph_y1,
+            graph_x1, graph_y1,
+            metrics.THEME_CLIENT_AREA_COLOUR,
+        )
+
+        for tick in ticks:
+            y = self.value_to_coord(graph_y0, graph_y1, vmin, vmax, tick)
+            self._ui.draw_line(
+                graph_x0 - 2, y,
+                graph_x0, y,
+                metrics.THEME_CLIENT_AREA_COLOUR,
+            )
+            self._ui.draw_text(
+                metrics.SCREEN_CLIENT_AREA_LEFT + 2,
+                y + 5,
+                LPCFont.DEJAVU_SANS_9PX,
+                metrics.THEME_CLIENT_AREA_COLOUR,
+                str(tick),
+            )
+
+        for (colour, line) in lines.values():
+            prev_x, prev_y = None, None
+            for day, value in line:
+                x = round(day * day_width + graph_x0)
+                y = self.value_to_coord(graph_y0, graph_y1, vmin, vmax, value)
+                if prev_x is not None and prev_y is not None:
+                    self._ui.draw_line(
+                        prev_x, prev_y,
+                        x, y,
+                        colour,
+                    )
+                prev_x, prev_y = x, y
+
+        date_subdivision = 4
 
         self._ui.table_start(
-            x0,
-            y0+self.ROW_HEIGHT,
-            self.ROW_HEIGHT,
+            graph_x0,
+            graph_y1 + 14,
+            10,
             [
-                (self.DATE_COLUMN_WIDTH, LPCTableAlignment.LEFT)
-            ] + [
-                (self.DATA_COLUMN_WIDTH, LPCTableAlignment.LEFT)
-            ] * ncolumns
+                (round(day_width * i * date_subdivision - round(day_width * (i-1) * date_subdivision)), LPCTableAlignment.LEFT)
+                for i in range(nrows // date_subdivision)
+            ]
         )
 
         self._ui.table_row(
-            LPCFont.DEJAVU_SANS_12PX_BF,
+            LPCFont.DEJAVU_SANS_9PX,
             metrics.THEME_CLIENT_AREA_COLOUR,
             metrics.THEME_CLIENT_AREA_BACKGROUND_COLOUR,
             [
-                "Datum",
-            ] + self.data["columns"]
+                dt.strftime("%d.%m.")
+                for dt, *_ in rows[::date_subdivision]
+            ]
         )
 
-        for dt, *vals in sorted(self.data["rows"], key=lambda x: x[0], reverse=True):
-            columns = [
-                TableColumnEx(
-                    bgcolour=metrics.THEME_CLIENT_AREA_BACKGROUND_COLOUR,
-                    fgcolour=metrics.THEME_CLIENT_AREA_COLOUR,
-                    text=dt.strftime("%d %b"),
-                    alignment=LPCTableAlignment.LEFT,
-                )
-            ]
+        # and now for the date ticks, which are slightly worse
 
-            for value in vals:
-                colour = self.default_colour
-                for thresh_cutoff, thresh_colour in self.thresholds:
-                    if value >= thresh_cutoff:
-                        colour = thresh_colour
-
-                if value < 100:
-                    text = "{:.2g}".format(value)
-                else:
-                    text = "{:.0f}".format(value)
-
-                columns.append(
-                    TableColumnEx(
-                        bgcolour=colour,
-                        fgcolour=get_text_colour(*colour),
-                        text=text,
-                        alignment=LPCTableAlignment.RIGHT,
-                    )
-                )
-
-            self._ui.table_row_ex(
-                LPCFont.DEJAVU_SANS_12PX,
-                columns,
+        for i in range(nrows // date_subdivision):
+            x = round(day_width * i * date_subdivision) + graph_x0
+            self._ui.draw_line(
+                x, graph_y1,
+                x, graph_y1 + 2,
+                metrics.THEME_CLIENT_AREA_COLOUR,
             )
+
+        self._ui.draw_line(
+            graph_x1, graph_y1,
+            graph_x1, graph_y1 + 2,
+            metrics.THEME_CLIENT_AREA_COLOUR,
+        )
+
+        self._ui.draw_text(
+            graph_x1 - 28,
+            graph_y1 + 14,
+            LPCFont.DEJAVU_SANS_9PX,
+            metrics.THEME_CLIENT_AREA_COLOUR,
+            rows[-1][0].strftime("%d.%m.")
+        )
+
 
 
 class DoofesCovidRequester(hintlib.cache.AdvancedHTTPRequester):
@@ -226,7 +330,7 @@ class CovidService:
                         extra_where="({}) AND".format(q) if q is not None else "",
                     ),
                 )
-                for _, q in self._columns
+                for *_, q in self._columns
             )
         )
 
@@ -238,13 +342,13 @@ class CovidService:
             rows.append(tuple(row))
 
         self.screen.data = {
-            "columns": [label for label, _ in self._columns],
-            "rows": rows,
+            "columns": [(label, colour) for label, colour, _ in self._columns],
+            "rows": sorted(rows, key=lambda x: x[0]),
         }
 
     def configure(self, covid_cfg):
         self._columns = [
-            (col["label"], col.get("q"))
+            (col["label"], col["colour"], col.get("q"))
             for col in covid_cfg["columns"]
         ]
         self.screen.default_colour = covid_cfg.get("default_colour", (255, 255, 255))
