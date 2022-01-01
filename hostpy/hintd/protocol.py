@@ -101,7 +101,7 @@ class Protocol(asyncio.Protocol):
         self.on_message(sender, recipient, payload, ack_fn)
 
     def _critical_task_done(self, fut):
-        if fut.exception() and not fut.cancelled():
+        if not fut.cancelled() and fut.exception():
             if self._transport is not None:
                 self._logger.warning(
                     "critical task %r failed, "
