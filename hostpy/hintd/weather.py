@@ -54,7 +54,7 @@ def format_dynamic_number(v):
     w = '0' if abs(v) > 9.5 else '1'
     sign = '–' if v < 0 else ''
     fmt = f"{sign}{{:.{w}f}}"
-    return fmt.format(v)
+    return fmt.format(abs(v))
 
 
 def clamp(v, min_, max_):
