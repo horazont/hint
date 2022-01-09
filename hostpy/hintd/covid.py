@@ -290,7 +290,7 @@ class DoofesCovidRequester(hintlib.cache.AdvancedHTTPRequester):
 
 
 class CovidService:
-    QUERY_TEMPLATE = 'SELECT sum("d7pubcases") / sum("population") * 100000 FROM "rki_data_v1_geo" WHERE {extra_where} time >= now() - 15d GROUP BY time(1d) fill(null)'
+    QUERY_TEMPLATE = 'SELECT sum("cases_pub_d7") / sum("population") * 100000 FROM "data_v2_geo" WHERE {extra_where} time >= now() - 15d GROUP BY time(1d) fill(null)'
 
     def __init__(self):
         self.logger = logging.getLogger(
