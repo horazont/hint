@@ -2,8 +2,8 @@
 
 #include <stdlib.h>
 
-inline const struct glyph_t *font_find_glyph(const struct font_t *font,
-                                             const codepoint_t codepoint)
+static inline const struct glyph_t *font_find_glyph(const struct font_t *font,
+                                                    const codepoint_t codepoint)
 {
     uint16_t offset = 0;
 
