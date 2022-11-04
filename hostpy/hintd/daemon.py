@@ -24,6 +24,7 @@ import hintd.departure
 import hintd.weather
 import hintd.covid
 import hintd.shia
+import hintd.button
 
 from .ui import UI
 
@@ -70,6 +71,10 @@ class HintDaemon:
 
         self._shia_service = hintd.shia.ShiaService()
         self._ui.add_screen(self._shia_service.screen)
+
+        self._button_service = hintd.button.ButtonService(self._xmpp)
+        self._button_service.configure(config.get("button", {}))
+        self._ui.add_screen(self._button_service.screen)
 
         self._touch_down = False
 
