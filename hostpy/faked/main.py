@@ -16,7 +16,7 @@ import serial_asyncio
 
 import PyQt5.Qt as Qt
 
-import quamash
+import qasync
 
 from hintd.cconstants import (
     Address,
@@ -502,12 +502,12 @@ def main():
             2: logging.INFO,
         }.get(args.verbosity, logging.DEBUG)
     )
-    logging.getLogger("quamash.QEventLoop").setLevel(logging.WARNING)
+    logging.getLogger("qasync.QEventLoop").setLevel(logging.WARNING)
     logging.getLogger("hintd.protocol").setLevel(logging.INFO)
 
     app = Qt.QApplication(sys.argv[:1])
     app.setQuitOnLastWindowClosed(False)
-    loop = quamash.QEventLoop(app=app)
+    loop = qasync.QEventLoop(app=app)
     asyncio.set_event_loop(loop)
     loop = asyncio.get_event_loop()
     main_window = MainWindow(loop, args)
