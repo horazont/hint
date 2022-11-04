@@ -91,7 +91,7 @@ class DisplayWidget(Qt.QWidget):
         y = round(ev.localPos().y() - y0)
         if not (0 <= x < self.WIDTH) or not (0 <= y < self.HEIGHT):
             x, y = 0, 0
-        self.on_mouse_event(0, 0, 0)
+        self.on_mouse_event(x, y, 0)
         return super().mouseReleaseEvent(ev)
 
     def paintEvent(self, ev):
