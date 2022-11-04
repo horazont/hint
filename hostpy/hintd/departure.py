@@ -208,6 +208,13 @@ class DVBRequester(hintlib.cache.AdvancedHTTPRequester):
                 cache_entry=expired_cache_entry,
             ) from exc
 
+        if data.get("Status", {}).get("Code") == "ServiceError":
+            raise hintlib.cache.RequestError(
+                "service error returned",
+                back_off=True,
+                cache_entry=expired_cache_entry,
+            )
+
         cache_entry = expired_cache_entry or hintlib.cache.CacheEntry()
         try:
             cache_entry.data = [
@@ -392,7 +399,18 @@ class DepartureService:
         all_data = []
         parts = await asyncio.gather()
         for stop_cfg in self._stops:
-            raw_data = await self.requester.request(stop_id=stop_cfg.id_)
+            try:
+                raw_data = await self.requester.request(stop_id=stop_cfg.id_)
+            except hintlib.cache.BackingOff:
+                self.logger.warning("ignoring stop %r, still backing off and "
+                                    "no cached data",
+                                    stop_cfg.id_)
+                continue
+            except hintlib.cache.RequestError as exc:
+                self.logger.warning("could not request data for stop %r: %s",
+                                    stop_cfg.id_,
+                                    exc)
+                continue
             all_data.extend(map(
                 functools.partial(self._process_stop_row, stop_cfg),
                 filter(stop_cfg.filter_func, raw_data)
