@@ -265,12 +265,42 @@ class UI:
         if x >= metrics.TABBAR_LEFT and y >= metrics.TABBAR_TOP:
             self._handle_tabbar_touch(x - metrics.TABBAR_LEFT,
                                       y - metrics.TABBAR_TOP, z)
+        elif (x >= metrics.SCREEN_CLIENT_AREA_LEFT and
+              y >= metrics.SCREEN_CLIENT_AREA_TOP and
+              x < metrics.SCREEN_CLIENT_AREA_RIGHT and
+              y < metrics.SCREEN_CLIENT_AREA_BOTTOM):
+            if self._current_screen is not None:
+                self._current_screen.touch_down(
+                    x - metrics.SCREEN_CLIENT_AREA_LEFT,
+                    y - metrics.SCREEN_CLIENT_AREA_TOP,
+                    z,
+                )
 
     def touch_move(self, x, y, z):
         self.wakeup()
+        if (x >= metrics.SCREEN_CLIENT_AREA_LEFT and
+                y >= metrics.SCREEN_CLIENT_AREA_TOP and
+                x < metrics.SCREEN_CLIENT_AREA_RIGHT and
+                y < metrics.SCREEN_CLIENT_AREA_BOTTOM):
+            if self._current_screen is not None:
+                self._current_screen.touch_move(
+                    x - metrics.SCREEN_CLIENT_AREA_LEFT,
+                    y - metrics.SCREEN_CLIENT_AREA_TOP,
+                    z,
+                )
 
     def touch_up(self, x, y, z):
         self.wakeup()
+        if (x >= metrics.SCREEN_CLIENT_AREA_LEFT and
+                y >= metrics.SCREEN_CLIENT_AREA_TOP and
+                x < metrics.SCREEN_CLIENT_AREA_RIGHT and
+                y < metrics.SCREEN_CLIENT_AREA_BOTTOM):
+            if self._current_screen is not None:
+                self._current_screen.touch_up(
+                    x - metrics.SCREEN_CLIENT_AREA_LEFT,
+                    y - metrics.SCREEN_CLIENT_AREA_TOP,
+                    z,
+                )
 
     def _invalidate_delayed(self):
         if not self._dirt or self._sleeping:
