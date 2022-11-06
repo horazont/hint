@@ -103,7 +103,7 @@ src/generated_font_data.inc: $(GENFONT)
 	$(GENFONT) --no-flip --bfseries \
 		-r "'0'" "'9'" \
 		-c "':'" \
-	  --space-width 6 \
+		--space-width 6 \
 		-c 0xfffd \
 		-l "data/glyphs/Cantarell/20px/0x0000003a.glyph" \
 		-- \
