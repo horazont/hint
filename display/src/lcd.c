@@ -31,14 +31,14 @@ static uint16_t lcd_brightness_awake_backup VAR_RAM = 0xC000;
 
 /* alphabetical order broken so that inlines appear before their use */
 
-inline void _configure_pwm()
+static inline void _configure_pwm()
 {
     GPIO_GPIO1DIR |= (1<<9);
     GPIO_GPIO1DATA &= ~(1<<9);
     IOCON_PIO1_9 = (0x1<<0);
 }
 
-inline void _disable_pwm()
+static inline void _disable_pwm()
 {
     TMR_TMR16B0TCR = 0; // pwm timer
     TMR_TMR16B1TCR = 0; // fade timer
@@ -46,7 +46,7 @@ inline void _disable_pwm()
     GPIO_GPIO1DATA &= ~(1<<9);
 }
 
-inline void _enable_pwm()
+static inline void _enable_pwm()
 {
     GPIO_GPIO1DATA &= ~(1<<9);
     TMR_TMR16B0TC = 0;
@@ -58,7 +58,7 @@ inline void _enable_pwm()
     TMR_TMR16B1TCR = 1; // fade timer
 }
 
-inline void lcd_wrcmd8(uint8_t cmd)
+void lcd_wrcmd8(uint8_t cmd)
 {
     LCD_MASKED_GPIO(LCD_RS_MASK, 0);
     LCD_MASKED_GPIO(LCD_WR_MASK, 0);
@@ -68,7 +68,7 @@ inline void lcd_wrcmd8(uint8_t cmd)
     LCD_MASKED_GPIO(LCD_RS_MASK, LCD_RS_MASK);
 }
 
-inline void lcd_wrdata8(uint8_t data)
+void lcd_wrdata8(uint8_t data)
 {
     LCD_MASKED_GPIO(LCD_WR_MASK, 0);
     LCD_MASKED_GPIO(LCD_DATA_MASK, data);
@@ -76,33 +76,33 @@ inline void lcd_wrdata8(uint8_t data)
     LCD_MASKED_GPIO(LCD_WR_MASK, LCD_WR_MASK);
 }
 
-inline void lcd_wrdata16(uint16_t data)
+void lcd_wrdata16(uint16_t data)
 {
     lcd_wrdata8((data >> 8) & 0xff);
     lcd_wrdata8(data & 0xff);
 }
 
-inline void lcd_draw(uint16_t colour)
+void lcd_draw(uint16_t colour)
 {
     lcd_wrdata16(colour);
 }
 
-inline void lcd_disable()
+void lcd_disable()
 {
     LCD_MASKED_GPIO(LCD_CS_MASK, LCD_CS_MASK);
 }
 
-inline void lcd_enable()
+void lcd_enable()
 {
     LCD_MASKED_GPIO(LCD_CS_MASK, 0);
 }
 
-inline void lcd_drawstart()
+void lcd_drawstart()
 {
     lcd_wrcmd8(LCD_CMD_WRITE);
 }
 
-inline void lcd_drawstop()
+void lcd_drawstop()
 {
 
 }

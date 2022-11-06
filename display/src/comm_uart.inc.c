@@ -141,6 +141,7 @@ void uart_tx_irq()
             uart.state.trns_src = (const volatile uint8_t*)uart.queue.items[uart.queue.active_item].header;
             uart.state.trns_end = uart.state.trns_src + sizeof(struct msg_header_t);
         }
+        __attribute__((fallthrough));
     }
     case TXU_SEND_HEADER:
     {
@@ -298,6 +299,7 @@ void uart_rx_irq()
         // missing break is intentional: receive the first bytes immediately
         // turn the timer on
         TMR_COMM_TIMEOUT_TCR = (1<<0) | (0<<1);
+        __attribute__((fallthrough));
     }
     case RXU_RECEIVE_HEADER:
     {
@@ -376,6 +378,7 @@ void uart_rx_irq()
         uart.state.recv_dest = &uart.state.dest_msg->msg.data[0];
         uart.state.recv_end = uart.state.recv_dest + HDR_GET_PAYLOAD_LENGTH(uart.state.curr_header);
         // we can smoothly continue here if more data is available
+        __attribute__((fallthrough));
     }
     case RXU_RECEIVE_PAYLOAD:
     {
@@ -385,6 +388,7 @@ void uart_rx_irq()
         uart_rx_state = RXU_RECEIVE_CHECKSUM;
         uart.state.recv_dest = (uint8_t*)&uart.state.dest_msg->msg.checksum;
         uart.state.recv_end = uart.state.recv_dest + sizeof(msg_checksum_t);
+        __attribute__((fallthrough));
     }
     case RXU_RECEIVE_CHECKSUM:
     {
