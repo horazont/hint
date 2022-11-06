@@ -45,13 +45,10 @@ static struct msg_header_t ping_header VAR_RAM =
         MSG_ADDRESS_HOST,
         0,
         MSG_FLAG_ACK | MSG_FLAG_ECHO);
-static volatile uint32_t buffer = 0;
 
 static inline void uart_init(const uint32_t baudrate)
 {
     NVIC_DisableIRQ(UART_IRQn);
-
-    buffer = 0xdeadbeef;
 
     /* Set 1.6 UART RXD */
     IOCON_PIO1_6 &= ~IOCON_PIO1_6_FUNC_MASK;

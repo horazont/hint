@@ -49,14 +49,11 @@ void uint32_to_hex(const uint32_t c, uint8_t *dest)
     } while (shift);
 }
 
-static int irq_called VAR_RAM = 0;
 static volatile bool msg_pending = false;
 
 
 void ADC_IRQHandler(void)
 {
-    // only used for touch right now
-    irq_called = 1;
     touch_intr_sm();
 }
 
