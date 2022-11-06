@@ -109,23 +109,28 @@ static coord_int_t prevz VAR_RAM = 0;
 
 static inline enum event_t wait_for_event()
 {
-    struct ticks_t t1 = ticks_get();
     while (1) {
-        do {
-            if (msg_pending) {
-                msg_pending = false;
-                return EV_COMM;
+        __asm__ volatile("wfi");
+        struct ticks_t t1 = ticks_get();
+        if (ticks_delta(&last_touch_sample, &t1) > TOUCH_SAMPLE_INTERVAL) {
+            touch_intr_start();
+        }
+
+        if (msg_pending) {
+            msg_pending = false;
+            return EV_COMM;
+        }
+
+        if (touch_pending) {
+            last_touch_sample = ticks_get();
+            touch_pending = false;
+            if (touch_get_raw_z() > TOUCH_MIN_PRESSURE) {
+                prevz = 1;
+                return EV_TOUCH;
+            } else if (prevz > 0) {
+                prevz = 0;
+                return EV_TOUCH;
             }
-            t1 = ticks_get();
-        } while (ticks_delta(&last_touch_sample, &t1) < TOUCH_SAMPLE_INTERVAL);
-        touch_sample();
-        last_touch_sample = ticks_get();
-        if (touch_get_raw_z() != 0) {
-            prevz = 1;
-            return EV_TOUCH;
-        } else if (prevz > 0) {
-            prevz = 0;
-            return EV_TOUCH;
         }
     }
 }
@@ -418,7 +423,6 @@ int main(void)
     DISABLE_IRQ();
 
     SCB_PDRUNCFG &= ~SCB_PDRUNCFG_ADC;
-    //~ NVIC_EnableIRQ(ADC_IRQn);
 
     SCB_SYSAHBCLKCTRL |= SCB_SYSAHBCLKCTRL_GPIO
                       |  SCB_SYSAHBCLKCTRL_IOCON
@@ -506,6 +510,8 @@ int main(void)
         touch_wait_for_clear();
     }
 
+    NVIC_EnableIRQ(ADC_IRQn);
+
     //~ comm_debug_tx_pong();
 
     fill_rectangle(0, 0, LCD_WIDTH-1, LCD_HEIGHT-1, 0x0000);
@@ -538,17 +544,7 @@ int main(void)
             z = touch_get_z();
 
             if ((z > 0) && (abs(prevx - x) + abs(prevy - y) <= 3)) {
-                prevx = x;
-                prevy = y;
                 break;
-            }
-
-            prevx = x;
-            prevy = y;
-
-            if (z == 0) {
-                prevx = -100;
-                prevy = -100;
             }
 
             //~ lcd_enable();
@@ -556,8 +552,13 @@ int main(void)
             //~ lcd_disable();
 
             msg_payload.subject = LPC_SUBJECT_TOUCH_EVENT;
-            msg_payload.payload.touch_ev.x = x;
-            msg_payload.payload.touch_ev.y = y;
+            if (z == 0) {
+                msg_payload.payload.touch_ev.x = prevx;
+                msg_payload.payload.touch_ev.y = prevy;
+            } else {
+                msg_payload.payload.touch_ev.x = x;
+                msg_payload.payload.touch_ev.y = y;
+            }
             msg_payload.payload.touch_ev.z = z;
             HDR_SET_PAYLOAD_LENGTH(msg_header, sizeof(struct lpc_msg_t));
             msg_checksum = checksum((const uint8_t*)&msg_payload,
@@ -566,6 +567,14 @@ int main(void)
             comm_tx_message(&msg_header,
                             (const uint8_t*)&msg_payload,
                             msg_checksum);
+
+            prevx = x;
+            prevy = y;
+
+            if (z == 0) {
+                prevx = -100;
+                prevy = -100;
+            }
 
             break;
         }
