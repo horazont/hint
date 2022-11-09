@@ -2,6 +2,7 @@
 #define _TOUCH_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 #include "draw.h"
 #include "fp11_4.h"
@@ -9,6 +10,8 @@
 /* the code in touch.h and touch.c is largely taken from the original
  * firmware code, as no specification for the touchpad could be found.
  */
+
+#define TOUCH_MIN_PRESSURE 200
 
 struct touch_calibration_t {
     /* offset_{x,y} is in ±11.4 format, scale_{x,y} is in ±0.15
@@ -22,12 +25,13 @@ struct touch_calibration_t {
 
 enum touch_intr_state_t {
     TOUCH_STATE_IDLE,
-    TOUCH_STATE_SAMPLING_Z,
+    TOUCH_STATE_SAMPLING_Z1,
+    TOUCH_STATE_SAMPLING_Z2,
     TOUCH_STATE_SAMPLING_X,
     TOUCH_STATE_SAMPLING_Y
 };
 
-extern volatile int touch_ev;
+extern volatile bool touch_pending;
 extern volatile enum touch_intr_state_t touch_intr_state;
 
 int touch_intr_start();
