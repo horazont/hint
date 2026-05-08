@@ -80,7 +80,6 @@ def nice_timedelta(seconds: float) -> str:
         return f"{seconds/86400:.0f}d"
 
 
-
 class InfluxScreen(Screen):
     ROW_HEIGHT = 14
     DATE_COLUMN_WIDTH = 56
@@ -136,9 +135,9 @@ class InfluxScreen(Screen):
         tmax = max((dt for (dt, *_) in rows))
         d_ts = (tmax - tmin).total_seconds() / (nrows - 1)
 
-        vmin = min(v for _, *vs in rows for v in vs)
+        vmin = min(v for _, *vs in rows for v in vs if v is not None)
         vmin = 0
-        vmax = max(v for _, *vs in rows for v in vs)
+        vmax = max(v for _, *vs in rows for v in vs if v is not None)
 
         for dt, *vals in rows:
             for i, ((name, colour), v) in enumerate(zip(self.data["columns"], vals)):
@@ -190,6 +189,10 @@ class InfluxScreen(Screen):
         for (colour, line) in lines.values():
             prev_x, prev_y = None, None
             for i, value in line:
+                if value is None:
+                    prev_x = None
+                    prev_y = None
+                    continue
                 x = round(i * d_x + graph_x0)
                 y = self.value_to_coord(graph_y0, graph_y1, vmin, vmax, value)
                 if prev_x is not None and prev_y is not None:
@@ -338,6 +341,8 @@ class InfluxService:
         self._api_url = None
         self._db = None
         self._auth = None
+        self._trim_front = None
+        self._trim_back = None
 
         self._handle_screen_deactivated()
         self.screen.on_activate.connect(self._handle_screen_activated)
@@ -379,20 +384,30 @@ class InfluxService:
                 ).replace(tzinfo=UTC)
                 rows.setdefault(time, [None]*ncolumns)[i] = value
 
+        rows = sorted(
+            (
+                (time,)+tuple(values)
+                for time, values in rows.items()
+            ),
+            key=lambda x: x[0],
+        )
+        if self._trim_back is not None:
+            for i in range(self._trim_back):
+                rows[i] = (rows[i][0],) + (None,)*ncolumns
+        if self._trim_front is not None:
+            for i in range(len(rows) - self._trim_front, len(rows)):
+                rows[i] = (rows[i][0],) + (None,)*ncolumns
+
         self.screen.data = {
             "columns": columns,
-            "rows": sorted(
-                (
-                    (time,)+tuple(values)
-                    for time, values in rows.items()
-                ),
-                key=lambda x: x[0],
-            ),
+            "rows": rows,
         }
 
     def configure(self, influx_cfg):
         self.screen.tab_caption = influx_cfg["caption"]
         self.screen.title = influx_cfg["title"]
+        self._trim_front = influx_cfg.get("trim_front")
+        self._trim_back = influx_cfg.get("trim_back")
         self._api_url = influx_cfg["api_url"]
         self._db = influx_cfg["db"]
         self._query = influx_cfg["query"]
