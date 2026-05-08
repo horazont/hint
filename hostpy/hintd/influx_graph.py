@@ -97,12 +97,12 @@ class InfluxScreen(Screen):
     def make_axis(self, vmin, vmax, nticks):
         # roughly taken from https://stackoverflow.com/a/16363437/1248008
         range_ = nice_num(vmax - vmin, False)
-        digits = math.log10(range_)
+        tick_offset = nice_num(range_ / (nticks - 1), True)
+        digits = math.log10(tick_offset)
         if digits < 0:
             digits = math.ceil(-digits)
         else:
             digits = 0
-        tick_offset = nice_num(range_ / (nticks - 1), True)
         base = math.floor(vmin / tick_offset) * tick_offset
         return [
             round(base + tick_offset * i, digits)
