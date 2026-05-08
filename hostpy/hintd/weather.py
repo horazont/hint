@@ -565,6 +565,30 @@ def humidity_render_func(
     )
 
 
+def activity_render_func(
+        value: float
+        ) -> typing.Tuple[TableColumnEx, TableColumnEx]:
+    label = format_dynamic_number(value)
+    saturation = min(max((value - 0.6) / 10.0, 0), 1.0)
+    bgcolour = hsv_to_rgb24(0.0, saturation, 1.0)
+    fgcolour = get_text_colour(*bgcolour)
+
+    return (
+        TableColumnEx(
+            bgcolour=bgcolour,
+            fgcolour=fgcolour,
+            text=label,
+            alignment=LPCTableAlignment.RIGHT,
+        ),
+        TableColumnEx(
+            bgcolour=bgcolour,
+            fgcolour=fgcolour,
+            text="Bq",
+            alignment=LPCTableAlignment.LEFT,
+        )
+    )
+
+
 def compile_temperature_sensor_row(row_cfg):
     return SensorRow(
         render_func=temperature_render_func,
@@ -583,9 +607,19 @@ def compile_humidity_sensor_row(row_cfg):
     )
 
 
+def compile_activity_sensor_row(row_cfg):
+    return SensorRow(
+        render_func=activity_render_func,
+        label=row_cfg.get("label"),
+        sensor=row_cfg["sensor"],
+        value=row_cfg["value"],
+    )
+
+
 SENSOR_TYPES = {
     "temperature": compile_temperature_sensor_row,
     "humidity": compile_humidity_sensor_row,
+    "activity": compile_activity_sensor_row,
 }
 
 
