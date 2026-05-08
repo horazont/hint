@@ -25,6 +25,7 @@ import hintd.weather
 import hintd.covid
 import hintd.shia
 import hintd.button
+import hintd.influx_graph
 
 from .ui import UI
 
