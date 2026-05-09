@@ -3,6 +3,7 @@ import enum
 import logging
 import math
 import os
+import time
 import typing
 
 from datetime import timedelta, datetime
@@ -24,6 +25,9 @@ from hintd.cconstants import (
     TableColumnEx,
 )
 from hintd.ui import metrics
+
+
+MAX_SENSOR_DATA_AGE = 900  # 15 minutes
 
 
 class WeatherModelItem(typing.NamedTuple):
@@ -308,6 +312,8 @@ class WeatherScreen(hintd.ui.Screen):
         y0 += self.SENSOR_TEXT_HEIGHT
 
         if really:
+            now = time.monotonic()
+
             ui.table_start(
                 x0, y0 + self.SENSOR_TEXT_BASELINE,
                 self.SENSOR_TEXT_HEIGHT,
@@ -319,9 +325,12 @@ class WeatherScreen(hintd.ui.Screen):
 
             for row in group.rows:
                 try:
-                    value = self.sensor_data[row.sensor][row.value]
+                    timestamp, value = self.sensor_data[row.sensor][row.value]
                 except KeyError:
                     value = None
+                else:
+                    if now - timestamp > MAX_SENSOR_DATA_AGE:
+                        value = None
 
                 if value is None:
                     cols = unset_render_func()
@@ -684,9 +693,11 @@ class SensorsService:
             self.logger.warning("received non-sample-batch pubsub event")
             return
 
+        now = time.monotonic()
+
         try:
             self._data[source.name] = {
-                sample.subpart: sample.value
+                sample.subpart: (now, sample.value)
                 for sample in item.registered_payload.samples
             }
         except BaseException as exc:
