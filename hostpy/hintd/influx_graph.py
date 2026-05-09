@@ -114,18 +114,16 @@ class InfluxScreen(Screen):
         return round(graph_y1 - (v - vmin) / (vmax - vmin) *
                      (graph_y1 - graph_y0))
 
-    def paint(self):
-        if not self.data or not self.data["rows"]:
-            return
-
-        print(self.data)
-
-        graph_x0 = metrics.SCREEN_CLIENT_AREA_LEFT + 32
-        graph_y0 = metrics.SCREEN_CLIENT_AREA_TOP + 16
-        graph_x1 = metrics.SCREEN_CLIENT_AREA_RIGHT - 2
-        graph_y1 = metrics.SCREEN_CLIENT_AREA_BOTTOM - 20
-        graph_h = graph_y1 - graph_y0
-        rows = self.data["rows"]
+    def _paint_lines(
+        self,
+        rows,
+        graph_x0,
+        graph_x1,
+        graph_y0,
+        graph_y1,
+        *,
+        override_colour=None,
+    ):
         nrows = len(rows)
 
         d_x = (graph_x1 - graph_x0) / (nrows - 1)
@@ -141,7 +139,61 @@ class InfluxScreen(Screen):
 
         for dt, *vals in rows:
             for i, ((name, colour), v) in enumerate(zip(self.data["columns"], vals)):
-                lines.setdefault(i, (colour, []))[1].append(((dt - tmin).total_seconds() / d_ts, v))
+                lines.setdefault(i, (override_colour or colour, []))[1].append(((dt - tmin).total_seconds() / d_ts, v))
+
+        for (colour, line) in lines.values():
+            prev_x, prev_y = None, None
+            for i, value in line:
+                if value is None:
+                    prev_x = None
+                    prev_y = None
+                    continue
+                x = round(i * d_x + graph_x0)
+                y = self.value_to_coord(graph_y0, graph_y1, vmin, vmax, value)
+                if prev_x is not None and prev_y is not None:
+                    self._ui.draw_line(
+                        prev_x, prev_y,
+                        x, y,
+                        colour,
+                    )
+                prev_x, prev_y = x, y
+
+        return tmin, tmax, d_ts, vmin, vmax
+
+
+    def paint(self):
+        if not self.data or not self.data["rows"]:
+            return
+
+        graph_x0 = metrics.SCREEN_CLIENT_AREA_LEFT + 32
+        graph_y0 = metrics.SCREEN_CLIENT_AREA_TOP + 16
+        graph_x1 = metrics.SCREEN_CLIENT_AREA_RIGHT - 2
+        graph_y1 = metrics.SCREEN_CLIENT_AREA_BOTTOM - 20
+        graph_h = graph_y1 - graph_y0
+        rows = self.data["rows"]
+        nrows = len(rows)
+
+        d_x = (graph_x1 - graph_x0) / (nrows - 1)
+
+        prev_rows = self.data.get("prev_rows")
+        if prev_rows is not None and prev_rows != rows:
+            self._paint_lines(
+                prev_rows,
+                graph_x0,
+                graph_x1,
+                graph_y0,
+                graph_y1,
+                override_colour=metrics.THEME_CLIENT_AREA_BACKGROUND_COLOUR,
+            )
+        self.data["prev_rows"] = rows
+
+        tmin, tmax, d_ts, vmin, vmax = self._paint_lines(
+            rows,
+            graph_x0,
+            graph_x1,
+            graph_y0,
+            graph_y1,
+        )
 
         # and now some ticks
         ticks = self.make_axis(vmin, vmax, 5)
@@ -185,23 +237,6 @@ class InfluxScreen(Screen):
                 metrics.THEME_CLIENT_AREA_COLOUR,
                 str(tick),
             )
-
-        for (colour, line) in lines.values():
-            prev_x, prev_y = None, None
-            for i, value in line:
-                if value is None:
-                    prev_x = None
-                    prev_y = None
-                    continue
-                x = round(i * d_x + graph_x0)
-                y = self.value_to_coord(graph_y0, graph_y1, vmin, vmax, value)
-                if prev_x is not None and prev_y is not None:
-                    self._ui.draw_line(
-                        prev_x, prev_y,
-                        x, y,
-                        colour,
-                    )
-                prev_x, prev_y = x, y
 
         ntimeticks = 6
         d_x_tick = (graph_x1 - graph_x0) / ntimeticks
@@ -398,10 +433,9 @@ class InfluxService:
             for i in range(len(rows) - self._trim_front, len(rows)):
                 rows[i] = (rows[i][0],) + (None,)*ncolumns
 
-        self.screen.data = {
-            "columns": columns,
-            "rows": rows,
-        }
+        self.logger.debug("found %d columns and %d rows", len(columns), len(rows))
+        self.screen.data["columns"] = columns
+        self.screen.data["rows"] = rows
 
     def configure(self, influx_cfg):
         self.screen.tab_caption = influx_cfg["caption"]
