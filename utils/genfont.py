@@ -1,9 +1,7 @@
-#!/usr/bin/python2
-# encoding=utf8
-from __future__ import print_function
+#!/usr/bin/python3
 
-import ConfigParser
-import cStringIO
+import configparser
+import io
 import itertools
 import textwrap
 import logging
@@ -66,7 +64,7 @@ class GlyphStruct(object):
         else:
             data = itertools.chain(*rows[skip_above:-skip_below])
 
-        self.data = bytearray(data)
+        self.data = bytes(data)
 
     def _compress_bits(self):
         byteblocks = list(split_to_parts(self.data, 8))
@@ -79,7 +77,7 @@ class GlyphStruct(object):
                     curr_byte |= bitmask
                 bitmask = bitmask >> 1
             final[i] = curr_byte
-        self.data = final
+        self.data = bytes(final)
 
     def get_bytemap(self, alignment=1):
         rowsize = self.width
@@ -103,7 +101,7 @@ class GlyphStruct(object):
 
             desti += rowsize - self.width
 
-        return buf
+        return bytes(buf)
 
     def export_as_glyphfile(self, f):
         config = ConfigParser.ConfigParser()
@@ -159,8 +157,8 @@ class GlyphStruct(object):
                 break
             configlines.append(line)
 
-        config = ConfigParser.ConfigParser()
-        config.readfp(cStringIO.StringIO("".join(configlines)))
+        config = configparser.ConfigParser()
+        config.read_file(io.StringIO("".join(configlines)))
 
         y0 = config.getint("info", "baseline")
         codepoint = config.getint("info", "codepoint")
@@ -173,10 +171,10 @@ class GlyphStruct(object):
         if not all(len(line) == width for line in glyphdata):
             raise ValueError("Glyph data is not equal-sized")
 
-        if not all(c in {"0", "1"}
-                   for c in line
-                   for line in glyphdata):
-            raise ValueError("Glyph data is malformed")
+        if not all(c in ("0", "1")
+                   for line in glyphdata
+                   for c in line):
+            raise ValueError("Glyph data is malformed", glyphdata)
 
         height = len(glyphdata)
 
@@ -250,7 +248,7 @@ class FontStruct(object):
                               + len(self.data)
 
     def add_data(self, data):
-        data = str(data)
+        data = bytes(data)
         try:
             offset = self.datamap[data]
         except KeyError:
@@ -302,7 +300,7 @@ class FontStruct(object):
     def _add_indent(text, indent):
         return "\n".join(
             indent+line
-            for line in (text.split("\n") if isinstance(text, basestring) else text))
+            for line in (text.split("\n") if isinstance(text, str) else text))
 
     def _c_data(self, indent="        "):
         return self._add_indent(
@@ -410,7 +408,7 @@ class Renderer:
 
     def render_ustr(self, ustr):
         self._buffer[:] = self._nullbuffer[:]
-        self._layout.set_text(ustr.encode("utf8"), -1)
+        self._layout.set_text(ustr, -1)
 
         _, logical = self._layout.get_pixel_extents()
 
@@ -438,7 +436,7 @@ class Renderer:
 
     def struct_ustr(self, codepoint):
         glyph = GlyphStruct(codepoint)
-        glyph.set_bytemap(*self.render_ustr(unichr(codepoint)))
+        glyph.set_bytemap(*self.render_ustr(chr(codepoint)))
         return glyph
 
     def get_space_width(self):
@@ -456,13 +454,13 @@ class Renderer:
             yield self.struct_ustr(codepoint)
 
 def charint(v):
-    if v.startswith(b"'") and v.endswith(b"'"):
+    if v.startswith("'") and v.endswith("'"):
         v = v[1:-1]
-        return ord(v.decode('utf8'))
+        return ord(v)
     v = v.lower()
-    if v.startswith(b"0x"):
+    if v.startswith("0x"):
         return int(v[2:], 16)
-    elif v.startswith(b"0b"):
+    elif v.startswith("0b"):
         return int(v[2:], 2)
     else:
         return int(v)
@@ -476,7 +474,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "font",
         metavar="FONT",
-        help="Use font family FONT"
+        help="Use font family FONT",
     )
     parser.add_argument(
         "size",
@@ -499,7 +497,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "-l", "--load",
-        nargs="+",
+        nargs="*",
         dest="load_files",
         action="append",
         metavar="FILE",
@@ -550,6 +548,12 @@ if __name__ == "__main__":
         metavar="ELFSECTION",
         dest="elf_section",
         help="ELF section to store the font in"
+    )
+    parser.add_argument(
+        "--space-width",
+        default=None,
+        type=int,
+        help="Override the space width from the font",
     )
     parser.add_argument(
         "--export",
@@ -620,7 +624,11 @@ if __name__ == "__main__":
     glyphs.extend(
         renderer.render_glyphs(font, codepoints)
     )
-    font.space_width = renderer.get_space_width()
+
+    if args.space_width is not None:
+        font.space_width = args.space_width
+    else:
+        font.space_width = renderer.get_space_width()
 
     for glyph in glyphs:
         if args.export_dir:
