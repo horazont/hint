@@ -236,7 +236,7 @@ void touch_init()
     HIZUP(YM);
 }
 
-inline void calculate_calibration_xy(
+static inline void calculate_calibration_xy(
     const fp11_4_t lcd1,
     const fp11_4_t lcd2,
     const fp11_4_t touch1,
