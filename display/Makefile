@@ -71,13 +71,13 @@ COMMONDEPS = src/config.h
 default: bin/firmware.hex
 
 inc/lpc111x.h:
-	ln -s ../$(CODEBASEDIR)/lpc111x.h $@
+	ln -sf ../$(CODEBASEDIR)/lpc111x.h $@
 
 inc/sysdefs.h:
-	ln -s ../$(CODEBASEDIR)/sysdefs.h $@
+	ln -sf ../$(CODEBASEDIR)/sysdefs.h $@
 
 inc/projectconfig.h:
-	ln -s ../src/config.h $@
+	ln -sf ../src/config.h $@
 
 src/generated_font_data.inc: $(GENFONT)
 	$(GENFONT) --no-flip \

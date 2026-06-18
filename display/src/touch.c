@@ -5,8 +5,6 @@
 #include "config.h"
 #include "utils.h"
 
-#define MIN_PRESSURE 200
-
 #define IOCON_PIO                      (0x00<<0) //pio
 #define IOCON_R_PIO                    (0x01<<0) //pio (reserved pins)
 #define IOCON_ADC                      (0x01<<0) //adc
@@ -96,15 +94,15 @@ _Static_assert(GPIO_GPIOn_BASE(3) == GPIO_GPIO3_BASE, "GPIOn_BASE does not work 
 #define HIZDOWN(which)  ANY_SET_HIZDOWN(which ## _IOCON, which ## _PORT, which ## _PIN)
 #define ADC(which)      ANY_SET_ADC(which ## _IOCON, which ## _PORT, which ## _PIN)
 
-static coord_int_t raw_x VAR_RAM;
-static coord_int_t raw_y VAR_RAM;
-static coord_int_t raw_z VAR_RAM;
-static coord_int_t last_x VAR_RAM;
-static coord_int_t last_y VAR_RAM;
+static volatile coord_int_t raw_x VAR_RAM;
+static volatile coord_int_t raw_y VAR_RAM;
+static volatile coord_int_t raw_z VAR_RAM;
+static volatile coord_int_t last_x VAR_RAM;
+static volatile coord_int_t last_y VAR_RAM;
 
 /* static coord_int_t intr_tmp VAR_RAM; */
 
-volatile int touch_ev VAR_RAM;
+volatile bool touch_pending VAR_RAM;
 volatile enum touch_intr_state_t touch_intr_state VAR_RAM = TOUCH_STATE_IDLE;
 
 static struct touch_calibration_t calibration VAR_RAM;
@@ -116,7 +114,7 @@ int touch_intr_start()
         return 1;
     }
 
-    touch_intr_state = TOUCH_STATE_SAMPLING_Z;
+    touch_intr_state = TOUCH_STATE_SAMPLING_Z1;
     ADC(XM);
     ADC(YP);
     // set X+ to Vcc, Y- to GND
@@ -125,13 +123,15 @@ int touch_intr_start()
 
     *(pREG32(ADC_AD0INTEN)) |= ADC_AD0INTEN_ADINTEN2;
     ADC_AD0CR = ADC_AD0CR_BURST_HWSCANMODE
-              | ADC_AD0CR_SEL_AD2
-              | ADC_AD0CR_SEL_AD1
-              | ADC_AD0CR_CLKS_10BITS
-              | (ADC_AD0CR & ADC_AD0CR_CLKDIV_MASK);
+        | ADC_AD0CR_SEL_AD2
+        | ADC_AD0CR_CLKS_10BITS
+        | (ADC_AD0CR & ADC_AD0CR_CLKDIV_MASK);
 
     return 0;
 }
+
+static volatile coord_int_t z1;
+static volatile coord_int_t z2;
 
 void touch_intr_sm()
 {
@@ -144,17 +144,26 @@ void touch_intr_sm()
         // this is invalid!
         break;
     }
-    case TOUCH_STATE_SAMPLING_Z:
+    case TOUCH_STATE_SAMPLING_Z1:
     {
-        coord_int_t z1, z2;
-        z1 = *(pREG32(ADC_AD0DR1)) & 0x3FF;
-        z2 = *(pREG32(ADC_AD0DR2)) & 0x3FF;
+        z1 = ADC_EXTRACT(XM_AD);
+        touch_intr_state = TOUCH_STATE_SAMPLING_Z2;
+        *(pREG32(ADC_AD0INTEN)) |= ADC_AD0INTEN_ADINTEN1;
+        ADC_AD0CR = ADC_AD0CR_BURST_HWSCANMODE
+            | ADC_AD0CR_SEL_AD1
+            | ADC_AD0CR_CLKS_10BITS
+            | (ADC_AD0CR & ADC_AD0CR_CLKDIV_MASK);
+        break;
+    }
+    case TOUCH_STATE_SAMPLING_Z2:
+    {
+        z2 = ADC_EXTRACT(YP_AD);
 
-        raw_z = (0x3FF-z2) + z1;
-        if (raw_z < MIN_PRESSURE) {
-            raw_x = 0xfff;
-            raw_y = 0xfff;
+        raw_z = ((0x3FF-z1) + z2);
+        if (raw_z < TOUCH_MIN_PRESSURE) {
+            raw_z = 0;
             touch_intr_state = TOUCH_STATE_IDLE;
+            touch_pending = true;
             break;
         }
 
@@ -192,7 +201,7 @@ void touch_intr_sm()
     }*/
     case TOUCH_STATE_SAMPLING_X:
     {
-        raw_x = *(pREG32(ADC_AD0DR3)) & 0x3FF;
+        raw_y = ADC_EXTRACT(YM_AD);
 
         ADC(XP);
         ADC(XM);
@@ -209,8 +218,9 @@ void touch_intr_sm()
     }
     case TOUCH_STATE_SAMPLING_Y:
     {
-        raw_y = *(pREG32(ADC_AD0DR2)) & 0x3FF;
+        raw_x = 1023 - ADC_EXTRACT(XM_AD);
         touch_intr_state = TOUCH_STATE_IDLE;
+        touch_pending = true;
 
         HIZUP(XP);
         HIZUP(XM);
@@ -236,7 +246,7 @@ void touch_init()
     HIZUP(YM);
 }
 
-inline void calculate_calibration_xy(
+static inline void calculate_calibration_xy(
     const fp11_4_t lcd1,
     const fp11_4_t lcd2,
     const fp11_4_t touch1,
@@ -404,7 +414,7 @@ void touch_sample()
 
     raw_z = z;
 
-    if(z > MIN_PRESSURE) //valid touch?
+    if(z > TOUCH_MIN_PRESSURE) //valid touch?
     {
         //cal_z = 0;
 
@@ -487,4 +497,3 @@ void touch_wait_for_clear()
         delay_ms(50);
     }
 }
-
