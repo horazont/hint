@@ -128,11 +128,13 @@ class Protocol(asyncio.Protocol):
                         self._echo_event.wait(),
                         timeout=10,
                     )
+                    self._echo_event.clear()
                 except asyncio.TimeoutError:
                     self._logger.warning("echo timeout")
                     self._exc = ConnectionError("ping timeout")
                     self._transport.abort()
                 else:
+                    self._logger.debug("echo_event triggered, echo state = %r", self._echo_state)
                     if self._echo_state != EchoState.RECEIVED:
                         continue
                 self._logger.debug("echo response received")
