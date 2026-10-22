@@ -31,14 +31,14 @@ static uint16_t lcd_brightness_awake_backup VAR_RAM = 0xC000;
 
 /* alphabetical order broken so that inlines appear before their use */
 
-inline void _configure_pwm()
+static inline void _configure_pwm()
 {
     GPIO_GPIO1DIR |= (1<<9);
     GPIO_GPIO1DATA &= ~(1<<9);
     IOCON_PIO1_9 = (0x1<<0);
 }
 
-inline void _disable_pwm()
+static inline void _disable_pwm()
 {
     TMR_TMR16B0TCR = 0; // pwm timer
     TMR_TMR16B1TCR = 0; // fade timer
@@ -46,7 +46,7 @@ inline void _disable_pwm()
     GPIO_GPIO1DATA &= ~(1<<9);
 }
 
-inline void _enable_pwm()
+static inline void _enable_pwm()
 {
     GPIO_GPIO1DATA &= ~(1<<9);
     TMR_TMR16B0TC = 0;

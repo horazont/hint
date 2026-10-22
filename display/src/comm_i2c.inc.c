@@ -214,6 +214,7 @@ void I2C_IRQHandler()
                     backbuffer_ready = true;
                 }
                 NVIC_SetPendingIRQ(received_irqn);
+                [[fallthrough]];
             }
             case MSG_ADDRESS_HOST:
             {

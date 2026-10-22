@@ -2,7 +2,7 @@
 
 #include "lcd.h"
 
-inline void clamp_x(coord_int_t *x)
+static inline void clamp_x(coord_int_t *x)
 {
     if (*x < 0) {
         *x = 0;
@@ -11,7 +11,7 @@ inline void clamp_x(coord_int_t *x)
     }
 }
 
-inline void clamp_y(coord_int_t *y)
+static inline void clamp_y(coord_int_t *y)
 {
     if (*y < 0) {
         *y = 0;
@@ -20,8 +20,8 @@ inline void clamp_y(coord_int_t *y)
     }
 }
 
-inline void rectangle_clamp(coord_int_t *x0, coord_int_t *y0,
-                            coord_int_t *x1, coord_int_t *y1)
+static inline void rectangle_clamp(coord_int_t *x0, coord_int_t *y0,
+                                   coord_int_t *x1, coord_int_t *y1)
 {
     clamp_x(x0);
     clamp_x(x1);
@@ -29,8 +29,8 @@ inline void rectangle_clamp(coord_int_t *x0, coord_int_t *y0,
     clamp_y(y1);
 }
 
-inline void rectangle_clamp_and_swap(coord_int_t *x0, coord_int_t *y0,
-                                     coord_int_t *x1, coord_int_t *y1)
+static inline void rectangle_clamp_and_swap(coord_int_t *x0, coord_int_t *y0,
+                                            coord_int_t *x1, coord_int_t *y1)
 {
     rectangle_clamp(x0, y0, x1, y1);
 

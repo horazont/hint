@@ -38,7 +38,7 @@ LD_SCRIPT = $(CODEBASEDIR)/lpc1xxx/linkscript.ld
 LD_TEMP = $(BIN)/memory.ld
 CPU_TYPE = cortex-m0
 
-BASEFLAGS = -Wall -Wextra -Werror -D__LITTLE_ENDIAN
+BASEFLAGS = -Wall -Wextra -Werror -Wno-error=address-of-packed-member -D__LITTLE_ENDIAN
 OPTFLAGS = -Os
 
 ifeq (TRUE,$(DEBUG))
@@ -79,50 +79,51 @@ inc/sysdefs.h:
 inc/projectconfig.h:
 	ln -s ../src/config.h $@
 
-src/generated_font_data.inc: $(GENFONT)
-	$(GENFONT) --no-flip \
-		-r 0x20 0x7e \
-		-r 0xa1 0xff \
-		-x 0xad \
-		-c 0xfffd \
-		-c 0x221e 0x2026 0x202f 0x2714 0x2718 0x2013 \
-		-r 0x2588 0x258f \
-		--section ".text#" \
-		-- \
-		"DejaVu Sans" 12 dejavu_sans_12px > $@
-	$(GENFONT) --no-flip --bfseries \
-		-r 0x20 0x7e \
-		-r 0xa1 0xff \
-		-x 0xad \
-		-c 0xfffd \
-	        -c 0x2588 \
-		-c 0x2026 0x2013 \
-		--section ".text#" \
-		-- \
-		"DejaVu Sans" 12 dejavu_sans_12px_bf >> $@
-	$(GENFONT) --no-flip --bfseries \
-		-r "'0'" "'9'" \
-		-c "':'" \
-	  --space-width 6 \
-		-c 0xfffd \
-		-l "data/glyphs/Cantarell/20px/0x0000003a.glyph" \
-		-- \
-		"Cantarell" 20 cantarell_20px_bf >> $@
-	$(GENFONT) --no-flip \
-		-r "'A'" "'Z'" \
-		-r "'a'" "'z'" \
-		-r "'0'" "'9'" \
-		-c "'.'" "':'" "'°'" \
-		-c "'ä'" "'ö'" "'ü'" \
-	  -c "'%'" \
-		-c 0xfffd \
-		-c 0x2026 \
-		-c 0x202f \
-		-c 0x2013 \
-		-l "data/glyphs/DejaVu Sans/9px/0x00000033.glyph" \
-		-l "data/glyphs/DejaVu Sans/9px/0x000000b0.glyph" \
-		--\
-		"DejaVu Sans" 9 dejavu_sans_9px >> $@
+src/generated_font_data.inc: #$(GENFONT)
+	touch $@
+#	$(GENFONT) --no-flip \
+#		-r 0x20 0x7e \
+#		-r 0xa1 0xff \
+#		-x 0xad \
+#		-c 0xfffd \
+#		-c 0x221e 0x2026 0x202f 0x2714 0x2718 0x2013 \
+#		-r 0x2588 0x258f \
+#		--section ".text#" \
+#		-- \
+#		"DejaVu Sans" 12 dejavu_sans_12px > $@
+#	$(GENFONT) --no-flip --bfseries \
+#		-r 0x20 0x7e \
+#		-r 0xa1 0xff \
+#		-x 0xad \
+#		-c 0xfffd \
+#	        -c 0x2588 \
+#		-c 0x2026 0x2013 \
+#		--section ".text#" \
+#		-- \
+#		"DejaVu Sans" 12 dejavu_sans_12px_bf >> $@
+#	$(GENFONT) --no-flip --bfseries \
+#		-r "'0'" "'9'" \
+#		-c "':'" \
+#	  --space-width 6 \
+#		-c 0xfffd \
+#		-l "data/glyphs/Cantarell/20px/0x0000003a.glyph" \
+#		-- \
+#		"Cantarell" 20 cantarell_20px_bf >> $@
+#	$(GENFONT) --no-flip \
+#		-r "'A'" "'Z'" \
+#		-r "'a'" "'z'" \
+#		-r "'0'" "'9'" \
+#		-c "'.'" "':'" "'°'" \
+#		-c "'ä'" "'ö'" "'ü'" \
+#	  -c "'%'" \
+#		-c 0xfffd \
+#		-c 0x2026 \
+#		-c 0x202f \
+#		-c 0x2013 \
+#		-l "data/glyphs/DejaVu Sans/9px/0x00000033.glyph" \
+#		-l "data/glyphs/DejaVu Sans/9px/0x000000b0.glyph" \
+#		--\
+#		"DejaVu Sans" 9 dejavu_sans_9px >> $@
 
 $(FIRMWAREBASE).elf: $(OBJ_FILES) $(FAKEDEPS) $(COMMONDEPS)
 	-@echo "MEMORY" > $(LD_TEMP)
@@ -162,7 +163,8 @@ bin/%.o: %.s $(FAKEDEPS) $(COMMONDEPS)
 	$(AS) $(ASFLAGS) -o $@ $<
 
 clean:
-	rm -f $(FAKEDEPS) src/generated_font_data.inc
+	rm -f $(FAKEDEPS) 
+	# rm -f src/generated_font_data.inc
 	rm -rf bin
 	mkdir bin
 
