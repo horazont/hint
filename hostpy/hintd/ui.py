@@ -572,7 +572,7 @@ class UI:
     def sleep(self):
         if self._sleeping:
             return
-        if self._calibration:
+        if self._calibration_screen:
             return
         self.logger.info("UI entering sleep state")
         self._sleeping = True
