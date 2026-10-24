@@ -82,24 +82,22 @@ MIN_CALIBRATION_SAMPLES = 16
 CALIBRATION_X0 = 2.5
 CALIBRATION_X1 = metrics.LCD_WIDTH - 3.5
 CALIBRATION_Y0 = 2.5
-CALIBRATION_Y1 = metrics.LCD_WIDTH - 3.5
+CALIBRATION_Y1 = metrics.LCD_HEIGHT - 3.5
 
 
 @dataclasses.dataclass
 class CalibrationPoint:
-    xavg: float = None
-    yavg: float = None
+    x: float = None
+    y: float = None
     n: int = 0
 
     def accum(self, x, y):
-        if self.xavg is None:
-            self.xavg = float(x)
-        else:
-            self.xavg = self.xavg * 0.9 + x * 0.1
-        if self.yavg is None:
-            self.yavg = float(y)
-        else:
-            self.yavg = self.yavg * 0.9 + y * 0.1
+        if self.x is None:
+            self.x = float(x)
+        if self.y is None:
+            self.y = float(y)
+        self.x = self.x * 0.9 + x * 0.1
+        self.y = self.y * 0.9 + y * 0.1
         self.n += 1
 
 
@@ -108,30 +106,34 @@ class CalibrationState:
         super().__init__()
         self.step = 0
         self.top_left = CalibrationPoint()
+        self.top_right = CalibrationPoint()
         self.bottom_right = CalibrationPoint()
+        self.bottom_left = CalibrationPoint()
+
+    def _get(self):
+        return [
+            (self.top_left, CALIBRATION_X0, CALIBRATION_Y0),
+            (self.bottom_right, CALIBRATION_X1, CALIBRATION_Y1),
+            (self.top_right, CALIBRATION_X1, CALIBRATION_Y0),
+            (self.bottom_left, CALIBRATION_X0, CALIBRATION_Y1),
+        ][self.step]
 
     def draw(self, ui):
-        if self.step == 0:
-            ui.fill_rect(
-                0, 0,
-                5, 5,
-                metrics.THEME_CLIENT_AREA_BACKGROUND_COLOUR,
-            )
-        elif self.step == 1:
-            ui.fill_rect(
-                metrics.LCD_WIDTH-6, metrics.LCD_HEIGHT-6,
-                metrics.LCD_WIDTH-1, metrics.LCD_HEIGHT-1,
-                metrics.THEME_CLIENT_AREA_BACKGROUND_COLOUR,
-            )
+        try:
+            _, xc, yc = self._get()
+        except IndexError:
+            pass
+
+        ui.fill_rect(
+            round(xc - 2.5), round(yc - 2.5),
+            round(xc + 2.5), round(yc + 2.5),
+            metrics.THEME_CLIENT_AREA_BACKGROUND_COLOUR,
+        )
 
     def _sample(self, x, y):
-        if self.step == 0:
-            # collect samples for top_left
-            dest = self.top_left
-        elif self.step == 1:
-            # collect samples for bottom_right
-            dest = self.bottom_right
-        else:
+        try:
+            dest, _, _ = self._get()
+        except IndexError:
             return
         dest.accum(x, y)
 
@@ -142,48 +144,117 @@ class CalibrationState:
         self._sample(x, y)
 
     def touch_up(self, x, y, z) -> bool:
-        if self.step == 0:
-            n = self.top_left.n
-        elif self.step == 1:
-            n = self.bottom_right.n
-        else:
+        try:
+            dest, _, _ = self._get()
+        except IndexError:
             return True
-        if n >= MIN_CALIBRATION_SAMPLES:
+        if dest.n >= MIN_CALIBRATION_SAMPLES:
             self.step += 1
             return True
         return False
 
     def try_collect(self):
-        if self.step >= 2:
-            x0 = self.top_left.xavg
-            y0 = self.top_left.yavg
-            x1 = self.bottom_right.xavg
-            y1 = self.bottom_right.yavg
-            print(x0, y0, x1, y1)
-
-            xb = ((CALIBRATION_X0 - (x0 / x1) * CALIBRATION_X1) /
-                  (1 - x0 / x1))
-            xa = (CALIBRATION_X1 - xb) / x1
-
-            yb = ((CALIBRATION_Y0 - (y0 / y1) * CALIBRATION_Y1) /
-                  (1 - y0 / y1))
-            ya = (CALIBRATION_Y1 - yb) / y1
-            return CalibrationMatrix(
-                xa, xb,
-                ya, yb,
+        if self.step >= 4:
+            return calibrate_full(
+                CALIBRATION_X0, CALIBRATION_Y0,
+                CALIBRATION_X1, CALIBRATION_Y1,
+                self.top_left,
+                self.top_right,
+                self.bottom_right,
+                self.bottom_left,
             )
         return None
 
 
 @dataclasses.dataclass
 class CalibrationMatrix:
-    xa: float
-    xb: float
-    ya: float
-    yb: float
+    axx: float
+    axy: float
+    ayx: float
+    ayy: float
+    bx: float
+    by: float
 
     def translate(self, xr, yr):
-        return round((xr * self.xa) + self.xb), round((yr * self.ya) + self.yb)
+        xm = xr * self.axx + yr * self.axy + self.bx
+        ym = xr * self.ayx + yr * self.ayy + self.by
+        return xm, ym
+
+
+def calibrate_full(
+    x0: float,
+    y0: float,
+    x1: float,
+    y1: float,
+    tl: CalibrationPoint,
+    tr: CalibrationPoint,
+    br: CalibrationPoint,
+    bl: CalibrationPoint,
+) -> CalibrationMatrix:
+    axy_n = x1 - x0 - (br.x - tl.x)*(x1 - x0)/(tr.x - tl.x)
+    axy_d = br.y - tl.y - (tr.x - tl.x)*(tr.y - tl.y)/(tr.x - tl.x)
+    if axy_n == 0.0 and axy_d == 0.0:
+        axy = 0.0
+    else:
+        axy = axy_n / axy_d
+
+    axx = (x1 - x0 - axy * (tr.y - tl.y)) / (tr.x - tl.x)
+
+    bx = x0 - tl.x*axx - tl.y*axy
+
+    ayx_n = -(tr.y - tl.y)*(y1 - y0)/(bl.y - tl.y)
+    ayx_d = tr.x - tl.x - (tr.y - tl.y)*(bl.x - tl.x)/(bl.y - tl.y)
+    ayx = ayx_n / ayx_d
+
+    ayy = (y1 - y0 - ayx*(bl.x - tl.x)) / (bl.y - tl.y)
+
+    by = y0 - ayx * tl.x - ayy * tl.y
+
+    return CalibrationMatrix(
+        axx=axx,
+        axy=axy,
+        bx=bx,
+        ayx=ayx,
+        ayy=ayy,
+        by=by,
+    )
+
+
+def selftest_calibration():
+    x0, y0 = 2.5, 2.5
+    x1, y1 = metrics.LCD_WIDTH-3.5, metrics.LCD_HEIGHT-3.5,
+
+    m = calibrate_full(
+        x0, y0,
+        x1, y1,
+        CalibrationPoint(x=200, y=300, n=0),
+        CalibrationPoint(x=520, y=300, n=0),
+        CalibrationPoint(x=520, y=540, n=0),
+        CalibrationPoint(x=200, y=540, n=0),
+    )
+    # simple linear mapping, no shear
+    assert m.axy == 0, m
+    assert m.translate(200, 300) == (x0, y0)
+    assert m.translate(520, 300) == (x1, y0)
+    assert m.translate(200, 540) == (x0, y1)
+    assert m.translate(520, 540) == (x1, y1)
+
+    m = calibrate_full(
+        x0, y0,
+        x1, y1,
+        CalibrationPoint(x=200, y=300, n=0),
+        CalibrationPoint(x=450, y=300, n=0),
+        CalibrationPoint(x=460, y=540, n=0),
+        CalibrationPoint(x=210, y=540, n=0),
+    )
+    assert m.axy != 0, m
+    assert m.translate(200, 300) == (x0, y0)
+    assert m.translate(450, 300) == (x1, y0)
+    assert m.translate(460, 540) == (x1, y1)
+    assert m.translate(210, 540) == (x0, y1)
+
+
+selftest_calibration()
 
 
 class Screen:
