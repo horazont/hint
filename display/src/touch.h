@@ -41,9 +41,6 @@ void touch_calculate_calibration(
     const struct point11_4_t *touch2,
     int merge);
 void touch_get_calibration(struct touch_calibration_t *dest);
-coord_int_t touch_get_x();
-coord_int_t touch_get_y();
-coord_int_t touch_get_z();
 coord_int_t touch_get_raw_x();
 coord_int_t touch_get_raw_y();
 coord_int_t touch_get_raw_z();

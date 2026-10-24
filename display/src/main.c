@@ -470,44 +470,6 @@ int main(void)
     NVIC_SetPriority(EINT0_IRQn, 1);
 
     _Static_assert(sizeof(unsigned int) == 4, "foo");
-    {
-        font_draw_text(&dejavu_sans_12px_bf,
-            20, 40, 0x0000,
-            (utf8_cstr_t)"Calibration");
-        font_draw_text(&dejavu_sans_12px,
-            20, 60, 0x0000,
-            (utf8_cstr_t)"Please touch the highlighted points");
-
-        coord_int_t x, y, z;
-        struct point11_4_t lcd1, touch1, lcd2, touch2;
-        fill_rectangle(0, 0, 5, 5, 0x0000);
-        lcd1.x = fp11_4_from_int16_t(2) + FP11_4_ZERO_POINT_FIVE;
-        lcd1.y = fp11_4_from_int16_t(2) + FP11_4_ZERO_POINT_FIVE;
-        touch_wait_for_raw(&x, &y, &z);
-        touch_wait_for_clear();
-        touch1.x = fp11_4_from_int16_t(x);
-        touch1.y = fp11_4_from_int16_t(y);
-        fill_rectangle(0, 0, 5, 5, 0xffff);
-
-        //~ show_coords(buffer, x, y, z);
-
-        fill_rectangle(LCD_WIDTH-6, LCD_HEIGHT-6, LCD_WIDTH-1, LCD_HEIGHT-1,
-                       0x0000);
-        lcd2.x = fp11_4_from_int16_t(LCD_WIDTH-3) + FP11_4_ZERO_POINT_FIVE;
-        lcd2.y = fp11_4_from_int16_t(LCD_HEIGHT-3) + FP11_4_ZERO_POINT_FIVE;
-        touch_wait_for_raw(&x, &y, &z);
-        touch_wait_for_clear();
-        touch2.x = fp11_4_from_int16_t(x);
-        touch2.y = fp11_4_from_int16_t(y);
-        fill_rectangle(LCD_WIDTH-6, LCD_HEIGHT-6, LCD_WIDTH-1, LCD_HEIGHT-1,
-                       0xffff);
-
-        //~ show_coords(buffer, x, y, z);
-
-        touch_calculate_calibration(&lcd1, &lcd2, &touch1, &touch2, 0);
-
-        touch_wait_for_clear();
-    }
 
     //~ comm_debug_tx_pong();
 
@@ -536,9 +498,9 @@ int main(void)
         case EV_TOUCH:
         {
             coord_int_t x, y, z;
-            x = touch_get_x();
-            y = touch_get_y();
-            z = touch_get_z();
+            x = touch_get_raw_x();
+            y = touch_get_raw_y();
+            z = touch_get_raw_z();
 
             if ((z > 0) && (abs(prevx - x) + abs(prevy - y) <= 3)) {
                 prevx = x;

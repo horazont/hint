@@ -107,8 +107,6 @@ static coord_int_t last_y VAR_RAM;
 volatile int touch_ev VAR_RAM;
 volatile enum touch_intr_state_t touch_intr_state VAR_RAM = TOUCH_STATE_IDLE;
 
-static struct touch_calibration_t calibration VAR_RAM;
-
 int touch_intr_start()
 {
     if (touch_intr_state != TOUCH_STATE_IDLE)
@@ -252,85 +250,6 @@ inline void calculate_calibration_xy(
     *offset = lcd1 - (fp11_4_t)(temp_11_19 >> 15);
 }
 
-void touch_calculate_calibration(
-    const struct point11_4_t *lcd1,
-    const struct point11_4_t *lcd2,
-    const struct point11_4_t *touch1,
-    const struct point11_4_t *touch2,
-    int merge)
-{
-    struct touch_calibration_t new_calibration;
-
-    /* until we find out which fixed-point setup is the best here, we'll
-     * just do it by hand. */
-
-    /* INPUT: ±11.4 */
-    /* calibration.offset_{x,y}: ±11.4 */
-    /* calibration.scale_{x,y}: ±0.15 */
-
-    calculate_calibration_xy(
-        lcd1->x, lcd2->x, touch1->x, touch2->x,
-        &new_calibration.offset_x, &new_calibration.scale_x);
-    calculate_calibration_xy(
-        lcd1->y, lcd2->y, touch1->y, touch2->y,
-        &new_calibration.offset_y, &new_calibration.scale_y);
-
-    if (merge) {
-        calibration.offset_x = fp11_4_avg(
-            calibration.offset_x, new_calibration.offset_x);
-        calibration.offset_y = fp11_4_avg(
-            calibration.offset_y, new_calibration.offset_y);
-
-        calibration.scale_x =
-            (calibration.scale_x >> 1) + (new_calibration.scale_x >> 1);
-        calibration.scale_y =
-            (calibration.scale_y >> 1) + (new_calibration.scale_y >> 1);
-    } else {
-        calibration.offset_x = new_calibration.offset_x;
-        calibration.offset_y = new_calibration.offset_y;
-        calibration.scale_x = new_calibration.scale_x;
-        calibration.scale_y = new_calibration.scale_y;
-    }
-
-    //~ new_calibration.scale_x = fp11_4_div(
-        //~ fp11_4_sub(lcd1->x, lcd2->x),
-        //~ fp11_4_sub(touch1->x, touch2->x));
-    //~ new_calibration.offset_x = fp11_4_sub(
-        //~ lcd1->x, fp11_4_mul(calibration.scale_x, touch1->x));
-//~
-    //~ new_calibration.scale_y = fp11_4_div(
-        //~ fp11_4_sub(lcd1->y, lcd2->y),
-        //~ fp11_4_sub(touch1->y, touch2->y));
-    //~ new_calibration.offset_y = fp11_4_sub(
-        //~ lcd1->y, fp11_4_mul(calibration.scale_x, touch1->y));
-//~
-    //~ if (merge) {
-        //~ calibration.offset_x = fp11_4_avg(
-            //~ new_calibration.offset_x, calibration.offset_x);
-        //~ calibration.offset_y = fp11_4_avg(
-            //~ new_calibration.offset_y, calibration.offset_y);
-        //~ calibration.scale_x = fp11_4_avg(
-            //~ new_calibration.scale_x, calibration.scale_x);
-        //~ calibration.scale_y = fp11_4_avg(
-            //~ new_calibration.scale_y, calibration.scale_y);
-    //~ } else {
-        //~ calibration.offset_x = new_calibration.offset_x;
-        //~ calibration.offset_y = new_calibration.offset_y;
-        //~ calibration.scale_x = new_calibration.scale_x;
-        //~ calibration.scale_y = new_calibration.scale_y;
-    //~ }
-
-
-}
-
-void touch_get_calibration(struct touch_calibration_t *dest)
-{
-    dest->offset_x = calibration.offset_x;
-    dest->offset_y = calibration.offset_y;
-    dest->scale_x = calibration.scale_x;
-    dest->scale_y = calibration.scale_y;
-}
-
 inline coord_int_t touch_to_lcd(
     const coord_int_t raw_coord,
     const fp11_4_t offset,
@@ -339,23 +258,6 @@ inline coord_int_t touch_to_lcd(
     const int32_t temp_15_15 = raw_coord * scale;
     const fp11_4_t shifted = (fp11_4_t)(temp_15_15 >> 11) + offset;
     return (shifted >> 4);
-}
-
-coord_int_t touch_get_x()
-{
-    return touch_to_lcd(raw_x,
-                        calibration.offset_x, calibration.scale_x);
-}
-
-coord_int_t touch_get_y()
-{
-    return touch_to_lcd(raw_y,
-                        calibration.offset_y, calibration.scale_y);
-}
-
-coord_int_t touch_get_z()
-{
-    return raw_z;
 }
 
 coord_int_t touch_get_raw_x()
@@ -439,7 +341,7 @@ void touch_sample()
             //~ if(y1 && (y1 == y2))
             {
                 // x and y are swapped
-                raw_x = 1023-y1;
+                raw_x = y1;
                 raw_y = x1;
                 raw_z = z;
             }

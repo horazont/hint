@@ -1,4 +1,5 @@
 import asyncio
+import dataclasses
 import enum
 import logging
 import math
@@ -75,6 +76,114 @@ class metrics:
     THEME_TAB_ACTIVE_BACKGROUND_COLOUR = 255, 255, 255
     THEME_TAB_ACTIVE_BORDER_COLOUR = 0, 0, 0
     THEME_TAB_ACTIVE_COLOUR = 0, 0, 0
+
+
+MIN_CALIBRATION_SAMPLES = 16
+CALIBRATION_X0 = 2.5
+CALIBRATION_X1 = metrics.LCD_WIDTH - 3.5
+CALIBRATION_Y0 = 2.5
+CALIBRATION_Y1 = metrics.LCD_WIDTH - 3.5
+
+
+@dataclasses.dataclass
+class CalibrationPoint:
+    xavg: float = None
+    yavg: float = None
+    n: int = 0
+
+    def accum(self, x, y):
+        if self.xavg is None:
+            self.xavg = float(x)
+        else:
+            self.xavg = self.xavg * 0.9 + x * 0.1
+        if self.yavg is None:
+            self.yavg = float(y)
+        else:
+            self.yavg = self.yavg * 0.9 + y * 0.1
+        self.n += 1
+
+
+class CalibrationState:
+    def __init__(self):
+        super().__init__()
+        self.step = 0
+        self.top_left = CalibrationPoint()
+        self.bottom_right = CalibrationPoint()
+
+    def draw(self, ui):
+        if self.step == 0:
+            ui.fill_rect(
+                0, 0,
+                5, 5,
+                metrics.THEME_CLIENT_AREA_BACKGROUND_COLOUR,
+            )
+        elif self.step == 1:
+            ui.fill_rect(
+                metrics.LCD_WIDTH-6, metrics.LCD_HEIGHT-6,
+                metrics.LCD_WIDTH-1, metrics.LCD_HEIGHT-1,
+                metrics.THEME_CLIENT_AREA_BACKGROUND_COLOUR,
+            )
+
+    def _sample(self, x, y):
+        if self.step == 0:
+            # collect samples for top_left
+            dest = self.top_left
+        elif self.step == 1:
+            # collect samples for bottom_right
+            dest = self.bottom_right
+        else:
+            return
+        dest.accum(x, y)
+
+    def touch_down(self, x, y, z):
+        self._sample(x, y)
+
+    def touch_move(self, x, y, z):
+        self._sample(x, y)
+
+    def touch_up(self, x, y, z) -> bool:
+        if self.step == 0:
+            n = self.top_left.n
+        elif self.step == 1:
+            n = self.bottom_right.n
+        else:
+            return True
+        if n >= MIN_CALIBRATION_SAMPLES:
+            self.step += 1
+            return True
+        return False
+
+    def try_collect(self):
+        if self.step >= 2:
+            x0 = self.top_left.xavg
+            y0 = self.top_left.yavg
+            x1 = self.bottom_right.xavg
+            y1 = self.bottom_right.yavg
+            print(x0, y0, x1, y1)
+
+            xb = ((CALIBRATION_X0 - (x0 / x1) * CALIBRATION_X1) /
+                  (1 - x0 / x1))
+            xa = (CALIBRATION_X1 - xb) / x1
+
+            yb = ((CALIBRATION_Y0 - (y0 / y1) * CALIBRATION_Y1) /
+                  (1 - y0 / y1))
+            ya = (CALIBRATION_Y1 - yb) / y1
+            return CalibrationMatrix(
+                xa, xb,
+                ya, yb,
+            )
+        return None
+
+
+@dataclasses.dataclass
+class CalibrationMatrix:
+    xa: float
+    xb: float
+    ya: float
+    yb: float
+
+    def translate(self, xr, yr):
+        return round((xr * self.xa) + self.xb), round((yr * self.ya) + self.yb)
 
 
 class Screen:
@@ -181,6 +290,9 @@ class UI:
         self._clock_task = hintlib.services.RestartingTask(self._clock_impl)
         self._sleep_handle = None
         self._clock_tz = pytz.UTC
+        self._calibration = None
+        self._calibration_screen = True
+        self._calibration_state = CalibrationState()
 
     def configure_clock(self, clock_cfg):
         self._clock_tz = pytz.timezone(clock_cfg.get("timezone", "Etc/UTC"))
@@ -261,6 +373,14 @@ class UI:
             self._activate_screen(new_screen)
 
     def touch_down(self, x, y, z):
+        if self._calibration_screen:
+            self._calibration_state.touch_down(x, y, z)
+            return
+
+        assert self._calibration
+        x, y = self._calibration.translate(x, y)
+        self.logger.debug("touch_down(%d, %d, %d)", x, y, z)
+
         self.wakeup()
         if x >= metrics.TABBAR_LEFT and y >= metrics.TABBAR_TOP:
             self._handle_tabbar_touch(x - metrics.TABBAR_LEFT,
@@ -277,6 +397,14 @@ class UI:
                 )
 
     def touch_move(self, x, y, z):
+        if self._calibration_screen:
+            self._calibration_state.touch_move(x, y, z)
+            return
+
+        assert self._calibration
+        x, y = self._calibration.translate(x, y)
+        self.logger.debug("touch_move(%d, %d, %d)", x, y, z)
+
         self.wakeup()
         if (x >= metrics.SCREEN_CLIENT_AREA_LEFT and
                 y >= metrics.SCREEN_CLIENT_AREA_TOP and
@@ -290,6 +418,20 @@ class UI:
                 )
 
     def touch_up(self, x, y, z):
+        if self._calibration_screen:
+            if self._calibration_state.touch_up(x, y, z):
+                self.invalidate(DirtMarker(DirtKind.DISPLAY))
+                result = self._calibration_state.try_collect()
+                if result is not None:
+                    self.logger.info("calibration complete: %r", result)
+                    self._calibration_screen = False
+                    self._calibration = result
+            return
+
+        assert self._calibration
+        x, y = self._calibration.translate(x, y)
+        self.logger.debug("touch_up(%d, %d, %d)", x, y, z)
+
         self.wakeup()
         if (x >= metrics.SCREEN_CLIENT_AREA_LEFT and
                 y >= metrics.SCREEN_CLIENT_AREA_TOP and
@@ -329,19 +471,29 @@ class UI:
                 metrics.THEME_BACKDROP_BACKGROUND_COLOUR,
             )
 
-        try:
-            self._draw_screen_background()
-            if self._current_screen is not None:
-                index = self._screens.index(self._current_screen)
-                if (all_dirty or
-                        DirtMarker.client_area() in self._dirt or
-                        DirtMarker.screen(index) in self._dirt):
-                    self._current_screen.paint()
-            self._draw_screen_clock()
-            self._draw_screen_title()
-        except:  # NOQA
-            self.logger.exception("repaint failed")
-            raise
+        if self._calibration_screen:
+            self.draw_text(
+                40,
+                120,
+                LPCFont.DEJAVU_SANS_12PX,
+                metrics.THEME_CLIENT_AREA_BACKGROUND_COLOUR,
+                "Calibration. Please touch the points.",
+            )
+            self._calibration_state.draw(self)
+        else:
+            try:
+                self._draw_screen_background()
+                if self._current_screen is not None:
+                    index = self._screens.index(self._current_screen)
+                    if (all_dirty or
+                            DirtMarker.client_area() in self._dirt or
+                            DirtMarker.screen(index) in self._dirt):
+                        self._current_screen.paint()
+                self._draw_screen_clock()
+                self._draw_screen_title()
+            except:  # NOQA
+                self.logger.exception("repaint failed")
+                raise
 
         self._dirt.clear()
 
