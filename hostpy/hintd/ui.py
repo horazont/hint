@@ -495,6 +495,7 @@ class UI:
                 result = self._calibration_state.try_collect()
                 if result is not None:
                     self.logger.info("calibration complete: %r", result)
+                    self._reset_sleep_timer()
                     self._calibration_screen = False
                     self._calibration = result
             return
@@ -570,6 +571,8 @@ class UI:
 
     def sleep(self):
         if self._sleeping:
+            return
+        if self._calibration:
             return
         self.logger.info("UI entering sleep state")
         self._sleeping = True
