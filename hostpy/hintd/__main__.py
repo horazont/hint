@@ -33,8 +33,9 @@ import signal
 
 import hintd.daemon
 
-loop = asyncio.get_event_loop()
-d = hintd.daemon.HintDaemon(args, config, loop)
+loop = asyncio.new_event_loop()
+asyncio.set_event_loop(loop)
+d = hintd.daemon.HintDaemon(args, config)
 
 task = asyncio.ensure_future(d.run())
 loop.add_signal_handler(signal.SIGINT, task.cancel)

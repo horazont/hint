@@ -31,11 +31,10 @@ from .ui import UI
 
 
 class HintDaemon:
-    def __init__(self, args, config, loop):
+    def __init__(self, args, config):
         super().__init__()
         self.logger = logging.getLogger("hintd")
         self._config = config
-        self._loop = loop
 
         self._xmpp = hintlib.core.BotCore(
             config["xmpp"],
@@ -170,13 +169,13 @@ class HintDaemon:
                 comm_path = pathlib.Path(self._config["comm"]["path"])
                 try:
                     if comm_path.is_socket():
-                        self._comm, _ = await self._loop.create_unix_connection(
+                        self._comm, _ = await asyncio.get_event_loop().create_unix_connection(
                             self.make_protocol,
                             str(comm_path),
                         )
                     else:
                         self._comm, _ = await serial_asyncio.create_serial_connection(
-                            self._loop,
+                            asyncio.get_event_loop(),
                             self.make_protocol,
                             str(comm_path),
                             115200,
